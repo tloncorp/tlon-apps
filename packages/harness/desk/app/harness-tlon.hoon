@@ -3048,10 +3048,13 @@
     (note:engine 'approval-expired' who.approval (address:p (place-to:p [who place]:approval)) id)
   ?^  place.approval  engine
   (decline-invitation:engine who.approval)
-::  +approval-order: an approval command in a message, and its author
+::  +approval-order: an approval command in a DM, and its author
 ::
-::    Read whoever wrote it, so that one from a ship that is not the owner
-::    is dropped before it could open a request or start a turn.
+::    Only a DM: the network authenticates a DM's author, while a channel
+::    post's is whatever the channel's host reports, so in a channel the
+::    text is an ordinary message. Read whoever wrote it, so that one from a
+::    ship that is not the owner is dropped before it could open a request
+::    or start a turn.
 ::
 ++  approval-order
   |=  event=incoming-event:v8:a
@@ -3060,17 +3063,15 @@
     ?+  -.event  ~
       %dm-post  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event (story-to-text:story content.event)])
       %dm-reply  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event (story-to-text:story content.event)])
-      %post  `[p.id.key.event (text:input our.bowl content.event)]
-      %reply  `[p.id.key.event (text:input our.bowl content.event)]
     ==
   ?~  said  ~
   ?:  =(our.bowl who.u.said)  ~
   =/  order  (read-order:ask text.u.said)
   ?~(order ~ `[who.u.said u.order])
-::  +carry-order: carry out the owner's approval command where it was sent
+::  +carry-order: carry out the owner's approval command, answering in the
+::  DM it came from
 ::
-::    Anyone else's is dropped unanswered. The owner's counts where their
-::    other messages would be admitted, and is answered there.
+::    Anyone else's is dropped unanswered.
 ::
 ++  carry-order
   |=  [who=@p =order:ask event=incoming-event:v8:a]
@@ -3080,9 +3081,6 @@
   ?~  heard  cor
   =/  to  to.u.heard
   ?:  (lte (posted-at:continuity event) (admission-cutoff who to))  cor
-  ::  As on OpenClaw, an expired request is gone before the id is looked up;
-  ::  +abet expires what is due only after the event.
-  =.  cor  expire-approvals
   =/  found  (pick:ask approvals id.order)
   ?~  found  (answer-order to (unknown:ask id.order))
   =/  [id=@t =approval:t]  u.found

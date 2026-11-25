@@ -3,9 +3,10 @@
 // peer that the bot and the guest have joined. With the peer as owner, the guest
 // mentions the bot and the owner types /allow in its DM with the bot: the guest is then
 // answered in that channel and still not in a DM. With the guest as owner, the peer
-// mentions the bot and the owner types /reject in the channel: the reply comes there,
-// and the peer stays unanswered, with no request open. No command text is in a model
-// request in these turns. Runs apart from tlon-approval-commands-dm-conformance: the denial limit lets a
+// mentions the bot and the owner posts /allow in the channel: that is an ordinary
+// message, answered as any slash text the head does not know, and grants nothing. The owner then types /reject in its
+// DM: the peer stays unanswered, with no request open. No DM command text is in a model
+// request. Runs apart from tlon-approval-commands-dm-conformance: the denial limit lets a
 // ship open one request per five minutes. Restores policy and defaults. Leaves the
 // fixture messages, the cards and the replies.
 import assert from 'node:assert/strict'
@@ -69,17 +70,36 @@ try {
   assert.ok(!t.seen(typed), 'the owner\'s command reached the model')
   console.log('PASS the allowed guest is answered in the channel and not in a DM')
 
-  // The guest owns the bot; the peer asks, and the owner rejects it in the channel. The
-  // bot's DM with the guest starts over so that the card can reach it.
+  // The guest owns the bot; the peer asks. The channel's host reports a channel post's
+  // author, so the owner's /allow there is an ordinary message: it grants nothing and is
+  // answered as any message there is. The owner then rejects it from its DM. The bot's DM with the
+  // guest starts over so that the card can reach it.
   await t.forget(guest)
   await t.configure(guest)
   const swapped = t.da(Date.now())
   const second = await asks(peer)
+  await until('the new owner is sent a card', async () => (await t.dmFromBot(guest, swapped))
+    .some((post) => t.words(post).includes(`Channel mention request from ${peer.ship}`)))
+  const posted = `/allow ${second.id}`
+  await t.post(guest, posted)
+  // The head answers it as it answers any slash text it does not know.
+  const [plain] = await until('the owner\'s channel /allow is answered as an ordinary message', async () => {
+    const found = await t.channelFromBot(swapped)
+    return found.length && found
+  })
+  assert.equal(t.words(plain), 'Unknown command. Send /help for the available commands.')
+  const unchanged = await status()
+  assert.deepEqual(requests(unchanged, peer), [second], 'a channel /allow closed the request')
+  assert.deepEqual(grants(unchanged), [], 'a channel /allow gave access')
+  assert.ok(!unchanged.events.some((notice) => notice.kind === 'approval-allowed' && notice.actor === peer.ship), 'a channel /allow was recorded as allowed')
+  const replies = [...await t.channelFromBot(swapped), ...await t.dmFromBot(guest, swapped)]
+  assert.ok(!replies.some((post) => t.words(post).includes(`Approved ${peer.ship}`)), 'a channel /allow was answered as a command')
+  console.log('PASS the owner\'s /allow in the channel grants nothing and is an ordinary message')
+
   const rejected = `/reject ${second.id}`
-  await t.post(guest, rejected)
-  const denied = await until('the owner\'s /reject in the channel is answered there', async () => (await t.channelFromBot(swapped))
-    .find((post) => t.words(post).includes(`Denied ${peer.ship} for `)))
-  assert.ok(t.words(denied).includes(nest), t.words(denied))
+  await t.dm(guest, bot, rejected)
+  await until('the owner\'s /reject in its DM is answered there', async () => (await t.dmFromBot(guest, swapped))
+    .some((post) => t.words(post).includes(`Denied ${peer.ship} for `)))
   const after = await status()
   assert.deepEqual(requests(after, peer), [], 'the rejected request is still open')
   assert.deepEqual(grants(after), [], 'reject gave access')
@@ -89,13 +109,8 @@ try {
   await sleep(4000)
   assert.ok(!answered(await t.channelFromBot(quiet)), 'the rejected peer was answered')
   assert.ok(!t.seen(sentText('again')), 'the rejected peer\'s mention reached the model')
-  console.log('PASS the owner\'s /reject in the channel closes the request, gives nothing and is answered there')
-
-  // The owner's next mention is answered, and its command is not in what the model sees.
-  await t.post(guest, sentText('owner'))
-  await until('the owner\'s next mention is answered', async () => answered(await t.channelFromBot(quiet)))
-  assert.ok(!t.seen(rejected), 'the owner\'s command reached the model')
-  console.log('PASS the owner\'s command in the channel starts no turn and is not in the owner\'s next turn')
+  assert.ok(!t.seen(rejected), 'the owner\'s DM command reached the model')
+  console.log('PASS the owner\'s /reject in its DM closes the request and gives nothing')
 } finally {
   await t.stop()
 }

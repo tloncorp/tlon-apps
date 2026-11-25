@@ -704,33 +704,34 @@ by every author.
   comet with access is answered like any other ship.
 
 The owner answers a request with an approval command, `/allow <id>`,
-`/reject <id>` or `/ban <id>`, typed or sent by the card's button. The Tlon
-hand reads these itself, as the OpenClaw plugin does, before a message would
-reach the head: an approval command never starts a turn and is not passed to
-the model as a message. Like any channel post, it can still appear as
-surrounding context when someone later addresses the bot in that thread, and
-the model's Tlon history tools, where granted, can read it like any message on
-the ship. `/help`, which lists the head's commands, does not list them. The
+`/reject <id>` or `/ban <id>`, typed or sent by the card's button, in a DM
+with the bot. The Tlon hand reads these itself, as the OpenClaw plugin does,
+before a message would reach the head: an approval command never starts a
+turn and is not passed to the model as a message. The model's Tlon history
+tools, where granted, can still read it like any message on the ship. `/help`, which lists the head's commands, does not list them. The
 approval commands need an owner that is a different ship from the bot: the
 hand handles no message from its own ship.
 
 - Only the owner may use them: the explicit owner, or a sibling moon while
   sibling moons count as owners, as for every other owner check. A command
-  from any other ship, with access or without, is dropped: it changes nothing,
-  gets no reply, starts no turn and opens no request. This differs on purpose
-  from the conversation-settings commands, which tell another speaker in a
-  channel that only the owner can change them. The message with which a ship
+  in a DM from any other ship, with access or without, trusted or not, is
+  dropped: it changes nothing, gets no reply, starts no turn and opens no
+  request. The message with which a ship
   opens a new DM with the bot reaches the hand only as a DM invitation, which
   is handled as an invitation whatever that message says: from a ship without
   DM access it is treated as any such invitation is, opening a request when
   the limits allow, and from a ship with DM access the invitation is accepted
   and that message is not handled.
-- The owner's command counts wherever the owner's other messages are
-  admitted: in their DM with the bot, where the card is, and in a channel
-  where the bot would admit the message (a mention or a reply in a thread of
-  the bot's post, or any post where the channel answers every message).
-  OpenClaw also takes them in a channel. The reply is posted there, outside a turn, like the card. Catch-up
-  carries out no command from before the owner's admission cutoff.
+- A command counts only in the owner's DM with the bot, where the card is,
+  as a post or a reply in one of its threads; the reply is posted there,
+  outside a turn, like the card, in the same thread. The network
+  authenticates a DM's author, but a channel post's author is whatever the
+  channel's host reports, so a host could post a command as the owner. In a
+  channel, the text of a command, from anyone, the apparent owner included,
+  is not a command: it is an ordinary message, admitted or treated as an
+  attempt as any other message there would be. OpenClaw takes them in a
+  channel too; this differs on purpose. Catch-up carries out no command from
+  before the owner's admission cutoff.
 - The id is the rest of the text, trimmed, matched as OpenClaw matches it:
   the exact id, else the one open id it begins, case as typed. With no id the
   command acts on the newest open request. A request whose 48 hours have
@@ -1232,15 +1233,17 @@ commands on three ships, the bot and two others that take turns as its owner
 and as the ship that asks: the owner's tap on Allow gives a DM request DM
 access, accepts the invitation and answers the ship's next message; the
 owner's typed `/allow` gives a channel request that channel only, so the ship
-is answered there and not in a DM; the owner's `/reject` typed in the channel
-is answered there and leaves the ship unanswered with no request open; a
-command from a ship that is not the owner, with access or without, changes
-nothing and gets no reply; and no command text is in a model request. The two run
+is answered there and not in a DM; the owner's `/allow` posted in the channel
+is an ordinary message, answered as any unknown slash text, and grants nothing; the owner's
+`/reject` typed in the DM then leaves the ship unanswered with no request
+open; a command from a ship with DM access that is not the owner changes
+nothing and gets no reply; and no DM command text is in a model request. The two run
 apart, since the denial limit lets a ship ask once per five minutes.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM
 and channel requests, `/ban`'s block and its refusal, unknown, closed and
-expired ids, the newest request with no id, and a command typed where the
-owner's message would not be admitted.
+expired ids, the newest request with no id, a command in a DM thread, a
+command from a trusted ship that is not the owner, and a command in a channel,
+the owner's included, handled as an ordinary message.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending

@@ -1118,6 +1118,12 @@
   =/  =cage  cage.task.q.c
   ?:  =(%chat-dm-action-2 p.cage)
     =/  act  !<(action:dm:v7:cv q.cage)
+    ?:  ?=(%reply -.q.q.act)
+      =/  in-thread  delta.q.q.act
+      ?>  ?=(%add -.in-thread)
+      :-  ~
+      :-  (address:policy-lib [%dm p.act `p.q.act])
+      (story-to-text:story content.reply-essay.in-thread)
     ?>  ?=(%add -.q.q.act)
     `[(address:policy-lib [%dm p.act ~]) (story-to-text:story content.essay.q.q.act)]
   =/  act  ;;([%channel =nest:dv %post %add [=memo:v9:dv *]] q.q.cage)
@@ -1334,45 +1340,80 @@
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
   %+  ex-equal  !>((answered caz))
   !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #c0001']])
-::  ~bus has DM access, ~wes none, ~dev none in the channel. None of their
-::  commands opens a request, records an attempt or starts a turn.
+::  ~bus has DM access, ~ryd is trusted, ~wes has no access. None of their
+::  DM commands opens a request, records an attempt or starts a turn.
 ::
 ++  test-a-command-from-a-ship-that-is-not-the-owner-changes-nothing-and-gets-no-reply
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
+  =/  saved  asked
+  =.  trusted.policy.saved  (my ~[[~ryd ~[%web]]])
   ;<  [caz=(list card) s=state-6:t]  bind:m
-    %^  admit  asked  later
+    %^  admit  saved  later
     :~  [told (said ~bus '/allow c0001' told)]
         [(add told ~s1) (said ~wes '/ban c0002' (add told ~s1))]
-        [(add told ~s2) (addressed ~dev room-nest '/allow c0001' (add told ~s2))]
+        [(add told ~s2) (said ~ryd '/allow c0001' (add told ~s2))]
         [(add told ~s3) (said ~bel '/reject d0001' (add told ~s3))]
     ==
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
-  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
   ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m  (ex-equal !>((kinds s 'permission-denied')) !>(0))
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   (ex-equal !>((turned caz)) !>(|))
-::  The owner mentions the bot in .room-nest; an unaddressed command there
-::  does nothing, as any unaddressed post does.
+::  A channel post's author is what the channel's host reports, so even the
+::  owner's command there is an ordinary message: the owner's mention is
+::  admitted as a turn, ~dev's is an attempt that joins its open request.
 ::
-++  test-a-command-in-a-channel-is-carried-out-and-answered-in-that-channel
+++  test-a-command-in-a-channel-is-an-ordinary-message-even-from-the-owner
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-6:t]  bind:m
-    %^  admit  asked  later
-    :~  [told [%post [[~nec told] told] room-nest [~lux %test] ~[[%inline ~['/reject c0002']]] |]]
-        [(add told ~s1) (addressed ~nec room-nest '/reject c0001' (add told ~s1))]
+  =/  events
+    %-  stream
+    :~  [told (addressed ~nec room-nest '/allow c0001' told)]
+        [(add told ~s1) (addressed ~dev room-nest '/allow c0001' (add told ~s1))]
     ==
+  ;<  ~  bind:m  (boot asked later events)
+  ::  Admission reads the owner's post to tell a bot's message; it is none.
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  (lien path |=(part=@ta =(%older part)))  `!>(*paged-posts:v9:dv)
+    ((scries events) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  =/  s  !<(state-6:t vase)
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((turn ~(val by jobs.s) |=(=job:t actor.input.job)))
+    !>(`(list @p)`~[~nec])
+  (ex-equal !>((kinds s 'permission-denied')) !>(1))
+::  The owner's command in a DM thread is answered in that thread.
+::
+++  test-a-command-in-a-dm-thread-is-carried-out-and-answered-in-the-thread
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  parent  ~2026.9.10..00.01.00
+  =/  event=incoming-event:v8:a
+    :*  %dm-reply  [[~nec told] told]  [[~zod parent] parent]  [%ship ~nec]
+        ~[[%inline ~['/reject c0001']]]  |
+    ==
+  ;<  [caz=(list card) s=state-6:t]  bind:m  (admit asked later ~[[told event]])
   ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['d0001' 'c0002'])))
   ;<  ~  bind:m
     %+  ex-equal  !>((answered caz))
-    !>(`(list [@t @t])`~[['chat/~lux/test' 'Denied ~dev for Room in Lux group (chat/~lux/test).']])
-  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+    !>  ^-  (list [@t @t])
+    :~  :-  (address:policy-lib [%dm ~nec `[~zod parent]])
+        'Denied ~dev for Room in Lux group (chat/~lux/test).'
+    ==
   (ex-equal !>((turned caz)) !>(|))
 ::  The card's Allow button sends its text as the owner's DM post; Activity
 ::  reports that post as it reports a typed one.

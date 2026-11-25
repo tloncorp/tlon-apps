@@ -1,7 +1,6 @@
 // The owner answers a DM approval request, on three real ships: the bot, its owner
-// (the peer) and a ship on no list (the guest). A guest's command, first in a channel
-// where it has no access and later in the DM it was given, does nothing and gets no
-// reply. The guest DMs the bot and the owner is sent a card. The owner's tap on the
+// (the peer) and a ship on no list (the guest). A guest's command in the DM it was
+// given does nothing and gets no reply. The guest DMs the bot and the owner is sent a card. The owner's tap on the
 // card's Allow button gives the guest DM access, accepts its pending invitation and
 // answers it there; the guest's next message is answered, the one it asked with is not.
 // No command text is in a model request. Runs apart from tlon-approval-commands-channel-conformance: the
@@ -11,7 +10,6 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { approvalShips } from './lib/approval-ships.mjs'
-import { authorShip } from './lib/author.mjs'
 
 const marker = `allow-dm-${randomUUID().slice(0, 8)}`
 const t = await approvalShips(marker)
@@ -25,25 +23,6 @@ try {
   await t.forget(guest)
   await t.configure(owner)
   const start = t.da(Date.now())
-
-  // A ship that is not the owner: the guest, with no access in the channel. Sent before
-  // the guest has used its turn under the denial limit, so a command that fell through
-  // would open a request and record the attempt.
-  const foreign = `/allow ${marker}`
-  const denied = (s) => s.events.filter((notice) => notice.kind === 'permission-denied' && notice.actor === guest.ship).length
-  const deniedBefore = denied(await status())
-  const quiet = t.da(Date.now())
-  await t.post(guest, foreign)
-  await until('the guest\'s command arrived in the channel', async () => Object.values((await t.scry(bot, `channels/v5/${t.nest}/posts/newest/64/post`))?.posts || {})
-    .some((post) => authorShip(post?.essay?.author) === guest.ship && t.words(post).includes(foreign)))
-  await sleep(3000)
-  const ignored = await status()
-  assert.deepEqual(await t.channelFromBot(quiet), [], 'the bot answered a command from a ship that is not the owner')
-  assert.deepEqual(requests(ignored), [], 'a command from a ship that is not the owner opened a request')
-  assert.equal(denied(ignored), deniedBefore, 'a command from a ship that is not the owner was recorded as an attempt')
-  assert.deepEqual(ignored.policy.dmGrants, [], 'a command from a ship that is not the owner gave access')
-  assert.ok(!t.seen(foreign), 'a command from a ship that is not the owner reached the model')
-  console.log('PASS a command from a ship without access changes nothing and gets no reply')
 
   await t.dm(guest, bot, sentText('first'))
   const [request] = await until('a DM from a ship without access opens a request', async () => {
