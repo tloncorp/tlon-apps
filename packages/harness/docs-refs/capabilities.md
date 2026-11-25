@@ -73,7 +73,8 @@ See [trust boundaries](architecture.md#trust-boundaries),
 
 ## Tlon
 
-The Tlon hand answers permitted DMs, channel mentions, and thread replies.
+The Tlon hand answers permitted DMs, channel mentions, and thread replies, and
+the owner without a mention in channels the owner or the bot hosts.
 The ship's Contacts profile supplies its name and avatar.
 
 The ship-wide `tlon` tool supports messages, search, reactions, profiles, groups,

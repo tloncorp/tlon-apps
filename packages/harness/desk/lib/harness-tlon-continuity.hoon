@@ -125,8 +125,13 @@
   ?~  cutoff  cutoffs
   (~(put by cutoffs) actor u.cutoff)
 ::
+::  The bot and each policy snapshot's ownership gate, which decide where the
+::  owner is heard without a mention.
+::
++$  owners  [our=@p before=$-(@p ?) after=$-(@p ?)]
+::
 ++  channel-cutoffs
-  |=  [before=policy:t after=policy:t prior=(map nest:c @da) now=@da]
+  |=  [=owners before=policy:t after=policy:t prior=(map nest:c @da) now=@da]
   ^-  (map nest:c @da)
   ::  Removed overrides retain a cutoff until a default change covers it.
   =?  prior  !=(response.before response.after)  ~
@@ -136,7 +141,7 @@
   %+  roll  ~(tap in nests)
   |=  [nest=nest:c cutoffs=(map nest:c @da)]
   =/  cutoff=(unit @da)
-    ?:  !=((channel-rule:p before nest) (channel-rule:p after nest))  `now
+    ?:  (channel-changed owners before after nest)  `now
     (~(get by prior) nest)
   ?~  cutoff  cutoffs
   (~(put by cutoffs) nest u.cutoff)
@@ -145,16 +150,28 @@
 ::  change resets it; only the channel's rule or the adapter itself does.
 ::
 ++  affected
-  |=  [before=policy:t after=policy:t lane=lane:t]
+  |=  [=owners before=policy:t after=policy:t lane=lane:t]
   ^-  ?
   ?-  -.to.lane
     %dm  (actor-changed before after who.to.lane)
   ::
       %channel
     ?|  !=(enabled.before enabled.after)
-        !=((channel-rule:p before nest.to.lane) (channel-rule:p after nest.to.lane))
+        (channel-changed owners before after nest.to.lane)
     ==
   ==
+::  Gaining or losing its own rule changes who is heard in a channel where
+::  the rule-less snapshot hears the owner unmentioned, even when
+::  +channel-rule returns the same value.
+::
+++  channel-changed
+  |=  [=owners before=policy:t after=policy:t nest=nest:c]
+  ^-  ?
+  ?:  !=((channel-rule:p before nest) (channel-rule:p after nest))  &
+  =/  had  (~(has by channels.before) nest)
+  ?:  =(had (~(has by channels.after) nest))  |
+  ?:  had  (owner-channel:p our.owners after nest after.owners)
+  (owner-channel:p our.owners before nest before.owners)
 ::
 ++  identity
   |=  to=destination:t

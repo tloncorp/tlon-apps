@@ -1,5 +1,5 @@
-/-  h=harness
-/+  *test, ownership=harness-ownership, admin=harness-admin
+/-  h=harness, t=harness-tlon, a=activity-ver
+/+  *test, ownership=harness-ownership, admin=harness-admin, p=harness-tlon-policy
 |%
 ++  identity
   |=  [our=@p who=@p sponsor=@p other-sponsor=@p]
@@ -102,4 +102,28 @@
       (expect-eq !>([~ ~ ~]) !>((provenance ~[timer peer])))
       (expect-eq !>([`%tlon ~ `~nec]) !>((provenance ~[hand peer])))
   ==
+::  With the real ownership gate, the owner rule hears a sibling moon as the
+::  speaker, and treats a channel it hosts as the owner's, only while sibling
+::  moons count as owners. Every ship here has ~nec as its sponsor.
+::
+++  heard-as
+  |=  [siblings=? speaker=@p host=@p]
+  ^-  ?
+  =/  =bowl:gall  *bowl:gall
+  =.  our.bowl  `@p`0x1.0000.0000
+  =.  now.bowl  ~2026.9.8
+  =/  =policy:t  [& `~nec ~ %mentions (silt ~[speaker]) ~]
+  =/  event=incoming-event:v8:a
+    [%post [[speaker ~2026.9.8] ~2026.9.8] [%chat host %test] [host %test] ~[[%inline ~['hello']]] |]
+  =/  gate  |=(who=@p (owner:~(. ownership bowl) owner.policy siblings who))
+  =/  attempt  |.(?=(^ (normalize-owned:p our.bowl now.bowl policy event gate)))
+  =/  out  (mink [attempt %9 2 %0 1] |=([* *] ``~nec))
+  ?>  ?=(%0 -.out)
+  ;;(? product.out)
+++  test-a-sibling-moon-is-an-owner-for-the-owner-rule-only-when-enabled
+  =/  sibling=@p  `@p`0x2.0000.0000
+  %-  expect
+  !>  ?&  (heard-as & sibling ~nec)  !(heard-as | sibling ~nec)
+          (heard-as & ~nec sibling)  !(heard-as | ~nec sibling)
+      ==
 --
