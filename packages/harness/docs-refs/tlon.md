@@ -747,6 +747,10 @@ hand handles no message from its own ship.
   gets `No pending approval found for ID: #<id>`, or `No pending approval
   found.` with no id; ids are unique only among open requests and are not
   remembered once closed.
+- A message that holds inline code, a code block or a blockquote anywhere is
+  not an approval command, even when the command is outside them: a command
+  shown as code or quoted is talked about, not given, and the message is
+  handled as any other. Harness's other slash commands are read as before.
 - When a ship follows the id after one space, as the card's buttons send it,
   the id must be exact, with no prefix match, and the request must be that
   ship's; otherwise the command gets the unknown-id reply. A stale card's
@@ -1260,7 +1264,8 @@ apart, since the denial limit lets a ship ask once per five minutes.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM
 and channel requests, `/ban`'s block, its refusal and a second refused tap, unknown, closed and
 expired ids, a button whose id was reused or extended, a command with no id
-among one or several requests, a command in a DM thread, a
+among one or several requests, a command in a DM thread, a command in code
+or a blockquote, a
 command from a trusted ship that is not the owner, and a command in a channel,
 the owner's included, handled as an ordinary message.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between

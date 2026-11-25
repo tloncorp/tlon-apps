@@ -3059,14 +3059,16 @@
 ++  approval-order
   |=  event=incoming-event:v8:a
   ^-  (unit [who=@p =order:ask])
-  =/  said=(unit [who=@p text=@t])
+  =/  said=(unit [who=@p content=story:v9:dv])
     ?+  -.event  ~
-      %dm-post  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event (story-to-text:story content.event)])
-      %dm-reply  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event (story-to-text:story content.event)])
+      %dm-post  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event content.event])
+      %dm-reply  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event content.event])
     ==
   ?~  said  ~
   ?:  =(our.bowl who.u.said)  ~
-  =/  order  (read-order:ask text.u.said)
+  ::  A command shown as code or quoted is talked about, not given.
+  ?:  (quoted:story content.u.said)  ~
+  =/  order  (read-order:ask (story-to-text:story content.u.said))
   ?~(order ~ `[who.u.said u.order])
 ::  +carry-order: carry out the owner's approval command, answering in the
 ::  DM it came from

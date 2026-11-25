@@ -1464,6 +1464,26 @@
   ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
   ;<  ~  bind:m  (ex-equal !>((lent (answered caz))) !>(1))
   (ex-equal !>((turned caz)) !>(|))
+::  The owner shows the command rather than giving it: in inline code, in a
+::  blockquote and in a code block. None runs.
+::
+++  test-a-command-in-code-or-a-blockquote-does-not-run
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  shown
+    |=  [content=story:v9:dv at=@da]
+    ^-  incoming-event:v8:a
+    [%dm-post [[~nec at] at] [%ship ~nec] content |]
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %^  admit  asked  later
+    :~  [told (shown ~[[%inline ~[[%inline-code '/allow c0001']]]] told)]
+        [(add told ~s1) (shown ~[[%inline ~[[%blockquote ~['/allow c0001']]]]] (add told ~s1))]
+        [(add told ~s2) (shown ~[[%block %code '/allow c0001' '']] (add told ~s2))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
 ::  A stale card's button: its request closed and ~wes's later request got
 ::  its id, or its id begins a longer open id. Neither acts.
 ::
