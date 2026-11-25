@@ -3,7 +3,7 @@ appId: ${MAESTRO_APP_ID}
 - launchApp:
     clearState: true
     clearKeychain: true
-- assertVisible: '^Sato$'
+- assertVisible: '^It’s yours\.$'
 - tapOn: '^Have an account\? Log in$'
 - runFlow:
     when:

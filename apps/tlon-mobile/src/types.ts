@@ -3,7 +3,7 @@ export type OnboardingStackParamList = {
   Welcome: undefined;
   InventoryCheck: undefined;
   PasteInviteLink: undefined;
-  Signup: undefined;
+  Signup: { method?: 'email' | 'phone' } | undefined;
   CheckOTP: {
     otpMethod: 'email' | 'phone';
     mode: 'signup' | 'login';
