@@ -796,7 +796,7 @@ These owner-authenticated extensions work from any initialized ACP client:
 | --- | --- | --- |
 | `harness/tlon` | `{}` | Policy, connection status, queue counts, recent activity |
 | `harness/tlon/configure` | Policy below | Acknowledged adapter state |
-| `harness/tlon/channel/configure` | `channel` (`chat/~host/name`), `rule` (`{ "response", "everyone" }`, or `null` to remove the channel's own rule) and `expectedRevision` (the `revision` from `harness/tlon`) | Acknowledged adapter state; only that channel's rule changed |
+| `harness/tlon/channel/configure` | `channel` (`chat/~host/name`), `rule` (`{ "response", "everyone" }`, or `null` to remove the channel's own rule; a request without `rule` is refused) and `expectedRevision` (the `revision` from `harness/tlon`) | Acknowledged adapter state; only that channel's rule changed |
 | `harness/tlon/contacts` | `{}` | `ship`, `nickname`, `contact` directory entries |
 | `harness/tlon/profile` | `{}` | Public `nickname` and `avatar` from Contacts |
 | `harness/tlon/profile/set` | `{ "nickname": "Bot", "avatar": "https://…" }` | Profile read back after Contacts acknowledges the two-field edit |

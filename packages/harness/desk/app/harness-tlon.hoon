@@ -1055,10 +1055,12 @@
         =,  dejs:format
         =/  params  (need params.inbound)
         ?>  ?=(%o -.params)
+        ::  Only an explicit null removes the rule: a request that leaves the
+        ::  key out is refused, so a dropped field cannot remove access.
         =/  rule=(unit channel-rule:t)
-          =/  value  (~(get by p.params) 'rule')
-          ?:  |(?=(~ value) ?=([~ ~] value))  ~
-          =/  [response=@t everyone=?]  ((ot ~[response+so everyone+bo]) u.value)
+          =/  value  (~(got by p.params) 'rule')
+          ?~  value  ~
+          =/  [response=@t everyone=?]  ((ot ~[response+so everyone+bo]) value)
           ?>  ?=(?(%off %mentions %all) response)
           `[response everyone]
         :+  nest=(nest:tlon-spec (so (~(got by p.params) 'channel')))
@@ -1068,7 +1070,7 @@
         %-  emit
         %+  fail
           '-32602'
-        'Expected channel, expectedRevision and rule (response and everyone, or null to remove it)'
+        'Expected channel, expectedRevision and rule (response and everyone, or an explicit null to remove it)'
       ?.  =(revision.u.parsed (revision:permissions policy epoch))
         (emit (fail '-32602' 'Permissions changed; reload Tlon settings before saving.'))
       =/  channels

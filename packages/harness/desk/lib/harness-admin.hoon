@@ -87,7 +87,7 @@
       'harness/peers/reset {ship,revision}; harness/peers/check {ship}; '
       'harness/tlon/configure {enabled,owner,response,allowed,channels,trusted} replaces the whole policy; '
       'harness/tlon/channel/configure {channel,rule,expectedRevision} sets the rule of one channel (chat/~host/name) '
-      '(rule {response,everyone}) or removes it (rule null) and keeps everything else, so prefer it '
+      '(rule {response,everyone}) or removes it (rule null; rule is required) and keeps everything else, so prefer it '
       'for a single channel; expectedRevision is the revision harness/tlon returns; '
       'harness/tlon/owner/set {owner,expectedOwner,siblingMoonOwners,expectedSiblingMoonOwners}; '
       'harness/tlon/profile/set (read the profile first); '
