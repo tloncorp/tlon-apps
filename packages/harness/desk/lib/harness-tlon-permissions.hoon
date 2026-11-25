@@ -248,14 +248,14 @@
   ++  can-write
     |=  nest=nest:g
     ^-  ?
-    ?:  =(our.bowl p.q.nest)  &
     ?.  ?=(?(%chat %diary %heap) p.nest)  |
+    ?.  .^(? %gu (channel:~(. paths [our now]:bowl) %v0 nest))  |
+    ?:  =(our.bowl p.q.nest)  &
     %+  lien  ~(tap by groups)
     |=  [flag=flag:g group=group:v9:g]
     ?.  (~(has by channels.group) nest)  |
     ?~  seat=(~(get by seats.group) our.bowl)  |
     ?:  =(0 joined.u.seat)  |
-    ?.  .^(? %gu (channel:~(. paths [our now]:bowl) %v0 nest))  |
     =/  perm=(unit perm:v9:d)
       %-  mole  |.
       .^(perm:v9:d %gx (channel-permissions:~(. paths [our now]:bowl) nest))

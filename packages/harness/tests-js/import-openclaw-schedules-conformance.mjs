@@ -51,6 +51,7 @@ const jobs = {
   channelBare: job({ name: 'channel-bare', schedule: cron(15, 'America/Los_Angeles'), delivery: { to: nest } }),
   once: job({ name: 'once', payload: { message: 'x'.repeat(8192) }, schedule: { kind: 'at', at: once }, delivery: { to: `dm/${owner}` } }),
   missing: job({ name: 'missing', schedule: cron(20, 'America/Chicago'), delivery: { to: `tlon:chat/${owner}/no-such-channel` } }),
+  missingLocal: job({ name: 'missing-local', schedule: cron(20, 'UTC'), delivery: { to: `chat/~${client.ship}/no-such-channel` } }),
   tools: job({ name: 'tools', schedule: cron(25, 'America/Chicago'), delivery: { to: `tlon:${nest}` }, payload: { toolsAllow: ['web_search', 'web_fetch'] } }),
   silent: job({ name: 'silent', schedule: cron(30, 'UTC'), delivery: { mode: 'none' } }),
   off: job({ name: 'off', enabled: false, schedule: cron(35, 'UTC'), delivery: { to: owner } }),
@@ -61,7 +62,7 @@ const jobs = {
 // Imported separately, with --runs.
 jobs.limited = job({ name: 'limited', schedule: cron(45, 'UTC'), delivery: { to: owner } })
 const limitedExport = { jobs: [jobs.limited], snapshotRevision: 's2', total: 1, offset: 0, limit: 200, hasMore: false, nextOffset: null, deliveryPreviews: {} }
-const exported = { jobs: Object.values(jobs).filter((entry) => entry !== jobs.limited), snapshotRevision: 's1', total: 12, offset: 0, limit: 200, hasMore: false, nextOffset: null, deliveryPreviews: {} }
+const exported = { jobs: Object.values(jobs).filter((entry) => entry !== jobs.limited), snapshotRevision: 's1', total: 13, offset: 0, limit: 200, hasMore: false, nextOffset: null, deliveryPreviews: {} }
 const imported = ['dm', 'dmBare', 'channel', 'channelBare', 'once']
 const expected = (name) => ({ dm: `dm/${owner}`, dmBare: `dm/${owner}`, once: `dm/${owner}`, silent: `dm/${owner}` })[name] ?? nest
 
@@ -116,6 +117,7 @@ try {
   quiet(dry.output)
   assert.equal(dry.code, 0)
   for (const name of imported) assert.match(line(dry.output, jobs[name].name), /\| would import/, name)
+  assert.match(line(dry.output, 'missing-local'), /refused: .*no-such-channel/)
   assert.deepEqual(await schedules(), before, '--dry-run creates nothing')
 
   for (const address of destinations) assert.equal((await inspect(address)).ready, false)
@@ -126,16 +128,17 @@ try {
   assert.equal(first.code, 0)
   assert.equal(adds, imported.length)
   assert.match(line(first.output, 'missing'), /refused: .*no-such-channel/)
+  assert.match(line(first.output, 'missing-local'), /refused: .*no-such-channel/)
   assert.match(line(first.output, 'tools'), /refused: limited to 2 tools; .*--widen-tools/)
   assert.match(line(first.output, 'silent'), /refused: delivery is off \(mode none\); .*--none-to-owner-dm/)
   assert.match(line(first.output, 'off'), /disabled, not imported/)
   assert.match(line(first.output, 'interval'), /refused: Harness has no interval schedules/)
   assert.match(line(first.output, 'event'), /refused: a systemEvent task, not an agent turn/)
   assert.equal(line(first.output, 'heartbeat'), undefined, 'built-in jobs are left out')
-  assert.match(first.output, /^imported 5, refused 5, disabled 1, of 11 tasks\.$/m)
+  assert.match(first.output, /^imported 5, refused 6, disabled 1, of 12 tasks\.$/m)
   const held = await schedules()
   assert.equal(held.size, before.size + imported.length)
-  for (const name of ['missing', 'tools', 'silent', 'off', 'interval', 'event']) assert.ok(!held.has(idOf(jobs[name])), name)
+  for (const name of ['missing', 'missingLocal', 'tools', 'silent', 'off', 'interval', 'event']) assert.ok(!held.has(idOf(jobs[name])), name)
   for (const name of imported) {
     const { schedule, payload } = jobs[name], made = held.get(idOf(jobs[name]))
     assert.ok(made, name)
@@ -162,7 +165,7 @@ try {
   assert.equal(second.code, 0)
   assert.equal(adds, imported.length, 'the repeats go to the head, which checks them')
   for (const name of imported) assert.match(line(second.output, jobs[name].name), /\| already there, next run /, name)
-  assert.match(second.output, /^already there 5, refused 5, disabled 1, of 11 tasks\.$/m)
+  assert.match(second.output, /^already there 5, refused 6, disabled 1, of 12 tasks\.$/m)
   assert.deepEqual(await schedules(), held, 'a second run creates nothing')
   const repeat = await cli('--dry-run')
   assert.equal(repeat.code, 0)
@@ -174,7 +177,7 @@ try {
   assert.equal(widened.code, 0)
   assert.match(line(widened.output, 'tools'), /\| imported, next run .*WARNING: was limited to 2 tools/)
   assert.match(line(widened.output, 'silent'), /\| imported, next run .*posts to the owner's DM/)
-  assert.match(widened.output, /^imported 2, already there 5, refused 3, disabled 1, of 11 tasks\.$/m)
+  assert.match(widened.output, /^imported 2, already there 5, refused 4, disabled 1, of 12 tasks\.$/m)
   const after = await schedules()
   assert.equal(after.size, held.size + 2)
   for (const name of ['tools', 'silent']) {
@@ -193,7 +196,7 @@ try {
   assert.equal(rerun.code, 1, 'a schedule that differs from its task fails the run')
   assert.match(line(rerun.output, 'dm'), /\| exists but differs \(edited since import\?\); left as it is/)
   assert.match(line(rerun.output, 'channel'), /\| already there/)
-  assert.match(rerun.output, /^already there 4, exists but differs 1, refused 5, disabled 1, of 11 tasks\.$/m)
+  assert.match(rerun.output, /^already there 4, exists but differs 1, refused 6, disabled 1, of 12 tasks\.$/m)
   assert.deepEqual(await schedules(), edited, 'the edited schedule is left as it is')
   assert.equal(edited.get(original.id).schedule, `0 17 1 ${month} *`)
 

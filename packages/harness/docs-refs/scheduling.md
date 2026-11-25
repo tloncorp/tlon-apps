@@ -138,7 +138,7 @@ Each task is mapped this way:
 - A delivery `to` naming the owner's ship (`~ship`, `dm/~ship`, `dm:~ship`,
   with or without `tlon:`) posts to the owner's DM; a nest such as
   `chat/~host/name`, `heap/…` or `diary/…`, with or without `tlon:`, `group:`
-  or `room:`, posts to that channel. The hand checks its channel policy and posting permissions before opening a channel.
+  or `room:`, posts to that channel. Before opening a channel, the hand checks that it exists on the bot’s ship and that the bot is allowed to post there.
 - A task with a `threadId` posts to the existing conversation in that thread.
   With none, it is refused, unless `--threads-to-parent` sends it to the DM
   or channel instead.
