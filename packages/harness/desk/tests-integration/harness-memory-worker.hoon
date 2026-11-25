@@ -1,6 +1,7 @@
 ::  Drive the real head with fixture Iris responses; cards stay local.
 /-  h=harness, *harness-store, renew=harness-oauth
-/+  *test-agent, policy=harness-defaults, hl=harness, j=harness-provider-wire
+/+  *test-agent, policy=harness-defaults, hl=harness, j=harness-provider-wire,
+    mem=harness-memory
 /=  head  /app/harness
 |%
 ++  requests
@@ -187,7 +188,7 @@
   ;<  ~  bind:m  (ex-equal !>(pending.knowledge.restored) !>(pending.knowledge.pending))
   ;<  ~  bind:m  (ex-equal !>(pending.knowledge.after) !>(~))
   ;<  ~  bind:m  (ex-equal !>(head.knowledge.after) !>(1))
-  ;<  ~  bind:m  (ex-equal !>(next.knowledge.after) !>(2))
+  ;<  ~  bind:m  (ex-equal !>(next.knowledge.after) !>(1))
   ;<  ~  bind:m  (ex-equal !>(knowledge.after) !>(knowledge.retry))
   ;<  ~  bind:m  (ex-equal !>((requests reloaded)) !>(~))
   ;<  ~  bind:m  (ex-equal !>((requests expired)) !>(~))
@@ -248,6 +249,15 @@
   ^-  form:m
   =/  initial  compaction-fixture
   =?  disabled.knowledge.initial  =('off' mode)  (silt ~['first'])
+  ::  An owner's private fact that the capture sends as related.
+  =?  knowledge.initial  =('reloaded' mode)
+    =/  saved
+      %:  save:mem
+        everything:mem  knowledge.initial  'provisioning-archive'  0
+        [`'Provisioning requires privacy for archives.' ~ | & ['' 0v0 0 ~2026.10.7 '~zod']]
+      ==
+    ?>  ?=(%& -.saved)
+    p.saved
   ;<  ~                      bind:m  (setup initial)
   ;<  started=(list card)    bind:m
     (do-poke %harness-action !>(`action:h`[%compact 'first']))
@@ -255,7 +265,12 @@
   ;<  dispatched=state-0     bind:m  get-state
   =?  barrier.knowledge.dispatched  =('forgotten' mode)  +(barrier.knowledge.dispatched)
   ;<  =agent                 bind:m  get-agent
-  ;<  *                      bind:m  (do-load agent `!>(dispatched))
+  ::  A reload fences proposals, and a summary only when related facts were
+  ::  sent with it.
+  =/  reload  |(=('off' mode) =('forgotten' mode) =('reloaded' mode))
+  ;<  *                      bind:m
+    ?.  reload  (pure:(mare ,(list card)) ~)
+    (do-load agent `!>(dispatched))
   ;<  completed=(list card)  bind:m
     (do-reply wire.request ?:(=('off' mode) 'Provision privately.' (compact-answer memories)))
   ;<  after=state-0          bind:m  get-state
@@ -265,13 +280,20 @@
   =/  checkpoint
     %+  skim  log:(~(got by sessions.after) 'first')
     |=(e=event:h ?=(%checkpoint-completed -.e))
-  ?>  ?=(^ checkpoint)
   ;<  ~  bind:m  (ex-equal !>((lent (requests started))) !>(1))
   ;<  ~  bind:m  (ex-equal !>((requests completed)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by records.knowledge.after)) !>(expected))
+  ?:  =('reloaded' mode)
+    ;<  ~  bind:m  (ex-equal !>(?=(^ (find "archives" (trip text)))) !>(&))
+    ;<  ~  bind:m  (ex-equal !>(checkpoint) !>(~))
+    ;<  ~  bind:m  (ex-equal !>(pending.view) !>(~))
+    ;<  ~  bind:m  (ex-equal !>(compactions.maintenance.knowledge.after) !>(~))
+    %+  ex-equal  !>(err.view)
+    !>(`'Memory access changed while this summary was in flight; the previous context was retained.')
+  ?>  ?=(^ checkpoint)
   ;<  ~  bind:m  (ex-equal !>(err.view) !>(~))
   ;<  ~  bind:m  (ex-equal !>(pending.view) !>(~))
   ;<  ~  bind:m  (ex-equal !>(compactions.maintenance.knowledge.after) !>(~))
-  ;<  ~  bind:m  (ex-equal !>(~(wyt by records.knowledge.after)) !>(expected))
   ;<  ~  bind:m  (ex-equal !>(?=(^ extra)) !>(!=('off' mode)))
   ;<  ~  bind:m  (ex-equal !>(enabled.dreaming.maintenance.knowledge.after) !>(|))
   ;<  ~  bind:m  (ex-equal !>(wake.knowledge.after) !>(~))
@@ -284,6 +306,8 @@
   (eval-mare (compact-case 'on' [%s 'invalid'] 0))
 ++  test-compaction-capture-survives-reload-and-respects-forgetting
   (eval-mare (compact-case 'forgotten' compact-facts 0))
+++  test-a-summary-sent-with-a-related-fact-before-a-reload-is-discarded
+  (eval-mare (compact-case 'reloaded' compact-facts 1))
 ++  test-conversation-optout-keeps-compaction-tool-free-without-capture
   (eval-mare (compact-case 'off' compact-facts 0))
 --

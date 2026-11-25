@@ -6,8 +6,8 @@
 /=  adapter  /app/harness-tlon
 |%
 ++  fixture
-  ^-  state-5:t
-  =/  s=state-5:t  *state-5:t
+  ^-  state-6:t
+  =/  s=state-6:t  *state-6:t
   =.  owner-initialized.s  1
   =.  policy.s  [& `~nec ~ %mentions ~ ~ ~ ~]
   =.  lanes.s  (my ~[['source' [[%dm ~nec ~] 1 ~[%web]]]])
@@ -27,12 +27,12 @@
 ::  Each read starts from a fresh bowl and a fresh load of .saved.
 ::
 ++  read
-  |=  [saved=state-5:t sid=@t job=(unit schedule:c) allowed=? admin=?]
+  |=  [saved=state-6:t sid=@t job=(unit schedule:c) allowed=? admin=?]
   (read-as saved sid job allowed admin ~)
 ::  With .speaker, ask for that speaker's authority rather than the lane's.
 ::
 ++  read-as
-  |=  [saved=state-5:t sid=@t job=(unit schedule:c) allowed=? admin=? speaker=(unit @p)]
+  |=  [saved=state-6:t sid=@t job=(unit schedule:c) allowed=? admin=? speaker=(unit @p)]
   =/  m  (mare ,vase)
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
@@ -116,8 +116,8 @@
   =.  seats.group  (my ~[[~bus `seat:v9:g`[~ ~2026.9.9]]])
   group(channels (my ~[[[%chat ~lux %test] *channel:v9:g]]))
 ++  with-lanes
-  |=  [s=state-5:t actor=@p tools=(list tool-grant:h)]
-  ^-  state-5:t
+  |=  [s=state-6:t actor=@p tools=(list tool-grant:h)]
+  ^-  state-6:t
   =/  lanes=(list [@t lane:t])
     :~  ['dm' [[%dm actor ~] 1 tools]]
         ['room' [[%channel [%chat ~lux %test] ~] 1 tools]]
@@ -130,7 +130,7 @@
 ::  Each lane is read as its own actor, the speaker a turn would carry.
 ::
 ++  ex-ceilings
-  |=  [s=state-5:t actor=@p ceiling=(unit (list tool-grant:h))]
+  |=  [s=state-6:t actor=@p ceiling=(unit (list tool-grant:h))]
   =/  m  (mare ,~)
   ^-  form:m
   =/  expected  `hand-authority:ad`[& ceiling]
@@ -187,7 +187,7 @@
 ::  One channel lane saved with the owner's tools. Any member may speak there.
 ::
 ++  shared-room
-  ^-  state-5:t
+  ^-  state-6:t
   =/  s  fixture
   =.  channels.policy.s  (my ~[[[%chat ~lux %test] [%mentions &]]])
   =.  lanes.s
@@ -301,7 +301,7 @@
 ::
 ++  admit
   |=  who=@p
-  =/  m  (mare ,state-5:t)
+  =/  m  (mare ,state-6:t)
   ^-  form:m
   =/  s  shared-room
   =/  to=destination:t  [%channel [%chat ~lux %test] ~]
@@ -317,6 +317,7 @@
     %-  set-scry-gate
     |=  =path
     ^-  (unit vase)
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
     ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] !=(~dev who)))
     ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
@@ -332,15 +333,15 @@
   ;<  ~  bind:m  head-connected
   ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
-  (pure:m !<(state-5:t vase))
+  (pure:m !<(state-6:t vase))
 ++  test-speaker-who-cannot-read-the-channel-is-not-admitted-to-a-ready-route
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  member=state-5:t  bind:m  (admit ~bus)
-  ;<  outsider=state-5:t  bind:m  (admit ~dev)
+  ;<  member=state-6:t  bind:m  (admit ~bus)
+  ;<  outsider=state-6:t  bind:m  (admit ~dev)
   =/  messages
-    |=  saved=state-5:t
+    |=  saved=state-6:t
     (skim notices.saved |=(n=notice:t =('message' kind.n)))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.member)) !>(1))
   ;<  ~  bind:m  (ex-equal !>((lent (messages member))) !>(1))

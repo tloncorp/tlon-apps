@@ -30,6 +30,25 @@
     =/  result  (mule |.((parse:cron expr)))
     ?=(%| -.result)
   (expect !>(rejected))
+++  test-west-offset-fires-at-local-time
+  %+  expect-eq
+    !>(`~2026.9.5..15.00.00)
+  !>((next-at-offset:cron (parse:cron '0 9 * * *') [| ~h6] ~2026.9.5..12.00.00))
+++  test-west-offset-matches-local-weekday-across-the-date-line
+  ::  Friday 23:00 at -06:00 is Saturday 05:00 UTC. 2026-09-11 is a Friday.
+  %+  expect-eq
+    !>(`~2026.9.12..05.00.00)
+  !>((next-at-offset:cron (parse:cron '0 23 * * 5') [| ~h6] ~2026.9.9))
+++  test-east-offset-matches-local-month-day-across-the-date-line
+  ::  00:30 on October 1 at +05:30 is 19:00 UTC on September 30.
+  %+  expect-eq
+    !>(`~2026.9.30..19.00.00)
+  !>((next-at-offset:cron (parse:cron '30 0 1 * *') [& (add ~h5 ~m30)] ~2026.9.5))
+++  test-zero-offset-search-equals-utc-search
+  =/  pattern  (parse:cron '10-30/10,50 12 1 * 1')
+  %+  expect-eq
+    !>((next:cron pattern ~2026.9.5..12.11.00))
+  !>((next-at-offset:cron pattern [& ~s0] ~2026.9.5..12.11.00))
 ++  test-repeated-fire-identity-is-stable
   %-  expect
   !>  ?&  =((event:cron 0v1 ~2026.9.5) (event:cron 0v1 ~2026.9.5))

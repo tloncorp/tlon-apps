@@ -10,6 +10,7 @@ import {
   subscriptionProviderLabel,
 } from '../../../../features/settings/bot/constants';
 import { getModelFormValues } from '../../../../features/settings/bot/helpers';
+import type { ModelDrawingKind } from '../../Onboarding/line/onboardingArt';
 import { buildBotCredentialOptions } from '../botProviderOptions';
 import { firstRunCopy } from './firstRunCopy';
 
@@ -23,6 +24,8 @@ export type FirstRunModelRow = {
   choice: FirstRunModelChoice;
   name: string;
   meta: string;
+  /** A third line, under the meta. */
+  detail?: string;
   recommended: boolean;
   /** Whether this keeps zero data retention; anything else asks first. */
   keepsZdr: boolean;
@@ -50,9 +53,29 @@ export const subscriptionCompany = (provider: SubscriptionProvider) =>
 export const includedModelName = (config?: TlawnProviderConfigInfo) =>
   getModelName(getIncludedModelId(config));
 
+/** Who makes a model, from its id's prefix ("openai/…"). */
+const MODEL_MAKER: Record<string, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  'x-ai': 'xAI',
+  google: 'Google',
+};
+
 /**
- * Screen 4's three ways to get a model, built from the same options as the
- * app's Choose a brain step: the included model (recommended, zero data
+ * The included model with its maker, "OpenAI GPT-5.6 Luna". A model from a
+ * maker not listed here goes by its name alone.
+ */
+export const includedModelLabel = (config?: TlawnProviderConfigInfo) => {
+  const modelId = getIncludedModelId(config);
+  const slash = modelId.indexOf('/');
+  const maker = slash > 0 ? MODEL_MAKER[modelId.slice(0, slash)] : undefined;
+  const name = getModelName(modelId);
+  return maker ? `${maker} ${name}` : name;
+};
+
+/**
+ * The model screen's three ways to get a model, built from the same options as
+ * the app's Choose a brain step: the included model (recommended, zero data
  * retention on), each subscription, and one row for bringing your own key.
  *
  * Subscriptions are listed even while setup is still running. Their sign-in
@@ -75,6 +98,7 @@ export function buildFirstRunModelSections(
   // account has the included model.
   const showIncluded = !providerConfig || !!included;
   const modelName = includedModelName(providerConfig ?? undefined);
+  const modelLabel = includedModelLabel(providerConfig ?? undefined);
 
   const sections: FirstRunModelSection[] = [];
   if (showIncluded) {
@@ -86,10 +110,11 @@ export function buildFirstRunModelSections(
           id: INCLUDED_ROW_ID,
           choice: { kind: 'included' },
           name: modelName,
-          meta: copy.includedMeta,
+          meta: copy.includedMeta(modelLabel),
+          detail: copy.includedDetail,
           recommended: true,
           keepsZdr: true,
-          primaryLabel: copy.primaryIncluded(modelName),
+          primaryLabel: copy.primaryIncluded,
         },
       ],
     });
@@ -177,3 +202,57 @@ export const API_KEY_PROVIDERS = [
   { id: 'xai', label: 'xAI' },
   { id: 'openrouter', label: 'OpenRouter' },
 ] as const;
+
+/** The model screen's one row for every subscription, picked in its sheet. */
+export const SUBSCRIPTIONS_ROW_ID = 'subscriptions';
+
+/**
+ * A row on the model screen: the included model, one row for signing in with
+ * any subscription, and one for your own key. A subscription row carries its
+ * plans, picked in the sheet that follows.
+ */
+export type FirstRunModelChoiceRow = {
+  id: string;
+  name: string;
+  meta: string;
+  detail?: string;
+  /** What the row's tile in the drawing shows. */
+  drawing: ModelDrawingKind;
+  primaryLabel: string;
+  row?: FirstRunModelRow;
+  plans?: FirstRunModelRow[];
+};
+
+export function buildModelChoiceRows(
+  sections: FirstRunModelSection[]
+): FirstRunModelChoiceRow[] {
+  const copy = firstRunCopy.model;
+  return sections.flatMap((section): FirstRunModelChoiceRow[] =>
+    section.key === 'subscription'
+      ? [
+          {
+            id: SUBSCRIPTIONS_ROW_ID,
+            name: copy.subscriptionsName,
+            meta: copy.subscriptionsMeta(section.rows.map((row) => row.name)),
+            drawing: 'subscription',
+            primaryLabel: copy.primarySubscriptions,
+            plans: section.rows,
+          },
+        ]
+      : section.rows.map((row) => ({
+          id: row.id,
+          // The included row is headed Built-in, with the model's name under.
+          name: section.key === 'included' ? copy.includedName : row.name,
+          meta: row.meta,
+          detail: row.detail,
+          drawing: section.key === 'included' ? 'included' : 'apiKey',
+          primaryLabel: row.primaryLabel,
+          row,
+        }))
+  );
+}
+
+/** The model screen row a picked or applied model id belongs to. */
+export function modelChoiceRowId(modelId: string) {
+  return modelId.startsWith('subscription:') ? SUBSCRIPTIONS_ROW_ID : modelId;
+}

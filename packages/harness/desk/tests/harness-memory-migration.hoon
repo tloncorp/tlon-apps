@@ -26,9 +26,9 @@
   ;:  weld
       (expect-eq !>(+.old) !>(+>.migrated))
       (expect-eq !>(2) !>(~(wyt by records.db)))
-      (expect-eq !>(1) !>((lent (choose:memory db 'provisioning' 'operator'))))
-      (expect-eq !>(1) !>((lent (choose:memory db 'delivery' 'operator'))))
-      (expect-eq !>(~) !>((choose:memory db 'forgotten' 'operator')))
+      (expect-eq !>(1) !>((lent (choose:memory everything:memory db 'provisioning' 'operator'))))
+      (expect-eq !>(1) !>((lent (choose:memory everything:memory db 'delivery' 'operator'))))
+      (expect-eq !>(~) !>((choose:memory everything:memory db 'forgotten' 'operator')))
       (expect-eq !>(migrated) !>((envelope:storage !>(migrated))))
   ==
 ++  test-load-migrates-only-the-builtin-prompt-and-keeps-cursors-aligned
@@ -53,7 +53,7 @@
   =.  old  old(sessions (my ~[['first' [log 0]]]))
   =/  migrated  (envelope:storage !>(old))
   =/  db  knowledge.migrated
-  =/  names  (choose:memory db 'favorite-color' '~nec')
+  =/  names  (choose:memory everything:memory db 'favorite-color' '~nec')
   ?>  ?=(^ names)
   =/  record  (~(got by records.db) i.names)
   ;:  weld

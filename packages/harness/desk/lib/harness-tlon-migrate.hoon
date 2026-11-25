@@ -12,8 +12,9 @@
       allowed=(set @p)
       channels=(map nest:c channel-rule)
   ==
-+$  state-4
-  $:  %4
++$  state-5
+  $:  %5
+      browser-entries=(map @uv browser-entry)
       lens=lens-sync
       owner-initialized=@ud
       sibling-moon-owners=$~(| ?)
@@ -31,6 +32,37 @@
       tool-receipts=(map @uv tool-receipt)
       computing=(map path presence-lease)
       policy=policy
+      epoch=@ud
+      after=@da
+      lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
+      jobs=(map @uv job)
+      deliveries=(map @uv delivery)
+      notices=(list notice)
+      next-notice=@ud
+      listeners=(set @t)
+      watching=?
+      wake=(unit @da)
+      error=@t
+  ==
++$  state-4
+  $:  %4
+      browser-entries=(map @uv browser-entry)
+      lens=lens-sync
+      owner-initialized=@ud
+      sibling-moon-owners=$~(| ?)
+      sibling-owner-after=@da
+      activity-through=@da
+      catching-up=$~(| ?)
+      identities=(map destination @t)
+      routes=(map @t route)
+      cuts=(map @p @da)
+      channel-after=@da
+      channel-cuts=(map nest:c @da)
+      uploads=(map @uv upload)
+      last-sent=@da
+      tool-receipts=(map @uv tool-receipt)
+      computing=(map path presence-lease)
+      policy=policy-3
       epoch=@ud
       after=@da
       lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
@@ -162,12 +194,12 @@
   ==
 ++  load
   |=  old=vase
-  ^-  state-5
+  ^-  state-6
   ?>  ?=(^ q.old)
-  ?:  =(%5 -.q.old)  !<(state-5 old)
-  ?:  =(%4 -.q.old)  (four-to-five !<(state-4 old))
-  ?:  =(%3 -.q.old)  (four-to-five (three-to-four !<(state-3 old)))
-  (four-to-five (three-to-four (two-to-three (two old))))
+  ?:  =(%6 -.q.old)  !<(state-6 old)
+  ?:  =(%5 -.q.old)  (five-to-six !<(state-5 old))
+  ?:  =(%4 -.q.old)  (five-to-six (four-to-five !<(state-4 old)))
+  (five-to-six (four-to-five (three-to-four (three old))))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -176,7 +208,7 @@
   |=  old=vase
   ^-  (list [sid=@t binding=@t])
   ?>  ?=(^ q.old)
-  ?:  |(=(%3 -.q.old) =(%4 -.q.old) =(%5 -.q.old))  ~
+  ?:  |(=(%3 -.q.old) =(%4 -.q.old) =(%5 -.q.old) =(%6 -.q.old))  ~
   =/  saved  (two old)
   %+  murn  ~(tap by lanes.saved)
   |=  [sid=@t lane=lane-2]
@@ -184,6 +216,19 @@
   =/  route  (~(get by routes.saved) sid)
   ?.  &(?=(^ route) =(%ready phase.u.route))  ~
   `[sid binding.u.route]
+::
+++  three
+  |=  old=vase
+  ^-  state-3
+  ?>  ?=(^ q.old)
+  ?:  =(%3 -.q.old)  !<(state-3 old)
+  (two-to-three (two old))
+::  No browser handoff can be pending in a state saved before version 4.
+::
+++  three-to-four
+  |=  old=state-3
+  ^-  state-4
+  [%4 ~ +.old]
 ::
 ++  two
   |=  old=vase
@@ -229,10 +274,11 @@
 ::  Per-place grants and their cutoffs start empty; the ship-wide lists and
 ::  channel rules are kept as saved.
 ::
-++  three-to-four
-  |=  old=state-3
-  ^-  state-4
-  :*  %4
+++  four-to-five
+  |=  old=state-4
+  ^-  state-5
+  :*  %5
+      browser-entries.old
       lens.old
       owner-initialized.old
       sibling-moon-owners.old
@@ -264,10 +310,10 @@
   ==
 ::  Approval requests start empty; everything else is kept as saved.
 ::
-++  four-to-five
-  |=  old=state-4
-  ^-  state-5
-  [%5 *approvals +.old]
+++  five-to-six
+  |=  old=state-5
+  ^-  state-6
+  [%6 *approvals +.old]
 ::
 ++  zero-to-one
   |=  saved=state-0

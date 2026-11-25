@@ -19,7 +19,7 @@
       log  [[%llm-completed id %stop [1 1] [%assistant body ~]] input log.session]
       next-req  id
     ==
-  =.  db  (prepare:memory db sid log.session)
+  =.  db  (prepare:memory everything:memory db sid log.session)
   =.  db  (enqueue:capture db sid session (play:hl log.session) ~2026.10.9)
   $(n (dec n))
 ++  due
@@ -86,8 +86,8 @@
 ++  test-optout-and-forgetting-invalidate-unsubmitted-evidence
   =/  before  (replies 4 'a' *state:m fresh 'Noted.')
   =/  =source:m  ['a' 0v1 1 ~2026.10.9 '~zod']
-  =/  off  (command:json db.before source 'memory' 'off')
-  =/  on  (command:json db.off source 'memory' 'on')
+  =/  off  (command:json everything:memory db.before source 'memory' 'off')
+  =/  on  (command:json everything:memory db.off source 'memory' 'on')
   =/  after  (replies 1 'a' db.on session.before 'Noted.')
   =/  revoked  db.before(barrier +(barrier.db.before))
   =/  renewed  (replies 1 'a' revoked session.before 'Noted.')
@@ -104,7 +104,7 @@
   =/  ready  (ready:capture db)
   ?>  ?=(^ ready.ready)
   =/  job  job.u.ready.ready
-  =/  pending  (plan:capture db.ready id.u.ready.ready job builtin-config:policy ~2026.10.9)
+  =/  pending  (plan:capture everything:memory db.ready id.u.ready.ready job builtin-config:policy ~2026.10.9)
   =/  finished  (finish:capture db.ready(pending `pending) | 'Done' [10 2])
   ;:  weld
       (expect-eq !>(1) !>(next.db))
@@ -128,7 +128,7 @@
   =/  source  (replies 1 'a' *state:m fresh 'Noted.')
   =/  ready  (ready:capture (due db.source))
   ?>  ?=(^ ready.ready)
-  =/  pending  (plan:capture db.ready 0 job.u.ready.ready builtin-config:policy ~2026.10.9)
+  =/  pending  (plan:capture everything:memory db.ready 0 job.u.ready.ready builtin-config:policy ~2026.10.9)
   =/  db  db.ready(enabled.dreaming.maintenance |, pending `pending, jobs ~, head 1)
   =/  finished  (finish:capture db & 'Off' [1 1])
   ;:  weld

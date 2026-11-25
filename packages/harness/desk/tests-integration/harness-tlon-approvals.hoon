@@ -20,8 +20,8 @@
 ::  the bot blocks ~bel.
 ::
 ++  fixture
-  ^-  state-5:t
-  =/  s=state-5:t  *state-5:t
+  ^-  state-6:t
+  =/  s=state-6:t  *state-6:t
   =.  owner-initialized.s  1
   =.  activity-through.s  ~2026.9.9
   =.  policy.s
@@ -100,6 +100,8 @@
   ^-  (unit vase)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu @ %groups @ %$ ~] path)  `!>(&)
+  ::  harness-tlon-steward covers the Steward lease.
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ::  The bot is in .room-nest and .off-nest, and of the DMs only ~dev's and
   ::  the comet's are on the ship.
   ?:  ?=([%gu @ %channels @ %v4 %chat %'~lux' %test ~] path)  `!>(&)
@@ -122,10 +124,10 @@
     `!>((config-json:hj %*(. *config:h tools ~[%web])))
   ~
 ++  boot
-  |=  [saved=state-5:t now=@da events=stream:v10:a]
+  |=  [saved=state-6:t now=@da events=stream:v10:a]
   (boot-seeded saved now events (shax 'approvals'))
 ++  boot-seeded
-  |=  [saved=state-5:t now=@da events=stream:v10:a eny=@uvJ]
+  |=  [saved=state-6:t now=@da events=stream:v10:a eny=@uvJ]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now, eny eny))
@@ -136,25 +138,25 @@
 ::  Load .saved at .now, then deliver .events through Activity catch-up.
 ::
 ++  admit
-  |=  [saved=state-5:t now=@da events=(list [@da incoming-event:v8:a])]
-  =/  m  (mare ,[(list card) state-5:t])
+  |=  [saved=state-6:t now=@da events=(list [@da incoming-event:v8:a])]
+  =/  m  (mare ,[(list card) state-6:t])
   ^-  form:m
   (admit-seeded saved now events (shax 'approvals'))
 ++  admit-seeded
-  |=  [saved=state-5:t now=@da events=(list [@da incoming-event:v8:a]) eny=@uvJ]
-  =/  m  (mare ,[(list card) state-5:t])
+  |=  [saved=state-6:t now=@da events=(list [@da incoming-event:v8:a]) eny=@uvJ]
+  =/  m  (mare ,[(list card) state-6:t])
   ^-  form:m
   ;<  ~  bind:m  (boot-seeded saved now (stream events) eny)
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-5:t vase))
+  (pure:m caz !<(state-6:t vase))
 ::  Load .saved at .now with %chat holding .invited's invitations, or not
 ::  running, and fire the maintenance wake as the only event after the load:
 ::  Activity is already subscribed.
 ::
 ++  wake
-  |=  [saved=state-5:t now=@da invited=(unit (set @p))]
-  =/  m  (mare ,[(list card) state-5:t])
+  |=  [saved=state-6:t now=@da invited=(unit (set @p))]
+  =/  m  (mare ,[(list card) state-6:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now, eny (shax 'approvals')))
   ;<  ~  bind:m  head-connected
@@ -171,25 +173,25 @@
   ;<  ~  bind:m  head-connected
   ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-5:t vase))
+  (pure:m caz !<(state-6:t vase))
 ::  Load .saved, then save .next through the policy endpoint.
 ::
 ++  configure
-  |=  [saved=state-5:t next=policy:t]
-  =/  m  (mare ,[(list card) state-5:t])
+  |=  [saved=state-6:t next=policy:t]
+  =/  m  (mare ,[(list card) state-6:t])
   ^-  form:m
   ;<  ~  bind:m  (boot saved later *stream:v10:a)
   ;<  caz=(list card)  bind:m
     %+  do-poke  %noun
     !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `(policy-json:policy-lib next)])
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-5:t vase))
+  (pure:m caz !<(state-6:t vase))
 ::  As +configure, with Activity connected, so that only requests set the
 ::  maintenance wake.
 ::
 ++  configure-live
-  |=  [saved=state-5:t next=policy:t]
-  =/  m  (mare ,state-5:t)
+  |=  [saved=state-6:t next=policy:t]
+  =/  m  (mare ,state-6:t)
   ^-  form:m
   ;<  ~  bind:m  (boot saved later *stream:v10:a)
   ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
@@ -197,19 +199,19 @@
     %+  do-poke  %noun
     !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `(policy-json:policy-lib next)])
   ;<  =vase  bind:m  get-save
-  (pure:m !<(state-5:t vase))
+  (pure:m !<(state-6:t vase))
 ::  Load .saved, then hear from %channels that the bot left .nest.
 ::
 ++  leave
-  |=  [saved=state-5:t nest=nest:dv]
-  =/  m  (mare ,state-5:t)
+  |=  [saved=state-6:t nest=nest:dv]
+  =/  m  (mare ,state-6:t)
   ^-  form:m
   ;<  ~  bind:m  (boot saved later *stream:v10:a)
   ;<  *  bind:m
     %^  do-agent  /publications  [~zod %channels]
     [%fact %channel-response-4 !>(`r-channels:v9:dv`[nest %leave ~])]
   ;<  =vase  bind:m  get-save
-  (pure:m !<(state-5:t vase))
+  (pure:m !<(state-6:t vase))
 ::  The cards sent: to whom, their text and their blob.
 ::
 ++  sent
@@ -269,8 +271,8 @@
 ::  with .args
 ::
 ++  call-tool
-  |=  [saved=state-5:t now=@da args=@t]
-  =/  m  (mare ,[(list card) state-5:t])
+  |=  [saved=state-6:t now=@da args=@t]
+  =/  m  (mare ,[(list card) state-6:t])
   ^-  form:m
   =/  call=tool-call:h  ['call-1' 'tlon' args]
   ;<  ~  bind:m  (boot saved now *stream:v10:a)
@@ -283,13 +285,13 @@
   ;<  caz=(list card)  bind:m
     (do-poke %harness-tool !>(`tool-request:ad`['sid' 0 call]))
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-5:t vase))
+  (pure:m caz !<(state-6:t vase))
 ::  .saved with .count requests in place of its own, from planets with no
 ::  access, each in .room-nest, opened at .at.
 ::
 ++  crowd
-  |=  [saved=state-5:t count=@ud at=@da]
-  ^-  state-5:t
+  |=  [saved=state-6:t count=@ud at=@da]
+  ^-  state-6:t
   %=    saved
       approvals
     %+  roll  (gulf 1 count)
@@ -299,7 +301,7 @@
 ::  ~dev's DM and four other channels: as many requests as a ship may hold.
 ::
 ++  busy-dev
-  ^-  state-5:t
+  ^-  state-6:t
   =/  s  fixture
   =.  approvals.s
     %+  roll  (gulf 1 4)
@@ -310,7 +312,7 @@
 ::  Open requests by ship and place.
 ::
 ++  open
-  |=  s=state-5:t
+  |=  s=state-6:t
   ^-  (set [@p place:t])
   ~(key by by-place.approvals.s)
 ++  places
@@ -318,11 +320,11 @@
   ^-  (set [@p place:t])
   (silt places)
 ++  requested
-  |=  [s=state-5:t who=@p =place:t]
+  |=  [s=state-6:t who=@p =place:t]
   ^-  @t
   (~(got by by-place.approvals.s) [who place])
 ++  kinds
-  |=  [s=state-5:t kind=@t]
+  |=  [s=state-6:t kind=@t]
   ^-  @ud
   (lent (skim notices.s |=(n=notice:t =(kind kind.n))))
 ++  dig
@@ -376,7 +378,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>((places ~[[~dev ~]])))
   =/  cards  (sent caz)
@@ -395,7 +397,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.01 [%dm-invite [%ship ~dev]]]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>((places ~[[~dev ~]])))
   =/  cards  (sent caz)
@@ -405,7 +407,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>((places ~[[~dev `room-nest]])))
   =/  cards  (sent caz)
@@ -423,9 +425,9 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
-  ;<  [caz=(list card) w=state-5:t]  bind:m
+  ;<  [caz=(list card) w=state-6:t]  bind:m
     (admit s later ~[[~2026.9.10..00.05.00 (dm ~dev ~2026.9.10..00.05.00)]])
   ;<  ~  bind:m  (ex-equal !>((kinds w 'permission-denied')) !>(2))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -434,9 +436,9 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
-  ;<  [caz=(list card) w=state-5:t]  bind:m
+  ;<  [caz=(list card) w=state-6:t]  bind:m
     (admit s later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
   ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~dev ~] [~dev `room-nest]])))
   ;<  ~  bind:m  (ex-equal !>((lent (sent caz))) !>(1))
@@ -448,9 +450,9 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
-  ;<  [caz=(list card) w=state-5:t]  bind:m
+  ;<  [caz=(list card) w=state-6:t]  bind:m
     (admit s later ~[[~2026.9.10..00.05.00 (reply ~dev room-nest ~2026.9.10..00.05.00)]])
   ;<  ~  bind:m  (ex-equal !>((kinds w 'permission-denied')) !>(2))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -461,7 +463,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     %^  admit  fixture  start
     :~  [~2026.9.9..12.00.00 (unmentioned ~dev room-nest ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 (unmentioned ~dev all-nest ~2026.9.9..12.00.01)]
@@ -473,7 +475,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~bel room-nest ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -485,7 +487,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
   =/  id  (requested s ~dev `room-nest)
   %+  ex-equal
@@ -495,7 +497,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
   =/  id  (requested s ~dev `room-nest)
   =/  cards  (sent caz)
@@ -512,7 +514,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     %^  admit  fixture  start
     :~  [~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 (mention ~dev room-nest ~2026.9.9..12.00.01)]
@@ -531,28 +533,28 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit s later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
   =/  dm-granted  policy.s
   =.  dm-grants.dm-granted  (~(put in dm-grants.dm-granted) ~dev)
-  ;<  [* w=state-5:t]  bind:m  (configure s dm-granted)
+  ;<  [* w=state-6:t]  bind:m  (configure s dm-granted)
   ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~dev `room-nest]])))
   ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.w)) !>((sy ~[(requested s ~dev `room-nest)])))
   =/  allowed  dm-granted
   =.  allowed.allowed  (silt ~[~dev])
-  ;<  [* u=state-5:t]  bind:m  (configure w allowed)
+  ;<  [* u=state-6:t]  bind:m  (configure w allowed)
   (ex-equal !>(approvals.u) !>(*approvals:t))
 ++  test-leaving-a-channel-closes-its-requests
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit s later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
-  ;<  w=state-5:t  bind:m  (leave s room-nest)
+  ;<  w=state-6:t  bind:m  (leave s room-nest)
   ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~dev ~]])))
   (ex-equal !>(~(key by by-id.approvals.w)) !>((sy ~[(requested s ~dev ~)])))
 ++  test-no-owner-or-a-disabled-adapter-opens-nothing
@@ -562,7 +564,7 @@
   =/  events  ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]]
   =/  ownerless  fixture
   =.  owner.policy.ownerless  ~
-  ;<  [caz=(list card) s=state-5:t]  bind:m  (admit ownerless start events)
+  ;<  [caz=(list card) s=state-6:t]  bind:m  (admit ownerless start events)
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
   ::  A disabled hand does not subscribe; hand it the acknowledgement anyway.
@@ -574,7 +576,7 @@
     |=(b=bowl b(wex (~(put by wex.b) [/activity ~zod %activity] [| /v4])))
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
-  =/  s  !<(state-5:t vase)
+  =/  s  !<(state-6:t vase)
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
   (ex-equal !>((kinds s 'permission-denied')) !>(0))
@@ -585,14 +587,14 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     %^  admit  fixture  start
     :~  [~2026.9.9..12.00.00 (mention ~dev off-nest ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 (mention ~bus open-nest ~2026.9.9..12.00.01)]
     ==
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
-  ;<  [caz=(list card) w=state-5:t]  bind:m
+  ;<  [caz=(list card) w=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev open-nest ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -605,7 +607,7 @@
   ^-  form:m
   =/  saved  fixture
   =.  cuts.saved  (my ~[[~dev ~2026.9.9..13.00.00]])
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit saved start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   (ex-equal !>((sent caz)) !>(~))
@@ -619,12 +621,12 @@
   =/  events  ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]]
   =/  everywhere  fixture
   =.  channel-after.everywhere  ~2026.9.9..13.00.00
-  ;<  [caz=(list card) s=state-5:t]  bind:m  (admit everywhere start events)
+  ;<  [caz=(list card) s=state-6:t]  bind:m  (admit everywhere start events)
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
   =/  here  fixture
   =.  channel-cuts.here  (my ~[[room-nest ~2026.9.9..13.00.00]])
-  ;<  [caz=(list card) s=state-5:t]  bind:m  (admit here start events)
+  ;<  [caz=(list card) s=state-6:t]  bind:m  (admit here start events)
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   (ex-equal !>((sent caz)) !>(~))
 ::  Activity keeps the row after the bot leaves the channel.
@@ -633,7 +635,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev left-nest ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -653,7 +655,7 @@
     ((scries events) path)
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
-  =/  s  !<(state-5:t vase)
+  =/  s  !<(state-6:t vase)
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
   (ex-equal !>((kinds s 'approval-request')) !>(0))
@@ -664,7 +666,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.01 [%dm-invite [%ship ~wes]]]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -680,7 +682,7 @@
   =/  at  ~2026.9.9..12.00.00
   =/  event=incoming-event:v8:a
     [%post [[~dev at] at] open-nest [~lux %test] ~[[%inline ~[long]]] &]
-  ;<  [caz=(list card) s=state-5:t]  bind:m  (admit fixture start ~[[at event]])
+  ;<  [caz=(list card) s=state-6:t]  bind:m  (admit fixture start ~[[at event]])
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(0))
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -692,7 +694,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     %^  admit  fixture  start
     :~  [~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 (mention ~dev room-nest ~2026.9.9..12.00.01)]
@@ -703,7 +705,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
   =/  id  (requested s ~dev ~)
   ;<  ~  bind:m  (boot s start *stream:v10:a)
@@ -711,7 +713,7 @@
     %^  do-agent  /approval/[id]/(scot %da start)  [~zod %chat]
     [%poke-ack `~[leaf+"no"]]
   ;<  =vase  bind:m  get-save
-  =/  w  !<(state-5:t vase)
+  =/  w  !<(state-6:t vase)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   (ex-equal !>((kinds w 'approval-card-rejected')) !>(1))
 ::  The second attempt is within ten minutes of the notice.
@@ -721,7 +723,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  crowded  (crowd fixture 100 ~2026.9.9..12.00.00)
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit crowded start ~[[~2026.9.9..13.00.00 (mention ~dev room-nest ~2026.9.9..13.00.00)]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.crowded))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -732,7 +734,7 @@
         'Pending approval queue is full (100). New requests are dropped until existing ones are approved, denied, or blocked.'
     ==
   ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-cap')) !>(1))
-  ;<  [caz=(list card) w=state-5:t]  bind:m
+  ;<  [caz=(list card) w=state-6:t]  bind:m
     %^  admit  s  ~2026.9.10..00.09.59
     ~[[~2026.9.10..00.05.00 (mention ~wes room-nest ~2026.9.10..00.05.00)]]
   ;<  ~  bind:m  (ex-equal !>((kinds w 'permission-denied')) !>(2))
@@ -744,14 +746,14 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  busy  busy-dev
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit busy start ~[[~2026.9.9..13.00.00 (mention ~dev room-nest ~2026.9.9..13.00.00)]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.busy))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
   ;<  ~  bind:m  (ex-equal !>((full caz)) !>(~))
   ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-cap')) !>(0))
   =/  fewer  s(approvals (close:ask approvals.s 'c1'))
-  ;<  [caz=(list card) w=state-5:t]  bind:m
+  ;<  [caz=(list card) w=state-6:t]  bind:m
     (admit fewer later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
   ;<  ~  bind:m  (ex-equal !>(?=(^ (find:ask approvals.w ~dev `room-nest))) !>(&))
   (ex-equal !>((lent (sent caz))) !>(1))
@@ -763,7 +765,7 @@
   =.  approvals.saved
     =/  one  (open:ask approvals.saved 'c1' [~dev `room-nest start])
     (open:ask one 'c2' [~wes `room-nest (add start ~s1)])
-  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) `~)
+  ;<  [caz=(list card) w=state-6:t]  bind:m  (wake saved (add start ~h48) `~)
   ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~wes `room-nest]])))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-expired')) !>(1))
   (ex-equal !>(wake.w) !>(`(add start (add ~h48 ~s1))))
@@ -776,7 +778,7 @@
   ^-  form:m
   =/  saved  fixture
   =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
-  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~dev ~wes]))
+  ;<  [caz=(list card) w=state-6:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~dev ~wes]))
   ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
   (ex-equal !>((declined caz)) !>(`(list [@p ?])`~[[~dev |]]))
 ::  No invitation of ~dev's, then a %chat that cannot answer.
@@ -787,10 +789,10 @@
   ^-  form:m
   =/  saved  fixture
   =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
-  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~wes]))
+  ;<  [caz=(list card) w=state-6:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~wes]))
   ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
-  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) ~)
+  ;<  [caz=(list card) w=state-6:t]  bind:m  (wake saved (add start ~h48) ~)
   ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-expired')) !>(1))
   (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
@@ -800,7 +802,7 @@
   ^-  form:m
   =/  saved  fixture
   =.  approvals.saved  (open:ask approvals.saved 'c1' [~dev `room-nest start])
-  ;<  [caz=(list card) w=state-5:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~dev]))
+  ;<  [caz=(list card) w=state-6:t]  bind:m  (wake saved (add start ~h48) `(silt ~[~dev]))
   ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
   (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
 ::  The DM request opens first and closes first, when ~dev gains DM access.
@@ -809,28 +811,28 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>(wake.s) !>(`(add start ~h48)))
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit s later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
   ;<  ~  bind:m  (ex-equal !>(wake.s) !>(`(add start ~h48)))
   =/  dm-granted  policy.s
   =.  dm-grants.dm-granted  (~(put in dm-grants.dm-granted) ~dev)
-  ;<  w=state-5:t  bind:m  (configure-live s dm-granted)
+  ;<  w=state-6:t  bind:m  (configure-live s dm-granted)
   ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~dev `room-nest]])))
   (ex-equal !>(wake.w) !>(`(add later ~h48)))
 ++  test-after-expiry-the-same-ship-in-the-same-place-opens-a-new-request-with-a-new-card
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
   =/  first  (requested s ~dev ~)
-  ;<  [* w=state-5:t]  bind:m  (wake s (add start ~h48) `~)
+  ;<  [* w=state-6:t]  bind:m  (wake s (add start ~h48) `~)
   ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
   =/  again  (add start (add ~h48 ~s30))
-  ;<  [caz=(list card) u=state-5:t]  bind:m
+  ;<  [caz=(list card) u=state-6:t]  bind:m
     (admit-seeded w (add again ~s30) ~[[again (dm ~dev again)]] (shax 'again'))
   ;<  ~  bind:m  (ex-equal !>((open u)) !>((places ~[[~dev ~]])))
   ;<  ~  bind:m  (ex-equal !>(=(first (requested u ~dev ~))) !>(|))
@@ -841,7 +843,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention comet room-nest ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
@@ -855,7 +857,7 @@
   ^-  form:m
   =/  saved  fixture
   =.  dm-grants.policy.saved  (~(put in dm-grants.policy.saved) comet)
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit saved start ~[[~2026.9.9..12.00.00 (dm comet ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(1))
   (ex-equal !>((kinds s 'permission-denied')) !>(0))
@@ -867,9 +869,9 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-5:t]  bind:m
+  ;<  [* s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
-  ;<  [* w=state-5:t]  bind:m  (admit s later ~)
+  ;<  [* w=state-6:t]  bind:m  (admit s later ~)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.s))
   ;<  ~  bind:m  (ex-equal !>(wake.w) !>(`(add start ~h48)))
   =/  overdue  (add start ~h49)
@@ -878,7 +880,7 @@
   ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a))
   ;<  caz=(list card)  bind:m  (do-load adapter `!>(s))
   ;<  loaded=vase  bind:m  get-save
-  =/  u  !<(state-5:t loaded)
+  =/  u  !<(state-6:t loaded)
   ;<  ~  bind:m  (ex-equal !>(approvals.u) !>(approvals.s))
   ;<  ~  bind:m
     %+  ex-equal
@@ -887,7 +889,7 @@
   ;<  ~  bind:m  head-connected
   ;<  *  bind:m  (do-arvo /poll [%behn %wake ~])
   ;<  woken=vase  bind:m  get-save
-  (ex-equal !>((open !<(state-5:t woken))) !>(`(set [@p place:t])`~))
+  (ex-equal !>((open !<(state-6:t woken))) !>(`(set [@p place:t])`~))
 ::  Under steady traffic each event would move an overdue wake later; the
 ::  event itself expires the request. Loading alone does not.
 ::
@@ -899,10 +901,10 @@
   =.  approvals.saved  (open:ask approvals.saved 'c1' [~dev `room-nest start])
   ;<  ~  bind:m  (boot saved (add start ~h48) *stream:v10:a)
   ;<  loaded=vase  bind:m  get-save
-  ;<  ~  bind:m  (ex-equal !>((open !<(state-5:t loaded))) !>((places ~[[~dev `room-nest]])))
+  ;<  ~  bind:m  (ex-equal !>((open !<(state-6:t loaded))) !>((places ~[[~dev `room-nest]])))
   ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  after=vase  bind:m  get-save
-  =/  w  !<(state-5:t after)
+  =/  w  !<(state-6:t after)
   ;<  ~  bind:m  (ex-equal !>((open w)) !>(`(set [@p place:t])`~))
   (ex-equal !>((kinds w 'approval-expired')) !>(1))
 ::  %chat reports a pending invitation once; declined, ~dev's next message
@@ -913,7 +915,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  crowded  (crowd fixture 100 ~2026.9.9..12.00.00)
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit crowded start ~[[~2026.9.9..13.00.00 [%dm-invite [%ship ~dev]]]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.crowded))
   ;<  ~  bind:m  (ex-equal !>((lent (full caz))) !>(1))
@@ -928,7 +930,7 @@
     |=  [n=@ud =approvals:t]
     =/  nest=nest:dv  [%chat ~lux `@tas`(crip (weld "other" (a-co:co n)))]
     (open:ask approvals (cat 3 'c' (crip (a-co:co n))) [~dev `nest ~2026.9.9..12.00.00])
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit busy start ~[[~2026.9.9..13.00.00 [%dm-invite [%ship ~dev]]]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.busy))
   ;<  ~  bind:m  (ex-equal !>((full caz)) !>(~))
@@ -939,7 +941,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     %^  admit  fixture  start
     :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 [%dm-invite [%ship ~dev]]]
@@ -961,7 +963,7 @@
         [~2026.9.9..13.00.02 [%dm-invite [%ship comet]]]
     ==
   ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     %^  admit  fixture  start
     :~  [~2026.9.9..12.00.00 [%dm-invite [%ship ~dev]]]
         [~2026.9.9..12.00.01 [%dm-invite [%ship ~dev]]]
@@ -980,7 +982,7 @@
   =/  saved  fixture
   =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
   =/  due  (add start ~h48)
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (call-tool saved due '{"action":"accept_dm","ship":"~dev"}')
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   ;<  ~  bind:m  (ex-equal !>((dm-effects caz)) !>(`(list [@tas @p])`~[[%decline ~dev] [%accept ~dev]]))
@@ -992,7 +994,7 @@
   ;<  ~  bind:m  head-connected
   ;<  woken=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
   ;<  granted=vase  bind:m  get-save
-  ;<  ~  bind:m  (ex-equal !>((open !<(state-5:t granted))) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((open !<(state-6:t granted))) !>(`(set [@p place:t])`~))
   (ex-equal !>((weld (rsvps loaded) (rsvps woken))) !>(`(list [@p ?])`~[[~dev &] [~dev &]]))
 ::  A message into a pending DM accepts its invitation in %chat, so a decline
 ::  after it would delete the DM.
@@ -1003,7 +1005,7 @@
   ^-  form:m
   =/  saved  fixture
   =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (call-tool saved (add start ~h48) '{"action":"send_dm","ship":"~dev","text":"hello"}')
   ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
   (ex-equal !>((dm-effects caz)) !>(`(list [@tas @p])`~[[%decline ~dev] [%post ~dev]]))
@@ -1015,11 +1017,11 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  crowded  (crowd fixture 100 ~2026.9.9..12.00.00)
-  ;<  [caz=(list card) s=state-5:t]  bind:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit crowded start ~[[~2026.9.9..13.00.00 [%dm-invite [%ship ~dev]]]])
   ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~[[~dev |]]))
   =/  fewer  s(approvals (close:ask approvals.s 'c1'))
-  ;<  [caz=(list card) u=state-5:t]  bind:m
+  ;<  [caz=(list card) u=state-6:t]  bind:m
     (admit fewer later ~[[~2026.9.10..00.05.00 [%dm-invite [%ship ~dev]]]])
   ;<  ~  bind:m  (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
   ;<  ~  bind:m  (ex-equal !>(?=(^ (find:ask approvals.u ~dev ~))) !>(&))

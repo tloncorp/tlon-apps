@@ -1,6 +1,10 @@
 /-  c=harness-cron, hh=harness-hand, h=harness, *harness-store
 /+  *test, schedule=harness-schedule, hd=harness-hand, ht=harness-tools, storage=harness-store
 |%
+++  ix
+  |=  db=state:hh
+  ^-  indexed:hh
+  [db (reindex:hd db)]
 ++  source
   ^-  binding:hh
   ['fixture-chat' 'room/launch' 'source' ~['alice'] &]
@@ -157,6 +161,81 @@
   =/  args  (pairs:enjs:format ~[['at' %s at] ['prompt' %s 'Work']])
   =/  invalid  (mule |.((create:schedule action(args args) source ~ ~2026.9.9)))
   (expect !>(?=(%| -.invalid)))
+++  recurring
+  |=  [schedule=@t timezone=@t]
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['schedule' %s schedule]  ['timezone' %s timezone]  ['prompt' %s 'Morning brief']
+      ['runs' %s '3']
+  ==
+++  test-offset-job-keeps-its-offset-on-every-occurrence
+  =/  action  action
+  =/  out  (create:schedule action(args (recurring '0 9 * * *' '-06:00')) source ~ ~2026.9.9)
+  =/  second  (advance:schedule out 0v1 next.out)
+  ::  Downtime past the second occurrence coalesces to the next local 09:00.
+  =/  late  (advance:schedule second 0v2 ~2026.9.12)
+  ;:  weld
+      (expect-eq !>('-06:00') !>(timezone.out))
+      (expect-eq !>(~2026.9.9..15.00.00) !>(next.out))
+      (expect-eq !>(~2026.9.10..15.00.00) !>(next.second))
+      (expect-eq !>(~2026.9.12..15.00.00) !>(next.late))
+      %+  expect-eq  !>([%s '-06:00'])
+      !>((~(got by (pairs-of (one-json:schedule 0v1 out *indexed:hh))) 'timezone'))
+  ==
+++  test-offset-job-matches-local-calendar-across-the-date-line
+  =/  action  action
+  =/  west  (create:schedule action(args (recurring '0 23 * * 5' '-06:00')) source ~ ~2026.9.9)
+  =/  east  (create:schedule action(args (recurring '30 0 1 * *' '+05:30')) source ~ ~2026.9.9)
+  =/  east-again  (advance:schedule east 0v1 next.east)
+  ;:  weld
+      (expect-eq !>(~2026.9.12..05.00.00) !>(next.west))
+      (expect-eq !>(~2026.9.30..19.00.00) !>(next.east))
+      (expect-eq !>(~2026.10.31..19.00.00) !>(next.east-again))
+  ==
+++  test-edit-to-an-offset-moves-the-next-run
+  =/  j  job
+  =/  edited  (editable:schedule 0v1 j (recurring '0 9 * * *' '+05:30') ~2026.9.9)
+  ;:  weld
+      (expect-eq !>('+05:30') !>(timezone.edited))
+      (expect-eq !>(~2026.9.9..03.30.00) !>(next.edited))
+  ==
+++  test-utc-and-zero-offset-jobs-run-as-before
+  =/  action  action
+  =/  utc  (create:schedule action(args (recurring '0 9 * * *' 'UTC')) source ~ ~2026.9.9)
+  =/  zero  (create:schedule action(args (recurring '0 9 * * *' '+00:00')) source ~ ~2026.9.9)
+  ;:  weld
+      (expect-eq !>('UTC') !>(timezone.utc))
+      (expect-eq !>(~2026.9.9..09.00.00) !>(next.utc))
+      (expect-eq !>(~2026.9.10..09.00.00) !>(next:(advance:schedule utc 0v1 next.utc)))
+      (expect-eq !>('+00:00') !>(timezone.zero))
+      (expect-eq !>(next.utc) !>(next.zero))
+  ==
+++  test-recurring-timezone-accepts-only-utc-or-a-fixed-offset
+  =/  action  action
+  =/  invalid=(list @t)
+    :~  'America/Chicago'  'Z'  'utc'  '+5'  '+05'  '+0500'  'UTC+5'  'UTC+05:00'
+        '-00:00'  '+15:00'  '-14:30'  '+05:60'  '05:00'  '+5:00'  ' +05:00'  ''
+    ==
+  =/  accepted=(list @t)  ~['+14:00' '-12:00' '+05:45' '+00:00']
+  ;:  weld
+      %-  expect
+      !>  %+  levy  invalid
+          |=  timezone=@t
+          =/  args  (recurring '0 9 * * *' timezone)
+          =/  result  (mule |.((create:schedule action(args args) source ~ ~2026.9.9)))
+          ?=(%| -.result)
+      %-  expect
+      !>  %+  levy  accepted
+          |=  timezone=@t
+          =/  args  (recurring '0 9 * * *' timezone)
+          =/  result  (mule |.((create:schedule action(args args) source ~ ~2026.9.9)))
+          ?=(%& -.result)
+  ==
+++  pairs-of
+  |=  value=json
+  ^-  (map @t json)
+  ?>  ?=(%o -.value)
+  p.value
 ++  test-pending-and-uncertain-work-prevent-overlap-and-clear
   =/  job  job
   =/  db=state:hh  *state:hh
@@ -171,17 +250,17 @@
     ==
   =/  done  (job-value:schedule job(state %complete, remaining 0, last `0v1))
   ;:  weld
-      (expect !>((busy:schedule done db)))
-      (expect !>(!(clearable:schedule done db)))
-      (expect !>((clearable:schedule done db(outbox ~))))
+      (expect !>((busy:schedule done (ix db))))
+      (expect !>(!(clearable:schedule done (ix db))))
+      (expect !>((clearable:schedule done (ix db(outbox ~)))))
   ==
 ++  test-clearing-unfired-cancelled-job-keeps-budget-unused
   =/  job  job
-  (expect !>((clearable:schedule (job-value:schedule job(state %cancelled)) *state:hh)))
+  (expect !>((clearable:schedule (job-value:schedule job(state %cancelled)) (ix *state:hh))))
 ++  test-source-binding-scopes-list-results
   =/  job  job
   =/  jobs  (my ~[[0v1 job] [0v2 job(binding 'another-binding')]])
-  =/  result  (list-json:schedule jobs *state:hh `'source-binding')
+  =/  result  (list-json:schedule jobs (ix *state:hh) `'source-binding')
   ?>  ?=(%a -.result)
   (expect-eq !>(1) !>((lent p.result)))
 ++  test-schedules-strip-recursion-delegation-and-administration
@@ -237,15 +316,15 @@
   =.  outbox.db  (my ~[[0v9 pub]])
   =/  value  (job-value:schedule j)
   ;:  weld
-      (expect !>((retryable:schedule value db)))
-      (expect !>((retryable:schedule value(state %complete, remaining 0) db)))
-      (expect !>(!(retryable:schedule value(state %cancelled) db)))
-      (expect !>(!(retryable:schedule value(kind %reminder) db)))
-      (expect !>(!(retryable:schedule value db(outbox ~))))
-      (expect !>(!(retryable:schedule value db(observations (my ~[[0v9 obs(phase %completed)]])))))
-      (expect !>(!(retryable:schedule value db(outbox (my ~[[0v9 pub(kind %reply)]])))))
-      (expect !>(!(retryable:schedule value db(outbox (my ~[[0v9 pub(status %pending)]])))))
-      (expect !>(!(retryable:schedule value db(outbox (my ~[[0v9 pub(status %claimed)]])))))
-      (expect !>(!(retryable:schedule value db(outbox (my ~[[0v9 pub(status %uncertain)]])))))
+      (expect !>((retryable:schedule value (ix db))))
+      (expect !>((retryable:schedule value(state %complete, remaining 0) (ix db))))
+      (expect !>(!(retryable:schedule value(state %cancelled) (ix db))))
+      (expect !>(!(retryable:schedule value(kind %reminder) (ix db))))
+      (expect !>(!(retryable:schedule value (ix db(outbox ~)))))
+      (expect !>(!(retryable:schedule value (ix db(observations (my ~[[0v9 obs(phase %completed)]]))))))
+      (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(kind %reply)]]))))))
+      (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(status %pending)]]))))))
+      (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(status %claimed)]]))))))
+      (expect !>(!(retryable:schedule value (ix db(outbox (my ~[[0v9 pub(status %uncertain)]]))))))
   ==
 --

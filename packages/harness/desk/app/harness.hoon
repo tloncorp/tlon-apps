@@ -47,6 +47,7 @@
 /+  routing=harness-model-routing
 /+  model-context=harness-model-context
 /+  mcp=harness-mcp
+/+  browser-image=harness-browser-image
 /+  tool-catalog=harness-tool-catalog, wire-json=harness-provider-wire
 /+  observe=harness-observe
 /+  run-report=harness-run-report
@@ -54,6 +55,8 @@
 /+  memory-browser=harness-memory-browser
 |%
 +$  card  card:agent:gall
++$  browser-screen
+  [input-id=input-id:h call-id=@t server=@uvH mime=@t data=@t]
 +$  acp-request
   $:  connection=connection-id:v1:ac
       request-id=json
@@ -71,9 +74,13 @@
       search-requests=search-requests:h
       knowledge=state:memory-types
   ==
+::  The hand index and browser frames are transient; +on-save keeps only state-0.
+::
++$  live-state
+  [state-0 hand-index=index:hh browser-images=(map session-id:h browser-screen)]
 --
 %-  agent:dbug
-=|  state-0
+=|  live-state
 =*  state  -
 ^-  agent:gall
 =<
@@ -90,7 +97,7 @@
         |=  result=(quip card _this)
         ^-  (quip card _this)
         =*  updated  +.result
-        =/  saved  !<(state-0 on-save:updated)
+        =/  saved=live-state  state.updated
         =/  before-writes  writes.workspace
         =/  before-workspace  workspace
         =/  before-notes  workspace-notes
@@ -150,6 +157,14 @@
           |(!=(before-hands hands) !=(before-sessions sessions) !=(before-schedules schedules))
         =?  cards  changed
           (snoc cards [%give %fact ~[/hand-events] %noun !>(%changed)])
+        ::  Every schedule write, including maintenance above, lands before
+        ::  this comparison. The store holds at most 64 schedules, which
+        ::  bounds how many rows a full snapshot carries.
+        =?  cards  !=(before-schedules schedules)
+          %+  snoc  cards
+          :*  %give  %fact  ~[/v1/schedule-events]
+              %harness-schedules-1  !>(`schedules:cr`schedules)
+          ==
         =?  cards  !=(before-writes writes.workspace)
           =/  revision=json
             (pairs:enjs:format ~[['revision' (numb:enjs:format writes.workspace)]])
@@ -169,7 +184,7 @@
         acp-watch-card:wire-codec
     ==
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>(-.state)
   ::
   ++  on-load
     |=  old-vase=vase
@@ -180,7 +195,12 @@
     =/  upkeep=(unit @da)
       ?.  (maintenance-needed:schedule-lib schedules.new ~ now.bowl |)  ~
       `+(now.bowl)
-    =.  state  new(corpus-wake ~, schedule-wake upkeep)
+    =.  -.state  new(corpus-wake ~, schedule-wake upkeep)
+    ::  Work sent to a summary model before this load may carry facts the
+    ::  current code would not give its conversation.
+    =.  barrier.knowledge  +(barrier.knowledge)
+    =.  hand-index  (reindex:hd hands)
+    =.  browser-images  ~
     =.  wake.knowledge  ~
     =.  runners
       runners(wake ~, registry (~(run by registry.runners) |=(r=runner:runner-types r(stream ~))))
@@ -360,6 +380,10 @@
     ::
       [%workspace @ ~]  `this
       [%hand-events ~]  [~[[%give %fact ~[path] %noun !>(%changed)]] this]
+    ::
+        [%v1 %schedule-events ~]
+      [~[[%give %fact ~ %harness-schedules-1 !>(`schedules:cr`schedules)]] this]
+    ::
       [%session @ ~]  `this
       [%hands @ ~]  `this
       [%crons @ ~]  `this
@@ -386,7 +410,7 @@
           [%x %workspace ~]
         ``noun+!>(workspace)
           [%x %cron ~]
-        ``json+!>((list-json:schedule-lib schedules hands ~))
+        ``json+!>((list-json:schedule-lib schedules [hands hand-index] ~))
           [%x %cron-session @ ~]
         ``noun+!>((for-session:schedule-lib schedules i.t.t.path))
           [%x %cron-authority @ ~]
@@ -396,10 +420,13 @@
         ``json+!>((status-json:hd hands i.t.t.path))
       ::
           [%x %hand-outbox @ ~]
-        ``json+!>((outbox-json:hd hands i.t.t.path))
+        ``json+!>((outbox-json:hd [hands hand-index] i.t.t.path))
       ::
           [%x %hand-state ~]
         ``noun+!>(hands)
+      ::
+          [%x %hand-index ~]
+        ``noun+!>(hand-index)
       ::
           [%x %work-card @ ~]
         ``noun+!>((work-card:hc (slav %uv i.t.t.path)))
@@ -923,9 +950,7 @@
 ++  session-tlon
   |=  sid=session-id:h
   ^-  ?
-  %+  lien  ~(val by bindings.hands)
-  |=  binding=binding:hh
-  &(=(sid sid.binding) =('tlon' hand.binding))
+  (session-hand:hd [hands hand-index] sid 'tlon')
 ::  The general rule for any hand: no ceiling, or one that grants %cron. The
 ::  Tlon hand never puts %cron in a ceiling, so on Tlon only a conversation
 ::  with no ceiling, the owner's, may schedule.
@@ -989,9 +1014,11 @@
   ^-  (quip card _state)
   =.  schedules  (~(put by schedules) id job(state mode, reason reason))
   =/  bound  (~(get by bindings.hands) run-sid.job)
-  =?  hands  ?=(^ bound)
-    =/  applied  (apply:hd hands [%enable run-sid.job |] now.bowl)
-    ?:(?=(%& -.applied) db.p.applied hands)
+  =/  disabled=(unit indexed:hh)
+    ?~  bound  ~
+    =/  applied  (apply-indexed:hd [hands hand-index] [%enable run-sid.job |] now.bowl)
+    ?:(?=(%& -.applied) `ledger.p.applied ~)
+  =?  state  ?=(^ disabled)  state(hands db.u.disabled, hand-index index.u.disabled)
   ?.  (~(has by sessions) run-sid.job)  `state
   =/  current  (play:hl log:(need-session run-sid.job))
   ?:  ?&  =(~ tools.config.current)
@@ -1009,7 +1036,7 @@
   |=  action=action:cr
   ^-  [result=(each json @t) cards=(list card) new=_state]
   ?:  ?=(%list -.action)
-    [[%& (list-json:schedule-lib schedules hands binding.action)] ~ state]
+    [[%& (list-json:schedule-lib schedules [hands hand-index] binding.action)] ~ state]
   ?:  ?=(%add -.action)
     (schedule-add action)
   =/  key=@uv
@@ -1037,7 +1064,7 @@
       %cancelled
       'Cancelled by the source conversation or owner'
     ==
-  [[%& (list-json:schedule-lib schedules hands ~)] cards state]
+  [[%& (list-json:schedule-lib schedules [hands hand-index] ~)] cards state]
 ::
 ++  schedule-add
   |=  action=action:cr
@@ -1049,7 +1076,7 @@
   ?^  prior
     ?.  =(fingerprint.u.prior (fingerprint:schedule-lib action))
       [[%| 'Schedule ID already belongs to a different request'] ~ state]
-    [[%& (one-json:schedule-lib id.action u.prior hands)] ~ state]
+    [[%& (one-json:schedule-lib id.action u.prior [hands hand-index])] ~ state]
   ?:  (gte ~(wyt by schedules) 64)
     [[%| 'Schedule capacity reached; clear settled jobs in Settings'] ~ state]
   =/  source  (~(get by bindings.hands) binding.action)
@@ -1069,7 +1096,7 @@
   =/  parsed  (mule |.((create:schedule-lib action u.source grants now.bowl)))
   ?.  ?=(%& -.parsed)
     :*  :*  %|
-            'Require an authorized actor and prompt 1..4096 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field UTC schedule and runs 1..100. Literal reminders require at and text, and a destination only if it names this conversation.'
+            'Require an authorized actor and prompt 1..4096 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field schedule with timezone UTC or a fixed +HH:MM/-HH:MM offset and runs 1..100. Literal reminders require at and text, and a destination only if it names this conversation.'
         ==
         ~  state
     ==
@@ -1097,14 +1124,16 @@
     ==
   =^  created  state  (handle-action [%new run-sid.job config js-timeout])
   =/  bound
-    %:  apply:hd
-      hands
+    %:  apply-indexed:hd
+      [hands hand-index]
       [%bind run-sid.job [hand.job destination.job run-sid.job ~[actor.job] &]]
       now.bowl
     ==
   ?>  ?=(%& -.bound)
-  =.  hands  db.p.bound
-  [[%& (one-json:schedule-lib id.action job hands)] created state]
+  =:  hands  db.ledger.p.bound
+      hand-index  index.ledger.p.bound
+    ==
+  [[%& (one-json:schedule-lib id.action job [hands hand-index])] created state]
 ::
 ++  schedule-edit
   |=  [action=action:cr job=schedule:cr]
@@ -1112,7 +1141,7 @@
   ?>  ?=(%edit -.action)
   ?.  =(revision.action (sham job))
     [[%| 'Schedule changed; list schedules again before editing'] ~ state]
-  ?:  (busy:schedule-lib (job-value:schedule-lib job) hands)
+  ?:  (busy:schedule-lib (job-value:schedule-lib job) [hands hand-index])
     [[%| 'Work or delivery is still pending; edit after it settles'] ~ state]
   ?.  (schedule-live job)
     [[%| 'Only an authorized active or completed schedule can be edited'] ~ state]
@@ -1122,14 +1151,14 @@
         state
     ==
   =.  schedules  (~(put by schedules) id.action p.parsed)
-  [[%& (one-json:schedule-lib id.action p.parsed hands)] ~ state]
+  [[%& (one-json:schedule-lib id.action p.parsed [hands hand-index])] ~ state]
 ::
 ++  schedule-retry
   |=  [action=action:cr job=schedule:cr]
   ^-  [result=(each json @t) cards=(list card) new=_state]
   ?>  ?=(%retry -.action)
   ?.  ?&  =(last.job `input.action)
-          (retryable:schedule-lib (job-value:schedule-lib job) hands)
+          (retryable:schedule-lib (job-value:schedule-lib job) [hands hand-index])
           (schedule-live job)
       ==
     :*  :*  %|
@@ -1150,26 +1179,29 @@
   =/  input  (input-id:hd run-sid.job event)
   =/  prior  (~(got by observations.hands) input.action)
   =/  admitted
-    %:  apply:hd
-      hands
+    %:  apply-indexed:hd
+      [hands hand-index]
       [%observe run-sid.job event actor.job text.prior]
       now.bowl
     ==
   ?:  ?=(%| -.admitted)  [[%| p.admitted] ~ state]
-  =.  hands  (start:hd db.p.admitted run-sid.job input)
+  =/  started  (start-indexed:hd ledger.p.admitted run-sid.job input)
+  =:  hands  db.started
+      hand-index  index.started
+    ==
   =.  schedules  (~(put by schedules) id.action job(last `input))
   =^  cards  state  (handle-action [%retry run-sid.job])
-  [[%& (list-json:schedule-lib schedules hands ~)] cards state]
+  [[%& (list-json:schedule-lib schedules [hands hand-index] ~)] cards state]
 ::
 ++  schedule-delete
   |=  [action=action:cr job=schedule:cr]
   ^-  [result=(each json @t) cards=(list card) new=_state]
   ?>  ?=(%delete -.action)
-  ?:  (busy:schedule-lib (job-value:schedule-lib job) hands)
+  ?:  (busy:schedule-lib (job-value:schedule-lib job) [hands hand-index])
     [[%| 'Work or delivery is still pending; cancel first and delete after it settles'] ~ state]
   =^  cards  state  (stop-schedule id.action job %cancelled 'Schedule deleted')
   =.  schedules  (~(del by schedules) id.action)
-  [[%& (list-json:schedule-lib schedules hands ~)] cards state]
+  [[%& (list-json:schedule-lib schedules [hands hand-index] ~)] cards state]
 ::
 ++  schedule-clear
   |=  [action=action:cr job=schedule:cr]
@@ -1177,7 +1209,7 @@
   ?>  ?=(%clear -.action)
   ::  Clearing also requires a settled lifecycle; deleting only requires
   ::  that no execution or delivery is in flight.
-  ?.  (clearable:schedule-lib (job-value:schedule-lib job) hands)
+  ?.  (clearable:schedule-lib (job-value:schedule-lib job) [hands hand-index])
     :*  :*  %|
             'Only completed or cancelled schedules with no pending or uncertain work can be cleared'
         ==
@@ -1185,7 +1217,7 @@
     ==
   =^  cards  state  (stop-schedule id.action job %cancelled 'Cleared in owner settings')
   =.  schedules  (~(del by schedules) id.action)
-  [[%& (list-json:schedule-lib schedules hands ~)] cards state]
+  [[%& (list-json:schedule-lib schedules [hands hand-index] ~)] cards state]
 ::
 ++  schedule-tool
   |=  request=tool-request:adapter
@@ -1219,7 +1251,7 @@
           ~  state
       ==
     ?:  =('cron_list' name.call.request)
-      [[%& (list-json:schedule-lib visible hands ~)] ~ state]
+      [[%& (list-json:schedule-lib visible [hands hand-index] ~)] ~ state]
     ?:  %+  lien  `(list @t)`~['cron_remove' 'cron_update' 'cron_delete' 'cron_retry']
         |=(name=@t =(name name.call.request))
       =/  id
@@ -1249,7 +1281,7 @@
       ::  Do not return the owner-wide mutation response to a scoped caller.
       =/  job  (~(get by schedules.new.handled) p.id)
       %*  .  handled
-        result  [%& ?~(job ~ (one-json:schedule-lib p.id u.job hands.new.handled))]
+        result  [%& ?~(job ~ (one-json:schedule-lib p.id u.job [hands hand-index]:new.handled))]
       ==
     %-  schedule-call
     :*  %add
@@ -1551,7 +1583,7 @@
         ==
         state
     ==
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next  saved(workspace-notes workspace-notes.saved(pending ~))
   =.  workspace.next
     %:  record:workspace-lib
@@ -1578,7 +1610,7 @@
   ^-  (quip card _state)
   ?~  pending.workspace-notes  `state
   =/  pending  u.pending.workspace-notes
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next
     saved(workspace-notes workspace-notes.saved(pending ?:(uncertain `pending(uncertain &) ~)))
   [~[(notes-reply reply.pending [%| message])] next]
@@ -1730,7 +1762,7 @@
     %+  notes-failed
       'Notes confirmed a result, but its current document could not be read. Do not repeat the operation.'
     &
-  =/  saved=state-0  state
+  =/  saved=live-state  state
   =/  next  saved(workspace db.p.resolved, workspace-notes native.p.resolved)
   =/  artifact  (~(got by artifacts.workspace.next) artifact.pending)
   =/  result
@@ -1751,13 +1783,39 @@
   ^-  (unit admitted-input:h)
   =/  session  (~(get by sessions) sid)
   ?~  session  ~
-  =/  log  log.u.session
-  |-
-  ^-  (unit admitted-input:h)
-  ?~  log  ~
-  ?:  ?=(%input-received -.i.log)  `input.i.log
-  ?:  ?=(%input-admitted -.i.log)  ~
-  $(log t.log)
+  (current-input:admin log.u.session)
+::
+++  live-hand-input
+  |=  [sid=session-id:h source=input-source:h]
+  ^-  ?
+  ?.  ?=(%hand -.source)  |
+  =/  binding  (~(get by bindings.hands) binding.source)
+  ?&  ?=(^ binding)
+      enabled.u.binding
+      =(sid sid.u.binding)
+      =(hand.source hand.u.binding)
+      =(address.source address.u.binding)
+      (actor-allowed:hd actors.u.binding actor.source)
+  ==
+::
+++  browser-authorized
+  |=  sid=session-id:h
+  ^-  ?
+  ::  A session can have several bindings. Use the one that admitted this turn.
+  =/  input  (work-origin sid)
+  ?.  ?=(^ input)  |
+  =/  source  source.u.input
+  ?.  ?&  ?=(%hand -.source)
+          =('tlon' hand.source)
+          (live-hand-input sid source)
+          .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)
+      ==
+    |
+  =/  owner
+    .^  (unit [binding=@t address=@t actor=@t])  %gx
+      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/browser-owner/[sid]/noun
+    ==
+  =(`[binding.source address.source actor.source] owner)
 ::
 ++  work-authority
   |=  [sid=session-id:h input=admitted-input:h]
@@ -1773,17 +1831,7 @@
   ?.  ?=(?(%acp %poke %hand) -.source)  ~
   ::  Validate the hand's current identity and actor before deriving either
   ::  owner authority or the conversation's scoped workspace authority.
-  =/  source-live=?
-    ?.  ?=(%hand -.source)  &
-    =/  binding  (~(get by bindings.hands) binding.source)
-    ?&  ?=(^ binding)
-        enabled.u.binding
-        =(sid sid.u.binding)
-        =(hand.source hand.u.binding)
-        =(address.source address.u.binding)
-        (actor-allowed:hd actors.u.binding actor.source)
-    ==
-  ?.  source-live  ~
+  ?:  &(?=(%hand -.source) !(live-hand-input sid source))  ~
   =/  owner=?
     ?-  -.source
       %acp  &(?=(~ (decode:admin client.source)) =(actor.input `our.bowl) (session-admin sid))
@@ -2621,7 +2669,7 @@
       ==
     $(pending t.pending, cards (weld cards stopped))
   ?.  &(?=(%active state.job) (lte next.job now.bowl))  $(pending t.pending)
-  ?:  (busy:schedule-lib (job-value:schedule-lib job) hands)  $(pending t.pending)
+  ?:  (busy:schedule-lib (job-value:schedule-lib job) [hands hand-index])  $(pending t.pending)
   =/  event  (event:calendar id next.job)
   =/  input  (input-id:hd run-sid.job event)
   ::  Coalesce downtime to one run and advance the budget in the same Gall
@@ -2649,7 +2697,7 @@
     ^-  (unit @da)
     ?.  =(%active state.job)  ~
     :-  ~
-    ?:  |((lte next.job now.bowl) (busy:schedule-lib (job-value:schedule-lib job) hands))
+    ?:  |((lte next.job now.bowl) (busy:schedule-lib (job-value:schedule-lib job) [hands hand-index]))
       (max next.job (add now.bowl ~s30))
     next.job
   =/  deadline=(unit @da)
@@ -2699,8 +2747,80 @@
 ++  memory-view
   |=  [sid=session-id:h view=view:h]
   ^-  view:h
+  (memory-view-as (memory-reach sid) sid view)
+++  memory-view-as
+  |=  [=reach:memory sid=session-id:h view=view:h]
+  ^-  view:h
   =/  budget  (div (mul 4 (input-budget:context max-context.config.view)) 20)
-  view(memory (selected:memory knowledge sid budget))
+  view(memory (selected:memory reach knowledge sid budget))
+::  +memory-reach: what a conversation sees of memory, rebuilt at every read
+::  and write because grants and lanes change between a turn's events. A
+::  subagent takes its root parent's answer and place.
+::
+++  memory-reach
+  |=  sid=session-id:h
+  ^-  reach:memory
+  ::  One session's bindings through the ledger's index, never a walk.
+  =/  lookup
+    |=  sid=session-id:h
+    ^-  (unit (unit place:memory))
+    %-  places:memory
+    (turn (session-bindings:hd [hands hand-index] sid) |=([@t =binding:hh] binding))
+  ::  An adapter read that fails gives the narrow answer, not a failed event.
+  =/  owner-ship=(unit @p)  (fall (mole |.(owner:~(. peer-trust bowl))) ~)
+  =/  owns
+    |=(=source:memory-types (owner-source:memory lookup memory-local owner-ship our.bowl source))
+  =/  owner  (preferred:memory knowledge owns owner-ship our.bowl)
+  =/  left=@ud  8
+  |-  ^-  reach:memory
+  =/  session  (~(get by sessions) sid)
+  =/  narrow=reach:memory  [| sid lookup owner owns]
+  ?:  |(?=(~ session) =(0 left) (~(has by rehearsals) sid))  narrow
+  =/  parent  (delegation:hl log.u.session)
+  ?^  parent
+    ?:  rehearsal.u.parent  narrow
+    $(sid parent.u.parent, left (dec left))
+  :_  +.narrow
+  ::  Only an unambiguous Tlon DM asks the adapter; any other binding, or
+  ::  bindings that disagree, is never private. An unbound session is private
+  ::  only when every input in it is the owner's own.
+  =/  bound  (lookup sid)
+  =/  at=(unit place:memory)  (fall bound ~)
+  ?:  ?=([~ %dm *] at)
+    ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
+    %+  fall
+      (mole |.(.^(? %gx /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/admin/[sid]/noun)))
+    |
+  ?:  ?=(^ bound)  |
+  (owner-history log.u.session)
+::  +owner-history: every input was the owner's own on this ship: a local ACP
+::  or poke prompt, or a timer, which only the ship sets. Hand, peer and
+::  webhook text is from outside; work input has no proof of its requester.
+::
+++  owner-history
+  |=  log=(list event:h)
+  ^-  ?
+  %+  levy  log
+  |=  =event:h
+  ?.  ?=(%input-received -.event)  &
+  =/  in=admitted-input:h  input.event
+  ?+  -.source.in  |
+    %acp    &(?=(~ (decode:admin client.source.in)) =(`our.bowl actor.in))
+    %poke   &(=(our.bowl ship.source.in) =(`our.bowl actor.in))
+    %timer  &
+  ==
+::  +memory-local: an unbound session whose whole history is the owner's own,
+::  with no subagent or rehearsal input.
+::
+++  memory-local
+  |=  sid=session-id:h
+  ^-  ?
+  =/  session  (~(get by sessions) sid)
+  ?~  session  |
+  ?&  !(~(has by rehearsals) sid)
+      ?=(~ (delegation:hl log.u.session))
+      (owner-history log.u.session)
+  ==
 ++  memory-work
   ^-  (quip card _state)
   ?:  !=(~ pending.knowledge)
@@ -2718,13 +2838,14 @@
   =?  config  !=(0 attempts.job)
     (fall (next:routing config provider-keys model-contexts) config)
   =.  config  (resolve:model-context config provider-keys model-contexts)
-  =/  plan  (plan:memory-capture knowledge id job config now.bowl)
+  =/  reach  (memory-reach sid.job)
+  =/  plan  (plan:memory-capture reach knowledge id job config now.bowl)
   =.  pending.knowledge  `plan
   ?^  (route:runner-lib url.config)
     (memory-finished | 'Memory capture requires a summary model with a stateless provider.' [0 0])
   =/  missing  (missing:auth provider-keys config)
   ?^  missing  (memory-finished & 'Memory capture provider is unavailable.' [0 0])
-  =/  request  (request:memory-capture knowledge plan)
+  =/  request  (request:memory-capture reach knowledge plan)
   ?:  (gth (estimate:hp request %memory ~) (input-budget:context max-context.config))
     (memory-finished | 'Memory evidence exceeds the summary model input budget.' [0 0])
   [~[(llm-card sid.job id %memory request (sham plan))] state]
@@ -2761,7 +2882,8 @@
   =/  result  p.u.parsed
   ?.  &(=(%stop stop.result) ?=([%assistant * ~] it.result))
     (memory-finished & 'Memory capture requires a complete text response.' u.result)
-  =/  accepted  (accept:memory-capture knowledge pending body.it.result)
+  =/  accepted
+    (accept:memory-capture (memory-reach sid.job.pending) knowledge pending body.it.result)
   ?.  enabled.dreaming.maintenance.knowledge  (memory-finished | 'Dreaming is off.' u.result)
   ?:  ?=(%| -.accepted)  (memory-finished & p.accepted u.result)
   =/  changes  (sub revision.p.accepted revision.knowledge)
@@ -2925,7 +3047,8 @@
         ==
       $(request request(action 'settings', args u.parsed))
     ?:  =('clear-credentials' action.request)
-      =.  state  (clear:hosted-cleanup state)
+      =.  -.state  (clear:hosted-cleanup -.state)
+      =.  browser-images  ~
       [~[(reply (envelope:hosted-auth 200 (pairs:enjs:format ~[['cleared' %b &]])))] state]
     ?:  =('provision' action.request)  provision
     ?:  =('settings' action.request)
@@ -3272,7 +3395,7 @@
   |=  rpc=acp-request
   ^-  (quip card _state)
   =+  rpc
-  =^  sid  state  (ensure:onboarding state)
+  =^  sid  -.state  (ensure:onboarding -.state)
   =/  listed  (list-json:index sessions modified)
   ?>  ?=(%o -.listed)
   =/  result=json
@@ -3877,7 +4000,7 @@
     (acp-fail rpc '-32602' 'Expected sessionId and name')
   ?.  (~(has by sessions) u.sid)
     (acp-fail rpc '-32602' 'Unknown session')
-  ?:  (lien ~(val by bindings.hands) |=(b=binding:hh =(sid.b u.sid)))
+  ?:  (session-bound:hd [hands hand-index] u.sid)
     (acp-fail rpc '-32602' 'Remove hand bindings before renaming the session')
   ?:  (~(has by sessions) u.name)
     (acp-fail rpc '-32602' 'Name already in use')
@@ -3973,7 +4096,7 @@
     ==
   ?:  &(?=(^ config) !(~(has by sessions) sid.u.config))
     [[%| 'Create the session and configure its tool grants before binding it'] ~ state]
-  =/  applied  (apply:hd hands action now.bowl)
+  =/  applied  (apply-indexed:hd [hands hand-index] action now.bowl)
   ?:  ?=(%| -.applied)  [[%| p.applied] ~ state]
   ::  Validate and deduplicate before interrupting. A replayed /stop cannot
   ::  cancel newer work. Cancel against the old ledger, then admit the stop
@@ -3992,9 +4115,11 @@
     (stop-command sid.binding text.action ?:(owner ~ `actor.action))
   ::  Reapply to retain cancellation receipts and the other bindings' queues.
   ::  A speaker's stop can cancel only queued inputs and emit no cards.
-  =/  accepted  ?:(=(before hands) applied (apply:hd hands action now.bowl))
+  =/  accepted  ?:(=(before hands) applied (apply-indexed:hd [hands hand-index] action now.bowl))
   ?>  ?=(%& -.accepted)
-  =.  hands  db.p.accepted
+  =:  hands  db.ledger.p.accepted
+      hand-index  index.ledger.p.accepted
+    ==
   =/  sid=(unit session-id:h)
     ?+  -.action  ~
       %observe  `sid:(need (~(get by bindings.hands) binding.action))
@@ -4016,7 +4141,10 @@
   ?~  id  `state
   =/  observation  (need (~(get by observations.hands) u.id))
   =/  config  (need (~(get by bindings.hands) binding.observation))
-  =.  hands  (start:hd hands sid u.id)
+  =/  started  (start-indexed:hd [hands hand-index] sid u.id)
+  =:  hands  db.started
+      hand-index  index.started
+    ==
   =/  =event:h
     :-  %input-received
     :*  u.id
@@ -4034,6 +4162,7 @@
   ^-  (quip card _state)
   ?>  ?=(%input-received -.event)
   ?>  ?=(%user -.item.input.event)
+  =.  browser-images  (~(del by browser-images) sid)
   =/  parsed-command  (parse:command body.item.input.event)
   ?:  ?&  ?=(^ parsed-command)
           (changing:command u.parsed-command)
@@ -4050,8 +4179,13 @@
     =/  view  (play:hl log.session)
     =/  =source:memory-types
       [sid id.input.event +(revision.view) at.input.event (actor:memory input.event)]
+    ::  The input is recorded after the command runs, but it already
+    ::  decides whose conversation this is.
+    =/  reach
+      =.  sessions  (~(put by sessions) sid session(log [event log.session]))
+      (memory-reach sid)
     =/  result
-      (command:memory-json knowledge source name.u.parsed-command arg.u.parsed-command)
+      (command:memory-json reach knowledge source name.u.parsed-command arg.u.parsed-command)
     =.  knowledge  db.result
     =/  edits=(list event:h)
       ?~  edit.result  ~
@@ -4101,7 +4235,9 @@
     ?:  (gth (met 3 u.reference) 8.192)  events
     [[%context-received id.input.event u.reference] events]
   =?  events  ?=(^ parsed-command)
-    =/  view  (memory-view sid (play:hl log.session))
+    =/  view
+      =.  sessions  (~(put by sessions) sid session(log [event log.session]))
+      (memory-view sid (play:hl log.session))
     ::  Authority follows the latest input, so resolve it with this one in the
     ::  log, which is recorded only after the command is evaluated.
     =/  [tools=(list tool-grant:h) owner=?]
@@ -4176,7 +4312,10 @@
       message.failure
       %reply  body.u.result
     ==
-  =.  hands  (finish:hd hands sid -.u.result body)
+  =/  finished  (finish-indexed:hd [hands hand-index] sid -.u.result body)
+  =:  hands  db.finished
+      hand-index  index.finished
+    ==
   (hand-pump sid)
 ::
 ::  Native commands converge here, including commands decoded from ACP.
@@ -4339,7 +4478,10 @@
   |=  action=action:h
   ^-  (quip card _state)
   ?>  ?=(%cancel -.action)
-  =.  hands  (cancel-queued:hd hands sid.action ~)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid.action ~)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   (cancel-turn sid.action)
 ::  One speaker's stop or revocation: their running turn, the subagents it
 ::  started, and their waiting inputs. Other speakers' work, timers and
@@ -4349,7 +4491,10 @@
   |=  [sid=session-id:h actor=@t]
   ^-  (quip card _state)
   ?.  (~(has by sessions) sid)  `state
-  =.  hands  (cancel-queued:hd hands sid `actor)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid `actor)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   ?.  =(`actor (hand-speaker sid))  `state
   (cancel-turn sid)
 ::  Waiting inputs are the caller's to cancel first; settling pumps the next.
@@ -4362,6 +4507,7 @@
   =/  session  (need-session sid)
   =/  view  (play:hl log.session)
   =.  search-requests  (forget-requests:search search-requests sid)
+  =.  browser-images  (~(del by browser-images) sid)
   ::  Withdraw local HTTP waits as well as fencing their results. This
   ::  cannot undo an operation the external service has already accepted.
   =/  withdrawn=(list card)
@@ -4417,7 +4563,10 @@
     (handle-action [%cancel sid])
   =^  fenced  state  (handle-action [%fence sid])
   =.  stopped  (weld stopped fenced)
-  =.  hands  (detach-session:hd hands sid now.bowl)
+  =/  detached  (detach-session-indexed:hd [hands hand-index] sid now.bowl)
+  =:  hands  db.detached
+      hand-index  index.detached
+    ==
   =^  scheduled  state
     =/  pending  ~(tap by schedules)
     =|  cards=(list card)
@@ -4446,6 +4595,7 @@
       compactions.maintenance  (~(del by compactions.maintenance.knowledge) sid)
     ==
   =.  search-requests  (forget-requests:search search-requests sid)
+  =.  browser-images  (~(del by browser-images) sid)
   =/  cards=(list card)  stopped
   =^  extra  state  (withdraw-auxiliary sid)
   =.  cards  (weld cards extra)
@@ -4907,7 +5057,10 @@
   ^-  drive-result
   |^
     =|  cards=(list card)
-    =.  knowledge  (prepare:memory knowledge sid log.session)
+    =.  sessions  (~(put by sessions) sid session)
+    ::  One reach serves this event's admission and rendering.
+    =/  reach  (memory-reach sid)
+    =.  knowledge  (prepare:memory reach knowledge sid log.session)
     =?  cursors.knowledge  !(enabled:memory knowledge sid)
       (~(put by cursors.knowledge) sid log.session)
     =/  projection  (play:hl log.session)
@@ -4919,7 +5072,7 @@
     ^-  drive-result
     ::  Authority follows this admitted input, not the previous turn's actor.
     =.  sessions  (~(put by sessions) sid session)
-    =/  view  (memory-view sid projection)
+    =/  view  (memory-view-as reach sid projection)
     =.  tools.config.view  (execution-tools sid tools.config.view)
     =/  decision
       ?:  (~(has by peer-active) sid)  (step:peer-rpc view)
@@ -5092,7 +5245,7 @@
       =/  turn  (~(get by turns.knowledge.batch) sid)
       =/  =source:memory-types
         [sid ?~(turn 0v0 input.u.turn) revision.view now.bowl ?~(turn 'agent' actor.u.turn)]
-      =/  result  (operate:memory-json knowledge.batch source u.args)
+      =/  result  (operate:memory-json (memory-reach sid) knowledge.batch source u.args)
       ?:  ?=(%| -.result)  (complete (cat 3 'error: ' p.result))
       =.  knowledge.batch  db.p.result
       (complete (en:json:html result.p.result))
@@ -5117,6 +5270,8 @@
 ++  start-compaction
   |=  [sid=session-id:h =session:h input=(unit input-id:h) turn=?]
   ^-  [cards=(list card) session=session:h knowledge=state:memory-types]
+  ::  Reach follows the session as admitted, the input that asked included.
+  =.  sessions  (~(put by sessions) sid session)
   =/  view  (play:hl log.session)
   =/  visible  (skills-visible sid skills)
   ::  Without a chosen summary model, content stays with the conversation's
@@ -5160,7 +5315,9 @@
   =/  req  next-req.session
   =/  capture
     ?^  children.p.planned  ~
-    (compact:memory-capture knowledge sid req session sources.p.planned config now.bowl)
+    %:  compact:memory-capture
+      (memory-reach sid)  knowledge  sid  req  session  sources.p.planned  config  now.bowl
+    ==
   =.  next-req.session  +(req)
   =^  recorded  session
     (record-all sid session ~[[%lcm-planned req p.planned] [%llm-routed req config]])
@@ -5172,7 +5329,7 @@
         request
         %compaction
         visible
-        `(request-data:memory-capture knowledge u.capture)
+        `(request-data:memory-capture (memory-reach sid) knowledge u.capture)
       ==
     ?:  %+  gth
           (div (add 3 (met 3 (en:json:html payload))) 4)
@@ -5376,8 +5533,10 @@
     =/  capture  (~(get by compactions.maintenance.knowledge) sid)
     =/  evidence=(unit @t)
       ?.  &(?=(^ capture) =(%compaction kind) =(req id.u.capture))  ~
-      `(request-data:memory-capture knowledge u.capture)
+      `(request-data:memory-capture (memory-reach sid) knowledge u.capture)
     (payload-with-capture:hp view kind (skills-visible sid skills) evidence)
+  =?  payload  =(%turn kind)
+    (attach-browser-image sid config.view payload)
   =/  body=@t  (en:json:html payload)
   =/  runner  (route:runner-lib url.config.view)
   ?^  runner
@@ -5402,6 +5561,19 @@
   :*  %pass  `wire`[%llm `@ta`sid (scot %ud req) kind ~]
       %arvo  %i  %request  request  *outbound-config:iris
   ==
+::
+++  attach-browser-image
+  |=  [sid=session-id:h config=config:h payload=json]
+  ^-  json
+  =/  image  (~(get by browser-images) sid)
+  ?~  image  payload
+  =/  input  (work-origin sid)
+  ?.  &(?=(^ input) =(id.u.input input-id.u.image))  payload
+  ?.  (mcp-granted:ht 'kernel-browser' (execution-tools sid tools.config))  payload
+  =/  server  (~(get by mcp-servers) 'kernel-browser')
+  ?.  &(?=(^ server) enabled.u.server =(server.u.image (sham u.server)))  payload
+  =/  supported  (images-in-tool-results:hp config)
+  (attach:browser-image payload call-id.u.image mime.u.image data.u.image supported)
 ::  A response belongs to one pending request. Progress updates the transient
 ::  stream; terminal responses record events and resume the session loop.
 ::
@@ -5441,7 +5613,8 @@
       ?>  ?=(%assistant -.it.p.parsed)
       =/  output  (compact-output:memory-capture body.it.p.parsed)
       ?~  memories.output  knowledge
-      =/  result  (accept:memory-capture knowledge u.capture u.memories.output)
+      =/  result
+        (accept:memory-capture (memory-reach sid) knowledge u.capture u.memories.output)
       ?:  ?=(%| -.result)  knowledge
       p.result
     =?  compactions.maintenance.knowledge  =(%compaction kind)
@@ -5549,6 +5722,16 @@
             u.p.parsed
         ==
       =/  capture  (~(get by compactions.maintenance.knowledge) sid)
+      ::  A summary whose request carried related facts is fenced like its
+      ::  proposals, so one sent before a reload is not installed.
+      ?:  ?&  ?=(^ capture)  =(req id.u.capture)
+              ?=(^ bases.u.capture)
+              !=(barrier.u.capture barrier.knowledge)
+          ==
+        :*  %compaction-failed  req
+            'Memory access changed while this summary was in flight; the previous context was retained.'
+            u.p.parsed
+        ==
       =/  item  it.p.parsed
       =?  item  &(?=(^ capture) =(req id.u.capture) ?=([%assistant * ~] item))
         item(body summary:(compact-output:memory-capture body.item))
@@ -5712,7 +5895,10 @@
         ==
       `state
     (handle-action [%cancel sid])
-  =.  hands  (cancel-queued:hd hands sid ~)
+  =/  cancelled  (cancel-queued-indexed:hd [hands hand-index] sid ~)
+  =:  hands  db.cancelled
+      hand-index  index.cancelled
+    ==
   =^  cancelled-timers  state  (cancel-session-timers sid)
   =^  auxiliary  state  (withdraw-auxiliary sid)
   =.  cards  :(weld cards cancelled-timers auxiliary)
@@ -5802,7 +5988,7 @@
     (skip granted |=(grant=tool-grant:h |(=(%admin grant) =(%cron grant))))
   =/  session  (~(get by sessions) sid)
   =/  peer  ?~(session ~ (peer-source:admin log.u.session))
-  =?  granted  &(?=(^ peer) !(is-owner u.peer))
+  =?  granted  &(?=(^ peer) !(peer-owner u.peer))
     =/  live  (peer-grant-for u.peer)
     ?~  live  ~
     %+  skim  granted
@@ -5843,6 +6029,8 @@
     %+  skim  granted
     |=  grant=tool-grant:h
     (lien u.ceiling.authority |=(allowed=tool-grant:h =(grant allowed)))
+  =?  granted  &((mcp-granted:ht 'kernel-browser' granted) !(browser-authorized sid))
+    (without-browser:ht granted)
   ::  Administrative and scheduling tools require these live source checks,
   ::  regardless of the families named in the saved configuration.
   =?  granted  administrator  (snoc granted %admin)
@@ -5850,9 +6038,7 @@
     ?&  ?=(~ parent)
         ?=(~ peer)
         (schedule-permitted authority)
-        %+  lien  ~(val by bindings.hands)
-        |=  binding=binding:hh
-        &(=(sid sid.binding) enabled.binding)
+        (session-enabled:hd [hands hand-index] sid)
     ==
     (snoc granted %cron)
   ::  Rehearsals retain only inherited reads, even after an owner config edit.
@@ -6024,6 +6210,8 @@
     'rejected: hand tool is no longer authorized'
   =?  body  &(=('workspace' name.u.call) ?=(~ (workspace-authority sid)))
     'rejected: workspace source authority is no longer available'
+  =?  browser-images  (browser-entry-tool:ht name.u.call)
+    (~(del by browser-images) sid)
   =/  limit  ?:(=('workspace' name.u.call) 120.000 24.000)
   =^  recorded  session
     (record-all sid session ~[[%tool-completed call-id name.u.call (clip:ht body limit)]])
@@ -6118,8 +6306,17 @@
   ?.  =(%http-response-data p.cage.sign)  `state
   =/  data  !<((unit octs) q.cage.sign)
   ?~  data  `state
-  ?:  (gth (add (met 3 body.u.pending) p.u.data) 262.144)
-    (finish-local-mcp sid generation call-id 'error: local MCP response exceeds 256 KiB')
+  =/  size  (add (met 3 body.u.pending) p.u.data)
+  =/  computer
+    ?.  &((gth size 262.144) =('kernel-browser' server.u.pending))  |
+    =/  session  (~(get by sessions) sid)
+    ?~  session  |
+    =/  call  (requested-call u.session call-id)
+    ?~(call | (computer:browser-image (tool:browser-image u.call)))
+  ?:  (gth size ?:(computer limit:browser-image 262.144))
+    =/  error
+      ?:(computer 'error: Browser screenshot exceeds 2 MiB.' 'error: local MCP response exceeds 256 KiB')
+    (finish-local-mcp sid generation call-id error)
   =/  updated  u.pending(body (cat 3 body.u.pending q.u.data))
   `state(local-mcp (~(put by local-mcp) [sid call-id] updated))
 ::
@@ -6159,6 +6356,7 @@
     'rejected: local MCP access or server configuration changed'
   =?  body  =('list_mcp_tools' name.u.call)
     (receipt:mcp args.u.call body)
+  =^  body  browser-images  (project-browser-image sid u.call body)
   =^  recorded  u.found
     (record-all sid u.found ~[[%tool-completed call-id name.u.call body]])
   =^  driven  state  (drive-put sid u.found)
@@ -6216,9 +6414,35 @@
         !(authorized-call sid call-id tool-name)
     ==
     'rejected: tool request is no longer authorized'
+  =/  call  (requested-call session call-id)
+  =^  body  browser-images
+    ?~  call  [body browser-images]
+    (project-browser-image sid u.call body)
   =^  recorded  session  (record-all sid session ~[[%tool-completed call-id tool-name body]])
   =^  driven  state  (drive-put sid session)
   [(weld recorded driven) state]
+::
+++  project-browser-image
+  |=  [sid=session-id:h call=tool-call:h body=@t]
+  ^-  [@t _browser-images]
+  =/  name  (tool:browser-image call)
+  ?~  name  [body browser-images]
+  ::  A new browser operation supersedes the preceding view. Discovery and
+  ::  other Harness tools may still run between the capture and the action.
+  =.  browser-images  (~(del by browser-images) sid)
+  ?:  |(=('browser_session_create' u.name) =('browser_session_release' u.name))
+    [(browser-session:mcp body =('browser_session_release' u.name)) browser-images]
+  ?.  (computer:browser-image name)  [body browser-images]
+  =/  config  config:(play:hl log:(need-session sid))
+  =/  result  (receipt:browser-image body (images-in-tool-results:hp config))
+  ?~  image.result  [body.result browser-images]
+  =/  input  (work-origin sid)
+  =/  server  (~(get by mcp-servers) 'kernel-browser')
+  ?.  &(?=(^ input) ?=(^ server))  [body.result browser-images]
+  ?:  (gte ~(wyt by browser-images) 16)
+    ['error: Browser screenshot capacity reached.' browser-images]
+  :-  body.result
+  (~(put by browser-images) sid [id.u.input id.call (sham u.server) u.image.result])
 ::  +drive-put: drive a session, store it, then settle subagent links
 ::
 ++  drive-put
@@ -6230,6 +6454,10 @@
   =.  search-requests  search-requests.result
   =.  knowledge  knowledge.result
   =.  sessions  (~(put by sessions) sid session.result)
+  =?  browser-images  (~(has by browser-images) sid)
+    =/  view  (play:hl log.session.result)
+    ?:  |(?=(^ pending.view) !=(~ wait.view))  browser-images
+    (~(del by browser-images) sid)
   =^  settled  state  (settle sid)
   [(weld cards.result settled) state]
 ::  Deliver terminal results to the session's callers. Each settlement commits
@@ -6350,6 +6578,7 @@
 ++  rpc-tools
   |=  [who=@p tools=(list tool-grant:h)]
   ^+  tools
+  =.  tools  (without-browser:ht tools)
   =.  tools  (skip (without-tlon:ht tools) |=(grant=tool-grant:h =(%admin grant)))
   ?:  (is-owner who)  (snoc tools %admin)
   (conversation-tools:ht tools)
@@ -6479,8 +6708,7 @@
   ?>  ?=(%invoke -.message)
   =/  sid=session-id:h  (cat 3 'peer-tool--' (scot %p src))
   ?:  ?|  (~(has by peer-active) sid)
-          %+  lien  ~(val by bindings.hands)
-          |=(binding=binding:hh =(sid sid.binding))
+          (session-bound:hd [hands hand-index] sid)
       ==
     :*  :~  %+  peer-rpc-card
               src
@@ -6636,7 +6864,7 @@
       [~[(answer-card:effects src id.message [%| 'no grant for your ship'])] state]
     =/  base  (fall peer-base defaults)
     =/  sid=session-id:h  (cat 3 'peer--' (scot %p src))
-    ?:  (lien ~(val by bindings.hands) |=(binding=binding:hh =(sid.binding sid)))
+    ?:  (session-bound:hd [hands hand-index] sid)
       [~[(answer-card:effects src id.message [%| 'Session reserved for hand bindings'])] state]
     =/  found  (~(get by sessions) sid)
     ?:  &(!=(0 budget.u.grant) (gte (peer-used src) budget.u.grant))
@@ -6735,7 +6963,7 @@
   =?  peer  &(?=(~ peer) =('peer--' (end [3 6] sid)))
     (slaw %p (rsh [3 6] sid))
   ?~  peer  library
-  ?:  (is-owner u.peer)  library
+  ?:  (peer-owner u.peer)  library
   =/  grant  (peer-grant-for u.peer)
   ?~  grant  ~
   %-  malt
@@ -6760,6 +6988,13 @@
   ^-  ?
   =/  trust  snapshot:~(. peer-trust bowl)
   (owner:~(. ownership bowl) owner.policy.trust siblings.trust who)
+::  A peer input from this ship never answers as the owner, even when this
+::  ship is the owner.
+::
+++  peer-owner
+  |=  who=@p
+  ^-  ?
+  &(!=(our.bowl who) (is-owner who))
 ::
 ++  owner-grant
   ^-  peer-grant:h
@@ -6781,6 +7016,8 @@
 ++  peer-grant-for
   |=  who=@p
   ^-  (unit peer-grant:h)
+  ::  This ship is never its own peer, whoever owns it.
+  ?:  =(our.bowl who)  ~
   ?:  (is-owner who)  `owner-grant
   (bind (~(get by (effective:peer-policy peers trusted-peers peer-limits)) who) guest-grant)
 ::  A grant to a ship other than the owner, which never holds %tlon or %code.
@@ -7357,11 +7594,7 @@
   =/  sid=session-id:h  i.t.t.site
   =/  found  (~(get by sessions) sid)
   ?~  found  (bad 404 'no such session')
-  =/  bound
-    %+  lien  ~(val by bindings.hands)
-    |=  binding=binding:hh
-    =(sid.binding sid)
-  ?:  bound
+  ?:  (session-bound:hd [hands hand-index] sid)
     (bad 409 'Use the authenticated hand observation queue for this bound session')
   =/  text=(unit @t)
     ?~  body.request.inbound  ~

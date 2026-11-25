@@ -3,7 +3,7 @@
 /-  c=harness-cron, hh=harness-hand, h=harness, ac=acp, renew=harness-oauth,
     adapter=harness-adapter, t=harness-tlon, *harness-store
 /+  *test-agent, schedule=harness-schedule, defaults=harness-defaults, hl=harness,
-    tools=harness-tools, auth=harness-auth
+    tools=harness-tools, auth=harness-auth, hd=harness-hand
 /=  head  /app/harness
 |%
 ++  t0  ~2026.9.9
@@ -64,9 +64,15 @@
   ;<  woken=(list card)  bind:m
     (do-arvo /schedules/(scot %da +(now.bowl)) [%behn %wake ~])
   (pure:m (weld loaded woken))
+::  Every read of the saved state also checks that the head's index equals
+::  the derivation of its ledger.
+::
 ++  get-state
   =/  m  (mare ,state-0)
   ^-  form:m
+  ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
+  ;<  index=cage  bind:m  (got-peek /x/hand-index)
+  ;<  ~  bind:m  (ex-equal q.index !>((reindex:hd !<(state:hh q.ledger))))
   ;<  =vase  bind:m  get-save
   (pure:m !<(state-0 vase))
 ++  do-frame
@@ -318,6 +324,48 @@
   ;<  ~  bind:m  (ex-equal !>(schedules.final) !>(~))
   ;<  ~  bind:m  (ex-equal !>((~(has by sessions.final) 'schedule-0v1')) !>(&))
   (ex-equal !>(enabled:(~(got by bindings.hands.final) 'schedule-0v1')) !>(|))
+::  A schedule's run gets a binding of its own, and a ledger past 256
+::  bindings, enabled and disabled, still binds each new one.
+++  test-schedules-are-added-on-a-ledger-past-256-bindings
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =.  bindings.hands.s
+    %-  ~(gas by bindings.hands.s)
+    %+  turn  (gulf 1 300)
+    |=  k=@ud
+    ^-  [@t binding:hh]
+    =/  id  (cat 3 'seeded-' (scot %ud k))
+    [id ['fixture-chat' (cat 3 'room/' (scot %ud k)) id ~['alice'] =(0 (mod k 2))]]
+  =/  add
+    |=  id=@uv
+    ^-  request:c
+    :-  'add'
+    :*  %add  id  'source-binding'  'alice'  %prompt
+        %-  pairs:enjs:format
+        :~  ['schedule' %s '0 9 * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Check status']
+            ['runs' %s '5']
+        ==
+    ==
+  ;<  ~               bind:m  (setup s)
+  ;<  *               bind:m  (do-poke %harness-cron !>((add 0v2)))
+  ;<  added=state-0   bind:m  get-state
+  ;<  *               bind:m  (do-poke %harness-cron !>(`request:c`['cancel' [%cancel 0v2]]))
+  ;<  *               bind:m  (do-poke %harness-cron !>(`request:c`['clear' [%clear 0v2]]))
+  ;<  cleared=state-0  bind:m  get-state
+  ;<  *               bind:m  (do-poke %harness-cron !>((add 0v3)))
+  ;<  again=state-0   bind:m  get-state
+  =/  enabled
+    |=  [next=state-0 id=@t]
+    (bind (~(get by bindings.hands.next) id) |=(b=binding:hh enabled.b))
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.added) 0v2)) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>((enabled added 'schedule-0v2')) !>(`&))
+  ;<  ~  bind:m  (ex-equal !>((~(has by schedules.cleared) 0v2)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((enabled cleared 'schedule-0v2')) !>(`|))
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.again) 0v3)) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>((enabled again 'schedule-0v3')) !>(`&))
+  (ex-equal !>(~(wyt by bindings.hands.again)) !>(304))
 ++  requests
   |=  cards=(list card)
   ^-  (list http-card:renew)
@@ -1003,6 +1051,87 @@
   %-  eval-mare
   ;<  ~  bind:(mare ,~)  (ex-delegated & ~nec owner-dm ~)
   (ex-delegated & ~nec room ~)
+::  Snapshots the head gave its schedule subscribers in one event.
+::
+++  feed
+  |=  cards=(list card)
+  ^-  (list schedules:c)
+  %+  murn  cards
+  |=  =card
+  ^-  (unit schedules:c)
+  ?.  ?=([%give %fact [[%v1 %schedule-events ~] ~] %harness-schedules-1 *] card)
+    ~
+  `!<(schedules:c q.cage.p.card)
+++  test-new-schedule-subscriber-alone-gets-the-full-set
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-initial-set ~)
+  (ex-initial-set (my ~[[0v1 job]]))
+++  ex-initial-set
+  |=  jobs=schedules:c
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =.  schedules.s  jobs
+  ;<  ~                bind:m  (setup s)
+  ;<  out=(list card)  bind:m  (do-watch /v1/schedule-events)
+  ;<  *                bind:m  (do-leave /v1/schedule-events)
+  (ex-cards out ~[(ex-fact ~ %harness-schedules-1 !>(jobs))])
+++  test-foreign-ship-cannot-watch-schedules
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (setup fixture)
+  (ex-fail ((do-as ~nec) (do-watch /v1/schedule-events)))
+::  Reads change no schedule, so they must not wake subscribers.
+::
+++  test-each-schedule-change-gives-one-snapshot-and-reads-give-none
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  act=action:c
+    :*  %add  0v2  'source-binding'  'alice'  %prompt
+        %-  pairs:enjs:format
+        ~[['at' %s '2026-09-09T00:01:17Z'] ['prompt' %s 'Finish the task and report the result']]
+    ==
+  =/  poke
+    |=  =action:c
+    (do-poke %harness-cron !>(`request:c`['feed' action]))
+  ;<  ~                    bind:m  (setup fixture)
+  ;<  added=(list card)    bind:m  (poke act)
+  ;<  created=state-0      bind:m  get-state
+  ;<  listed=(list card)   bind:m  (poke [%list ~])
+  ;<  stopped=(list card)  bind:m  (poke [%cancel 0v2])
+  ;<  cancelled=state-0    bind:m  get-state
+  ;<  cleared=(list card)  bind:m  (poke [%clear 0v2])
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.created) 0v2)) !>(%active))
+  ;<  ~  bind:m  (ex-equal !>(state:(~(got by schedules.cancelled) 0v2)) !>(%cancelled))
+  ;<  ~  bind:m  (ex-equal !>((feed added)) !>(~[schedules.created]))
+  ;<  ~  bind:m  (ex-equal !>((feed listed)) !>(`(list schedules:c)`~))
+  ;<  ~  bind:m  (ex-equal !>((feed stopped)) !>(~[schedules.cancelled]))
+  (ex-equal !>((feed cleared)) !>(`(list schedules:c)`~[~]))
+++  test-an-admitted-run-gives-one-snapshot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  fixture
+  =/  job  job
+  =.  schedules.s  (my ~[[0v1 job]])
+  ;<  ~               bind:m  (setup s)
+  ::  Loading wakes a tick later for upkeep; that wake sets the job's own.
+  ;<  loaded=state-0  bind:m  get-state
+  =/  tick  (need schedule-wake.loaded)
+  ;<  ~               bind:m  (jab-bowl |=(b=bowl b(now tick)))
+  ;<  *               bind:m  (do-arvo /schedules/(scot %da tick) [%behn %wake ~])
+  ;<  ready=state-0   bind:m  get-state
+  =/  at  (need schedule-wake.ready)
+  ;<  ~                bind:m  (jab-bowl |=(b=bowl b(now at)))
+  ;<  out=(list card)  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
+  ;<  next=state-0     bind:m  get-state
+  =/  ran  (~(got by schedules.next) 0v1)
+  ;<  ~  bind:m  (ex-equal !>(remaining.ran) !>((dec remaining.job)))
+  ;<  ~  bind:m  (ex-equal !>(?=(^ last.ran)) !>(&))
+  (ex-equal !>((feed out)) !>(~[schedules.next]))
+::
 ::  The hand grants authority to .speaker alone: a question about anyone
 ::  else, or with no speaker, gets none.
 ::

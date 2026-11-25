@@ -58,7 +58,7 @@
   =/  saved=state-0  *state-0
   =.  saved  saved(defaults builtin-config:policy, local-mcp-seen 1)
   =/  =source:m  ['evidence' 0v1 7 ~2026.10.7 '~nec']
-  =/  seeded  (save:mem knowledge.saved 'project' 0 [`'Keep the plan clear.' ~ | | source])
+  =/  seeded  (save:mem everything:mem knowledge.saved 'project' 0 [`'Keep the plan clear.' ~ | | source])
   ?>  ?=(%& -.seeded)
   saved(knowledge p.seeded)
 ::
@@ -90,7 +90,8 @@
     ;<  ~  bind:m  (ex-equal !>(revision.record) !>(2))
     ;<  ~  bind:m  (ex-equal !>(actor.source.value.record) !>('~zod'))
     ;<  ~  bind:m  (ex-equal !>(sid.source.value.record) !>(''))
-    (ex-equal !>(barrier.knowledge.after) !>(?:(=('forget' operation) 1 0)))
+    %+  ex-equal  !>(barrier.knowledge.after)
+    !>(?:(=('forget' operation) +(barrier.knowledge.before) barrier.knowledge.before))
   ;<  ~  bind:m  (ex-equal !>(?=(^ (get:j reply 'error'))) !>(denied))
   (ex-equal !>(?=(^ (get:j reply 'result'))) !>(!denied))
 ::
@@ -114,7 +115,7 @@
   =.  saved  saved(defaults builtin-config:policy, local-mcp-seen 1)
   =/  seed
     %:  save:mem
-      knowledge.saved
+      everything:mem  knowledge.saved
       'retained'
       0
       [`'Retain this saved fact.' ~ | & ['' 0v0 0 ~2026.10.9 '~zod']]
