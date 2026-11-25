@@ -17,7 +17,6 @@ const t = await approvalShips(marker)
 const { peer, guest, nest, until, status } = t
 const sentText = (label) => `${marker}-${label}`
 const answered = (posts) => posts.some((post) => t.words(post).includes(`${marker}-answer`))
-const grants = (s) => s.policy.channelGrants.find((grant) => grant.channel === nest)?.ships ?? []
 try {
   await t.start()
   await t.client.call('harness/tlon/configure', {
@@ -34,7 +33,7 @@ try {
     .find((post) => t.words(post).startsWith(`Revoked ${guest.ship} for `)))
   assert.ok(t.words(reply).includes(nest) && t.words(reply).endsWith('. They will no longer be able to interact in this channel.'), t.words(reply))
   const revoked = await status()
-  assert.deepEqual(grants(revoked), [], 'the guest still holds the channel')
+  assert.ok(!revoked.policy.channelGrants.some((grant) => grant.channel === nest), 'the channel\'s emptied grant entry is still saved')
   assert.ok(revoked.events.some((notice) => notice.kind === 'approval-revoked' && notice.actor === guest.ship), 'the revoke was not recorded')
   assert.deepEqual(revoked.requests, [], 'the revoke opened a request')
   assert.ok(!(await t.dmFromBot(peer, start)).some((post) => t.words(post).startsWith('Revoked ')), 'the revoke was answered in the owner\'s DM')
@@ -53,6 +52,7 @@ try {
   await sleep(3000)
   assert.ok(!answered(await t.channelFromBot(after)), 'the revoked guest was answered')
   assert.ok(!t.seen(sentText('after')), 'the revoked guest\'s mention reached the model')
+  assert.ok(!(await t.channelFromBot(start)).some((post) => t.words(post).startsWith('Unknown command')), 'the head answered the owner\'s /revoke')
   console.log('PASS the revoked guest is not answered in the channel, and its mention opens a request')
 } finally {
   await t.stop()

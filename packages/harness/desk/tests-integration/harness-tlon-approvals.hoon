@@ -2514,6 +2514,52 @@
   ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* ?=([%fence *] act)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>(~(key by routes.s)) !>((silt ~[room-sid busy-sid])))
   (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v2 0v3])))
+::  Eight of ~bus's messages fill .room-nest's queue. The owner's /revoke
+::  there starts no turn, so it is carried out at once, dropping them.
+::
+++  test-a-full-channel-queue-does-not-delay-the-owners-revoke
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  room  `destination:t`[%channel room-nest ~]
+  =/  room-sid  (identity:continuity room)
+  =/  saved  revoking
+  =.  saved
+    %=  saved
+      identities  (my ~[[room room-sid]])
+      lanes  (my ~[[room-sid [room 1 ~[%web]]]])
+      routes  (my ~[[room-sid ['binding-room' %ready]]])
+      jobs
+        %-  malt
+        %+  turn  (gulf 1 8)
+        |=  n=@ud
+        ^-  [@uv job:t]
+        [`@uv`n [[~bus (scot %ud n) room 'hi'] room-sid %bind '']]
+    ==
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit saved later ~[[told (addressed ~nec room-nest '/revoke ~bus' told)]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~dev])))
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  %+  ex-equal  !>((answered caz))
+  !>(`(list [@t @t])`~[['chat/~lux/test' room-revoked]])
+::  .open-nest answers every reader: once ~bus's grant there is gone, the
+::  owner is told ~bus still has access.
+::
+++  test-revoke-in-a-channel-open-to-everyone-says-the-ship-keeps-access
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  revoking
+  =.  channel-grants.policy.saved
+    (~(put by channel-grants.policy.saved) open-nest (silt ~[~bus]))
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit saved later ~[[told (addressed ~nec open-nest '/revoke ~bus' told)]])
+  ;<  ~  bind:m  (ex-equal !>(channel-grants.policy.s) !>(channel-grants.policy:revoking))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  :-  'chat/~lux/open'
+      'Removed ~bus\'s grant for Lux group (chat/~lux/open), but they still have access there from settings; change it there.'
+  ==
 ::  ~ryd is trusted and ~bud allowed, ~bud with a DM grant as well. Neither
 ::  /revoke changes anything, and the owner is told why.
 ::

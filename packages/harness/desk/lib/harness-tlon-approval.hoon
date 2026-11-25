@@ -320,6 +320,16 @@
     ?~  where  (cat 3 ship ' has no DM access to revoke.')
     (rap 3 ship ' has no access to revoke in ' u.where '.' ~)
   ==
+::  +still-answered: the reply to /revoke of .who in channel .where once its
+::  grant is gone, when the channel's settings still answer it there
+::
+++  still-answered
+  |=  [who=@p where=@t]
+  ^-  @t
+  %+  rap  3
+  :~  'Removed '  (scot %p who)  '\'s grant for '  where
+      ', but they still have access there from settings; change it there.'
+  ==
 ::  +unbanned: OpenClaw's replies to /unban of .who: once %chat has the
 ::  unblock, when .who was not blocked, and when %chat refuses the unblock
 ::

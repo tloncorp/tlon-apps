@@ -914,6 +914,14 @@ a quote.
   DM access to revoke.` or `~ship has no access to revoke in <channel>.`, and
   nothing changes. Without a ship, or with text that is not one, the reply
   is `Usage: /revoke ~ship-name`.
+- In a channel open to everyone the grant is removed, but the channel still
+  answers the ship, and the reply says so instead: `Removed ~ship's grant
+  for <channel>, but they still have access there from settings; change it
+  there.`
+- Catch-up does not hold an approval command back behind a full queue, as
+  it holds a message that would start a turn: the owner's `/revoke` in a
+  channel whose queue the ship has filled is carried out at once, dropping
+  that work.
 
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership

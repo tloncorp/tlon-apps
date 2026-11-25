@@ -2796,6 +2796,9 @@
 ++  activity-room
   |=  event=incoming-event:v8:a
   ^-  ?
+  ::  An approval command starts no turn, so a full queue must not hold back
+  ::  the owner's revoke behind the work it would cancel.
+  ?^  (approval-order event)  &
   =/  input  (normalize-owned:p our.bowl policy event actor-owner)
   ?~  input  &
   =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
@@ -3403,6 +3406,8 @@
     ==
   =.  cor  (configure revoked sibling-moon-owners)
   =.  cor  (note 'approval-revoked' who (address:p (place-to:p who place)) '')
+  ::  A channel open to everyone still answers the ship.
+  ?:  (place-access who place)  (answer-order to (still-answered:ask who (need where)))
   (answer-order to (confirmation:ask %revoke who where))
 ::
 ++  agent-approval-reply
