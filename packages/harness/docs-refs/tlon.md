@@ -843,7 +843,11 @@ expired native history. Initial activation sets an admission cutoff rather
 than answering all historical messages. When the hand ledger refuses a
 message's binding or observation, the adapter ends that admission in the same
 event, so a conversation the ledger cannot accept does not hold the cursor for
-the others. `activityThrough` and `catchingUp` expose the checkpoint and whether
+the others. When the head refuses a step of a conversation's route setup, its
+waiting messages end the same way and the conversation's route is dropped, so
+its next message starts a new setup. A setup waiting on a stopped head resumes
+on reconnection instead, and a create the head refuses because the session
+already exists restarts the setup while the messages wait. `activityThrough` and `catchingUp` expose the checkpoint and whether
 more work remains.
 
 ### Upgrading to shared channel conversations
@@ -865,8 +869,10 @@ admissions; the head separately retains up to 64 schedules across all hands.
 These complement the
 [shared hand limits and archive protocol](hands.md#fair-admission-and-explicit-retention).
 
-A message the hand ledger refuses is not retried. The adapter sets `error` to
-the ledger's reason and writes one activity entry. When the sender still
+A message the hand ledger refuses, or whose conversation's route setup the head
+refused (other than a create refused because the session already exists), is
+not retried. The adapter sets `error` to the reason and writes one
+activity entry. When the sender still
 has grants in that conversation and has not been told in that conversation within
 five minutes, it tells the sender "I can't answer messages here right now." and
 the entry's kind is `refusal-notice`. Otherwise the kind is `refusal` and

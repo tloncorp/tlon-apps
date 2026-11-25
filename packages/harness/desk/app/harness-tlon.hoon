@@ -2471,7 +2471,7 @@
   ?^  p.sign
     ?:  &(=(%create phase.u.route) ?=(^ (saved-config sid)))
       (start-route sid)
-    (route-error sid 'Conversation authorization setup failed; inspect the ship log.')
+    (route-failed sid 'Conversation authorization setup failed; inspect the ship log.')
   ?:  =(%fence phase.u.route)  (configure-route sid)
   (route-complete sid)
 ::
@@ -2858,7 +2858,12 @@
   =/  lane  (~(got by lanes) sid)
   =/  route  (~(got by routes) sid)
   =/  saved  (saved-config sid)
-  ?~  saved  (route-error sid 'Conversation configuration is unavailable.')
+  ::  With the head stopped the lookup also finds nothing; that waits for
+  ::  reconnection like any other setup on a stopped head.
+  ?~  saved
+    ?.  .^(? %gu /(scot %p our.bowl)/harness/(scot %da now.bowl)/$)
+      (route-error sid 'Head unavailable; authorization setup will resume on reconnect.')
+    (route-failed sid 'Conversation configuration is unavailable.')
   =/  config  u.saved
   =.  tools.config  (lane-tools lane tools.config)
   =.  lanes  (~(put by lanes) sid lane(tools tools.config))
@@ -2874,6 +2879,21 @@
     =/  updated  ?:(=(sid sid.job) job(stage %error, error reason) job)
     (~(put by jobs) id updated)
   cor(error reason)
+::
+::  A setup the head refused is over. Its waiting messages would hold the
+::  single Activity cursor for every conversation, so end them as refused,
+::  while the lane still exists, then drop the lane and route so the next
+::  message starts a fresh setup. Identity, session and ledger stay.
+++  route-failed
+  |=  [sid=@t reason=@t]
+  ^+  cor
+  =.  error  reason
+  =.  cor
+    %+  roll  ~(tap by jobs)
+    |=  [[id=@uv job=job:t] engine=_cor]
+    ?.  =(sid sid.job)  engine
+    (refused:engine id job reason)
+  cor(lanes (~(del by lanes) sid), routes (~(del by routes) sid))
 ::
 ++  route-complete
   |=  sid=@t
