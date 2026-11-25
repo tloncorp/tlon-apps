@@ -83,12 +83,12 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
   };
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="Confirm code"
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={() => navigation.goBack()}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
       />
       <YStack padding="$2xl" gap="$6xl">
         <OTPInput

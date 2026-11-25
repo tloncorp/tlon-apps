@@ -85,7 +85,7 @@ export function FirstRunSheet({
           ) : null}
           {choices ?? null}
           <YStack
-            backgroundColor="$secondaryBackground"
+            backgroundColor="$background"
             borderRadius={22}
             paddingHorizontal="$xl"
           >

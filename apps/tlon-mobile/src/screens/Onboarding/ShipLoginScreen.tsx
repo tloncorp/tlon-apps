@@ -141,9 +141,9 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   }, [trigger]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         title="Connect Ship"
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={() => navigation.goBack()}

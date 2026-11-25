@@ -182,7 +182,7 @@ export function LineStepFrame({
   return (
     <View
       flex={1}
-      backgroundColor="$secondaryBackground"
+      backgroundColor="$background"
       paddingTop={insets.top + 2}
       paddingBottom={
         Math.max(insets.bottom, 14) +

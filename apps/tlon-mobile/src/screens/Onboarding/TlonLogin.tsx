@@ -181,11 +181,11 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
   }, [navigation, signupContext]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="Tlon Login"
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={goBack}
       />
       <OnboardingKeyboardScrollView>

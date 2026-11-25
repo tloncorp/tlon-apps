@@ -211,9 +211,7 @@ function PlanChoices({
                 borderRadius={20}
                 alignItems="center"
                 justifyContent="center"
-                backgroundColor={
-                  selected ? '$primaryText' : '$secondaryBackground'
-                }
+                backgroundColor={selected ? '$primaryText' : '$background'}
               >
                 <Text
                   fontSize={15}

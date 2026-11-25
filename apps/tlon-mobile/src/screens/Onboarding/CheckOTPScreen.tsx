@@ -241,11 +241,11 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   };
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title={mode === 'login' ? 'Tlon Login' : 'Confirm Code'}
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
       />
       <YStack padding="$2xl" gap="$6xl">

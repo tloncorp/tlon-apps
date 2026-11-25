@@ -133,9 +133,9 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   }, [setValue]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
       />
       <SafeAreaView style={{ flex: 1 }}>

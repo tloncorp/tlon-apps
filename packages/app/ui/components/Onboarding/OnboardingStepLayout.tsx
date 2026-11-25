@@ -85,12 +85,8 @@ export function OnboardingStepLayout({
   const { top: blockTop } = useNotificationPromptFrame();
   const contentTop = insets.top + HEADER_HEIGHT + SIDE_MARGIN;
   return (
-    <View
-      flex={1}
-      paddingBottom={insets.bottom}
-      backgroundColor="$secondaryBackground"
-    >
-      <ScreenHeader title={title} backgroundColor="$secondaryBackground" />
+    <View flex={1} paddingBottom={insets.bottom} backgroundColor="$background">
+      <ScreenHeader title={title} backgroundColor="$background" />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1, paddingTop: SIDE_MARGIN }}

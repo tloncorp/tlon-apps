@@ -59,10 +59,10 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
   }, []);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="Needs Repair"
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         leftControls={
           <ScreenHeader.TextButton onPress={onLogout} disabled={loggingOut}>
             Log out
