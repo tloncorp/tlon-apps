@@ -145,7 +145,7 @@
     ;:  weld
         ~[(cat 3 'New workspace: ' title.plan) description.plan]
         lines
-        ~['Update Tlon to create it from this card.']
+        ~['Update Sato to create it from this card.']
     ==
   |=([line=@t out=@t] ?:(=('' out) line (rap 3 out '\0a' line ~)))
 ::
