@@ -987,6 +987,7 @@
     =.  seats.group  (my ~[[~zod [~ joined]]])
     =.  channels.group  (my ~[[[%chat ~bus %general] *channel:v9:g]])
     `!>(`groups:v9:g`(my ~[[[~bus %club] group]]))
+  ?:  ?=([%gu @ %channels @ %v0 %chat %'~bus' %general ~] path)  `!>(&)
   ?:  ?=([%gx @ %channels @ %chat %'~bus' %general %perm %channel-perm ~] path)
     `!>(`perm:v9:d`[~ [~bus %club]])
   ?:  ?=  $:  %gx  @  %groups  @  %v2  %groups  %'~bus'  %club
@@ -1023,6 +1024,30 @@
   =/  created  (head-acts caz)
   ?>  ?=([[%new *] ~] created)
   (ex-equal !>(sid.i.created) !>((sid-of [%channel [%chat ~bus %general] ~])))
+::
+::  %channels has no copy of a channel the bot has not joined, and reading
+::  its permissions would crash the event, as the fixture's read does.
+::
+++  test-a-channel-the-bot-has-not-joined-is-invalid-without-reading-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  refused
+    "the bot cannot post in chat/~bus/general; add it to the channel with permission to write"
+  =/  member  (member-of ~2026.1.1 `[& ~])
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ^-  (unit vase)
+    ?:  ?=([%gu @ %channels @ %v0 %chat %'~bus' %general ~] path)  `!>(|)
+    ?:  ?=([%gx @ %channels @ %chat %'~bus' %general %perm %channel-perm ~] path)
+      ~|(%channel-permissions-read !!)
+    (member path)
+  ;<  caz=(list card)  bind:m  (dispatch 0v9 (brief 'chat/~bus/general'))
+  ;<  ~  bind:m  (ex-equal !>((head-acts caz)) !>(`(list action:h)`~))
+  %+  ex-equal  !>((answers caz))
+  !>(`(list response:v1:sa)`~[[0v9 %error %invalid ~[leaf+refused]]])
 ::
 ++  test-a-failed-open-answers-the-waiting-create
   %-  eval-mare

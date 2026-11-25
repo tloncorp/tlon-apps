@@ -239,6 +239,11 @@
   ::  +can-write: whether our ship may post in .nest. Writers come from our
   ::  copy of the channel, which exists only once we have joined it, and
   ::  groups answers for our seat, bans and roles from our copy of the group.
+  ::  A read of a channel we have not joined crashes the event, so it is
+  ::  asked for only once %channels says it has the channel. The reads
+  ::  assume %groups and %channels run: Steward, which asks, runs from
+  ::  their desk, and every release with Steward's automation module serves
+  ::  these paths.
   ::
   ++  can-write
     |=  nest=nest:g
@@ -250,6 +255,7 @@
     ?.  (~(has by channels.group) nest)  |
     ?~  seat=(~(get by seats.group) our.bowl)  |
     ?:  =(0 joined.u.seat)  |
+    ?.  .^(? %gu (channel:~(. paths [our now]:bowl) %v0 nest))  |
     =/  perm=(unit perm:v9:d)
       %-  mole  |.
       .^(perm:v9:d %gx (channel-permissions:~(. paths [our now]:bowl) nest))
