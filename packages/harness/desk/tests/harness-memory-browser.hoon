@@ -14,7 +14,7 @@
       =/  text
         ?:  =(1 (mod count 2))  'Project notes stay concise.'
         'Project plans use milestones.'
-      =/  saved  (save:mem db name 0 [`text (silt ~['brief']) | | source])
+      =/  saved  (save:mem everything:mem db name 0 [`text (silt ~['brief']) | | source])
       ?>  ?=(%& -.saved)
       $(db p.saved, count (dec count))
 ++  list
@@ -45,7 +45,7 @@
   ==
 ++  test-search-requires-all-keywords-and-excludes-forgotten-records
   =/  db  (seed 60)
-  =/  forgotten  (forget:mem db 'fact-1' 60 source)
+  =/  forgotten  (forget:mem everything:mem db 'fact-1' 60 source)
   ?>  ?=(%& -.forgotten)
   =/  result  (list p.forgotten 'concise project' '')
   =/  next  (list p.forgotten 'concise project' (str:j result 'nextCursor'))
@@ -87,12 +87,12 @@
   (expect-eq !>(db) !>(db.p.result))
 ++  test-prefixes-use-full-query-and-remove-superseded-postings
   =/  saved
-    (save:mem *state:m 'work-kit' 0 [`'A portable workshop kit.' (silt ~['travel']) | | source])
+    (save:mem everything:mem *state:m 'work-kit' 0 [`'A portable workshop kit.' (silt ~['travel']) | | source])
   ?>  ?=(%& -.saved)
   =/  db  p.saved
-  =/  corrected  (save:mem db 'work-kit' 1 [`'A stationary workshop kit.' ~ | & source])
+  =/  corrected  (save:mem everything:mem db 'work-kit' 1 [`'A stationary workshop kit.' ~ | & source])
   ?>  ?=(%& -.corrected)
-  =/  forgotten  (forget:mem p.corrected 'work-kit' 2 source)
+  =/  forgotten  (forget:mem everything:mem p.corrected 'work-kit' 2 source)
   ?>  ?=(%& -.forgotten)
   ;:  weld
       (expect-eq !>(1) !>((lent (items (list db 'po' '')))))
@@ -107,7 +107,7 @@
   ==
 ++  test-sparse-search-resumes-after-an-empty-bounded-page
   =/  db  *state:m
-  =/  common  (save:mem db 'shared' 0 [`'Alpha beta project.' ~ | | source])
+  =/  common  (save:mem everything:mem db 'shared' 0 [`'Alpha beta project.' ~ | | source])
   ?>  ?=(%& -.common)
   =.  db  p.common
   =/  count=@ud  400
@@ -118,7 +118,7 @@
         =/  text
           ?:  =(0 (mod count 2))  'Alpha project.'
           'Beta project.'
-        =/  saved  (save:mem db name 0 [`text ~ | | source])
+        =/  saved  (save:mem everything:mem db name 0 [`text ~ | | source])
         ?>  ?=(%& -.saved)
         $(db p.saved, count (dec count))
   =/  first  (list db 'alpha beta' '')
@@ -133,7 +133,7 @@
 ++  test-revisions-stay-exact-above-javascript-integer-range
   =/  db  *state:m
   =.  revision.db  9.007.199.254.740.992
-  =/  saved  (save:mem db 'precise' 0 [`'Keep this revision exact.' ~ | | source])
+  =/  saved  (save:mem everything:mem db 'precise' 0 [`'Keep this revision exact.' ~ | | source])
   ?>  ?=(%& -.saved)
   =/  page  (list p.saved '' '')
   =/  rev  (str:j (snag 0 (items page)) 'revision')

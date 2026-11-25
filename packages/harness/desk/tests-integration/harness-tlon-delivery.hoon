@@ -20,7 +20,7 @@
   |=  [address=@t attempt=@ud rejected=?]
   =/  m  (mare ,[deliveries=(map @uv delivery:t) receipts=(list action:hh)])
   ^-  form:m
-  =/  saved=state-5:t  *state-5:t
+  =/  saved=state-6:t  *state-6:t
   =.  saved
     %=  saved  owner-initialized  1  enabled.policy  |  deliveries
         (my ~[[0v1 [7 %send %uncertain 'external']]])
@@ -48,7 +48,7 @@
     %^  do-agent  /publish/0v1/(scot %ud attempt)  gill
     [%poke-ack ?:(rejected `~ ~)]
   ;<  =vase  bind:m  get-save
-  (pure:m deliveries:!<(state-5:t vase) (receipts caz))
+  (pure:m deliveries:!<(state-6:t vase) (receipts caz))
 ::
 ++  test-channel-ack-waits-for-host-confirmation
   %-  eval-mare
@@ -104,15 +104,23 @@
 ::
 ++  claim-by
   |=  [our=@p who=@p policy=policy:t cuts=(map @p @da) siblings=@da asked=@da]
+  (claim-with our who policy cuts ~ siblings asked)
+::  +claim-by, with per-place cutoffs .place-cuts.
+::
+++  claim-with
+  |=  $:  our=@p  who=@p  policy=policy:t  cuts=(map @p @da)
+          place-cuts=(map [@p place:t] @da)  siblings=@da  asked=@da
+      ==
   =/  m  (mare ,[sent=? receipts=(list action:hh)])
   ^-  form:m
   =/  to=destination:t  [%channel [%chat ~lux %test] ~]
-  =/  saved=state-5:t  *state-5:t
+  =/  saved=state-6:t  *state-6:t
   =.  saved
     %=  saved
       owner-initialized  1
       policy  policy
       cuts  cuts
+      place-cuts  place-cuts
       sibling-owner-after  siblings
       lanes  (my ~[['room' [to 1 ~[%web]]]])
       routes  (my ~[['room' ['binding' %ready]]])
@@ -214,13 +222,29 @@
     (claim-by our sibling policy ~ ended ~2026.9.30..02.00.00)
   ;<  ~  bind:n  (ex-equal !>(stale) !>([| failed]))
   (ex-equal !>(fresh) !>([& `(list action:hh)`~]))
+::  ~bus holds a grant for the room only. Its room cutoff, set after it
+::  asked, holds back the reply although its ship-wide cutoff is older.
+::
+++  test-reply-from-before-a-ships-place-cutoff-is-not-published
+  %-  eval-mare
+  =/  n  (mare ,~)
+  ^-  form:n
+  =/  policy=policy:t  [& `~nec ~ %all ~ ~ ~ (my ~[[[%chat ~lux %test] (silt ~[~bus])]])]
+  =/  cuts  (my ~[[~bus ~2026.9.29]])
+  =/  place-cuts  (my ~[[[~bus `[%chat ~lux %test]] ~2026.9.30..01.00.00]])
+  ;<  stale=[sent=? receipts=(list action:hh)]  bind:n
+    (claim-with ~zod ~bus policy cuts place-cuts *@da ~2026.9.30)
+  ;<  fresh=[sent=? receipts=(list action:hh)]  bind:n
+    (claim-with ~zod ~bus policy cuts place-cuts *@da ~2026.9.30..02.00.00)
+  ;<  ~  bind:n  (ex-equal !>(stale) !>([| failed]))
+  (ex-equal !>(fresh) !>([& `(list action:hh)`~]))
 ::
 ++  test-an-accepted-observe-posts-no-notice
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  to=destination:t  [%dm ~nec ~]
-  =/  saved=state-5:t  *state-5:t
+  =/  saved=state-6:t  *state-6:t
   =.  saved
     %=  saved  owner-initialized  1  policy  [& `~nec ~ %mentions ~ ~ ~ ~]
         lanes  (my ~[['conversation' [to 0 ~]]])
@@ -241,7 +265,7 @@
   ;<  caz=(list card)  bind:m
     (do-agent wire [~zod %harness] [%fact %noun !>(`(each json @t)`[%& [%o ~]])])
   ;<  =vase  bind:m  get-save
-  =/  s  !<(state-5:t vase)
+  =/  s  !<(state-6:t vase)
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   ;<  ~  bind:m
     %+  ex-equal

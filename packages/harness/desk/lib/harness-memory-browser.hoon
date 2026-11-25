@@ -122,11 +122,11 @@
   =/  base  (revision args)
   ?~  base  [%| 'A current revision is required.']
   =/  result
-    ?:  =('forget' operation)  (forget:memory db name u.base source)
+    ?:  =('forget' operation)  (forget:memory everything:memory db name u.base source)
     =/  text  (get:j args 'text')
     ?.  ?=([~ %s *] text)  [%| 'A memory needs text.']
     %:  save:memory
-      db  name  u.base
+      everything:memory  db  name  u.base
       :*  `p.u.text  ?~(found ~ aliases.value.u.found)
           =(`[%b &] (get:j args 'general'))  &  source
       ==

@@ -360,6 +360,9 @@ try {
   } else {
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
     compare(manifest.sections, await values(manifest.ids), process.env.UPGRADE_KEYS === 'all')
+    // The hand index is rebuilt at load: the open publications are still listed.
+    const open = (await hand.outbox()).map((row) => row.text).sort()
+    assert.deepEqual(open, [manifest.ids.pending, manifest.ids.claimed].sort(), 'outbox lists the pending and claimed publications')
     console.log(JSON.stringify({ ok: true, mode, id: manifest.id, sections }))
   }
 } finally { await client.close() }
