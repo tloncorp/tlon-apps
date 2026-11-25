@@ -4166,7 +4166,7 @@
   =/  parsed-command  (parse:command body.item.input.event)
   ?:  ?&  ?=(^ parsed-command)
           (changing:command u.parsed-command)
-          !(speaker-configures sid source.input.event)
+          !(speaker-configures sid source.input.event =('work' name.u.parsed-command))
       ==
     =/  refusal=event:h
       [%command-completed id.input.event name.u.parsed-command refused:command]
@@ -4259,22 +4259,43 @@
   =^  recorded  session  (record-all sid session events)
   =^  driven  state  (drive-put sid session)
   [(weld recorded driven) state]
-::  Whether an input's speaker may change its conversation. The Tlon hand
-::  decides for its speakers, since only it knows who owns a shared
-::  conversation; local, peer and scheduled input may.
+::  Whether an input's speaker may change its conversation, or with .work
+::  use /work in it. The Tlon hand decides for its speakers, since only it
+::  knows who owns a conversation; local, peer and scheduled input may.
 ::
 ++  speaker-configures
-  |=  [sid=session-id:h source=input-source:h]
+  |=  [sid=session-id:h source=input-source:h work=?]
   ^-  ?
   ?.  &(?=(%hand -.source) =('tlon' hand.source))  &
   ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
+  =/  question=@ta  ?:(work %work %settings)
   =/  found
     %-  mole
     |.
     .^  ?  %gx
-      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/settings/[sid]/[actor.source]/noun
+      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/[question]/[sid]/[actor.source]/noun
     ==
   =(`& found)
+::  Whether the turn running in .sid may change shared memory, as its
+::  speaker may change the conversation. A subagent's turn answers for its
+::  root parent's, and a scheduled run for its schedule's actor.
+::
+++  turn-configures
+  |=  sid=session-id:h
+  ^-  ?
+  =/  left=@ud  8
+  |-  ^-  ?
+  =/  session  (~(get by sessions) sid)
+  ?~  session  |
+  =/  parent  (delegation:hl log.u.session)
+  ?^  parent
+    ?:  =(0 left)  |
+    $(sid parent.u.parent, left (dec left))
+  =/  job  (for-session:schedule-lib schedules sid)
+  ?^  job  (fall (bind (slaw %p actor.u.job) is-owner) |)
+  =/  input  (current-input:admin log.u.session)
+  ?~  input  |
+  (speaker-configures sid source.u.input |)
 ::  A stop is out of band, not another queued request. Idle sessions need no
 ::  synthetic cancellation; their command acknowledgement is sufficient.
 ::  With .who, a hand speaker other than the owner stops only their own work.
@@ -5247,6 +5268,13 @@
         [sid ?~(turn 0v0 input.u.turn) revision.view now.bowl ?~(turn 'agent' actor.u.turn)]
       =/  result  (operate:memory-json (memory-reach sid) knowledge.batch source u.args)
       ?:  ?=(%| -.result)  (complete (cat 3 'error: ' p.result))
+      ::  Only a write that would succeed reaches this, so reads and the place
+      ::  rule's refusals answer as before.
+      =/  operation  (tool-str:effects args.call 'operation')
+      ?:  ?&  |(=(`'save' operation) =(`'forget' operation))
+              !(turn-configures sid)
+          ==
+        (complete (cat 3 'error: ' refused-memory:command))
       =.  knowledge.batch  db.p.result
       (complete (en:json:html result.p.result))
     ++  complete

@@ -469,7 +469,10 @@ owner's DM, except that the owner's general preferences are recalled
 everywhere. Use `/remember preference Keep replies short.` to save a fact,
 `/memory [query]` to inspect memories, and `/forget preference` to forget one.
 Use `/memory off` for a conversation that should neither recall nor capture
-shared facts. Model replies containing commands do not execute them.
+shared facts. Only the owner saves, forgets or turns memory on or off, by
+command or through the `memory` tool in a turn that answers them; see
+[who may change settings](#authority-and-conversation-scope). Model replies
+containing commands do not execute them.
 
 In mention-only channels, select the bot's native mention first, then type the
 plain slash command in the same paragraph—for example, **@Bot /memory**. The
@@ -880,14 +883,16 @@ hand handles no message from its own ship.
 - A channel conversation's saved tools are the owner's Defaults, whoever spoke
   there first; each turn's speaker ceiling narrows them. A DM's are its
   partner's grants.
-- A channel conversation's settings, thread included, are the owner's. Another
-  speaker there may still use `/help`, `/status`, `/context`, `/model` and
-  `/memory` with no argument or a query, and `/stop` for their own work, but
-  `/model` with an argument, `/compact`, `/memory on` or `off`, `/remember`,
-  `/forget` and `/work` get a reply that only the owner can change the
-  conversation's settings; they reach no model and change nothing. The head
-  asks the adapter whether a speaker may, as it asks for authority. A DM's
-  partner keeps every command, as do the operator's local prompts.
+- A conversation's settings, thread included, are the owner's, in a DM as in
+  a channel. Another speaker, a DM's partner included, may still use `/help`,
+  `/status`, `/context`, `/model` and `/memory` with no argument or a query,
+  and `/stop` for their own work, but `/model` with an argument, `/compact`,
+  `/memory on` or `off`, `/remember` and `/forget` get the reply `Only the
+  owner can change this conversation's settings.`; they reach no model and
+  change nothing. In a channel `/work` gets the same reply; a DM's partner
+  keeps it, under their own Workspace permissions. The head asks the adapter
+  whether a speaker may, as it asks for authority. The operator's local
+  prompts keep every command.
 
 Authority is decided per speaker. For each turn the head asks the adapter about
 the actor of the conversation's running input, and for scheduled work about the
@@ -1351,3 +1356,11 @@ its own, that each turn's input names its speaker, that each turn is offered onl
 its speaker's tools in either order and a guest's forged call is refused, and that
 changing or revoking the guest's grants keeps the channel session and its history.
 It restores defaults and policy; messages remain.
+
+`tests-js/tlon-owner-settings-conformance.mjs` checks on two ships that the
+peer, while it owns the bot, saves a memory and changes the model in its DM,
+and that once the bot's own ship owns it and the peer has only a DM grant, the
+peer's `/remember`, `/forget` and `/model` there get the owner-only reply and
+change nothing. `desk/tests-integration/harness-hand.hoon` covers each
+settings command and the `memory` tool's save and forget through the head, in
+a DM and in a channel, for the owner and for anyone else.

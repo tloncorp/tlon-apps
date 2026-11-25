@@ -242,6 +242,13 @@ opt-outs apply to both capture paths.
   descendants; `/memory on` removes this conversation's opt-out.
 - The `memory` tool supports search, read, save and forget. Changes require the
   current revision, so delayed updates cannot overwrite a correction.
+- In a Tlon conversation, a DM or a channel, only the owner changes memory:
+  anyone else's `/remember`, `/forget` and `/memory on` or `off` get `Only
+  the owner can change this conversation's settings.`, and the `memory`
+  tool's save and forget, in a turn that answers anyone else or in a
+  subagent of such a turn, return `error: Only the owner can change shared
+  memory.` Both change nothing. A save or forget the place rule below
+  refuses gets that refusal instead.
 
 Settings → Memory shows 25 compact rows per page, word-prefix search, source
 attribution and recent revisions. Previous and Next replace the visible page.
@@ -427,7 +434,8 @@ facts only to the owner's private conversations.
 `harness-memory-migration.hoon` cover bounded recall, capture scheduling,
 corrections, opt-out, source validation, persistence and who sees a fact.
 `tests-integration/harness-hand.hoon` checks that rule through the head for an
-owner's DM, a channel, a subagent, a fork and a peer session, and
+owner's DM, a channel, a subagent, a fork and a peer session, and that only
+the owner's turns save and forget, and
 `tests-js/tlon-memory-conformance.mjs` checks it through native Tlon. The native integration
 suite `harness-memory-worker.hoon` drives dreaming alongside an active reply
 and checks compaction capture, model routing, reloads, timeouts and late responses.

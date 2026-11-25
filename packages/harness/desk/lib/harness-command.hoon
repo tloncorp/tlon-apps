@@ -51,7 +51,10 @@
   ==
 ++  refused
   ^-  @t
-  'Only the owner can change this conversation\'s settings in a shared channel.'
+  'Only the owner can change this conversation\'s settings.'
+++  refused-memory
+  ^-  @t
+  'Only the owner can change shared memory.'
 ++  help
   ^-  @t
   %+  rap  3

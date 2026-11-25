@@ -261,8 +261,7 @@ try {
     const binding = ctx.binding
     assert.deepEqual((await command(ctx, '/memory', new RegExp(tag(ctx)))).memory, ctx.saved.memory)
     assert.notEqual(ctx.binding, binding)
-    if (ctx.kind === 'dm') { await command(ctx, `/forget ${note}-${ctx.kind}`, /Memory forgotten/); continue }
-    // The peer is no longer the owner, so only the operator may change the shared channel.
+    // The peer is no longer the owner, so only the operator may change its DM or the shared channel.
     await command(ctx, `/forget ${note}-${ctx.kind}`, /Only the owner can change/)
     await client.call('session/prompt', { sessionId: ctx.sid, prompt: [{ type: 'text', text: `/forget ${note}-${ctx.kind}` }] })
     assert.ok(!JSON.stringify((await snapshot(ctx)).memory).includes(`${tag(ctx)}-note`), 'the operator forgets the channel note')
