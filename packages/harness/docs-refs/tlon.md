@@ -639,15 +639,19 @@ by every author.
   its ship gains access in its place, by any settings save that gives it, and
   when the bot leaves or loses the channel. A DM request closes when the bot
   accepts the ship's invitation, by `accept_dm` or because the ship gained DM
-  access, or writes into the DM with `send_dm`, `react` or `unreact`, which
-  accepts it: nothing is left to approve. If
+  access: nothing is left to approve. Writing into the DM with another tool,
+  such as `send_dm`, `react` or `forward_message`, accepts the invitation in
+  `%chat` but leaves the request open until the owner answers it or it
+  expires; its expiry then declines nothing, since the invitation is no
+  longer pending. If
   Messenger rejects the card, the request closes too, so none stays open that
   the owner was not told of; the ship's next attempt opens it again.
 - A request expires 48 hours after it opened, as on OpenClaw. The next poke,
   timer, upload response or response from another agent the hand handles
-  after that expires it, before the hand does anything else for it; a
-  subscription opening or closing, a reload and the acknowledgements of its
-  profile claim, Steward lease and telemetry do not. When none comes, the
+  after that expires it, before the hand does anything else for it; a client
+  opening or closing a subscription to the hand, a reload and the
+  acknowledgements of its profile claim, Steward lease and telemetry do not.
+  When none comes, the
   maintenance wake does, since the earliest expiry is one of its deadlines,
   recomputed from saved state after a reload. A disabled hand expires nothing
   and puts no expiry on its wake; once it is enabled again, the next of these
