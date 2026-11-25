@@ -22,6 +22,7 @@
 ++  populated
   ^-  state-0
   :*  %0
+      (my ~[[%'AGENTS.md' 'Agents layer.'] [%'SOUL.md' 'Soul layer.']])
       knowledge
       (my ~[['openrouter' [0v1.model (my ~[['fixture-model' 128.000]])]]])
       runners
@@ -69,7 +70,8 @@
       saved-keys
       (my ~[[1 ['conn-1' n+~.7]]])
       2
-      (legacy-config 'defaults' openai-legacy 'Defaults system.')
+      ::  The composition of the layers above, as every save holds it.
+      (legacy-config 'defaults' openai-legacy 'Agents layer.\0a\0aSoul layer.')
       (my ~[['docs' ['Docs' 'https://mcp.example' ~[['authorization' 'mcp-secret']] |]]])
       (my ~[[['alpha' 2] ['Partial reply' 4]]])
       hands
@@ -203,10 +205,14 @@
 ::
 ::  Historical shapes, each a projection of the populated head state.
 ::
+++  project-p0
+  ^-  state-p0
+  =/  p  populated
+  [%0 +>.p]
 ::  Before runs became optional, every schedule held a bare count.
 ++  project-s0
   ^-  state-s0
-  =/  p  populated
+  =/  p  project-p0
   =/  schedules
     %-  ~(run by schedules.p)
     |=  job=schedule:cron
@@ -271,16 +277,21 @@
   =.  summary-models.e
     [(bind compaction.summary-models.e upgrade-config) (bind lcm.summary-models.e upgrade-config)]
   e
+::  The single default instructions text becomes the AGENTS.md layer.
+++  expected-p0
+  ^-  state-0
+  =/  e  expected-current
+  e(prompts (my ~[[%'AGENTS.md' system.defaults.e]]))
 ::  The capture scheduler's bookkeeping starts empty.
 ++  expected-before-maintenance
   ^-  state-0
-  =/  e  expected-current
+  =/  e  expected-p0
   e(maintenance.knowledge maintenance:*state:memory)
 ::  Knowledge is built from the sessions: one cursor per session, and each
 ::  live note imported with the input that set it.
 ++  expected-m0
   ^-  state-0
-  =/  e  expected-current
+  =/  e  expected-p0
   =/  db=state:memory  *state:memory
   =.  cursors.db  (~(run by sessions.e) |=(s=session:h log.s))
   =/  imported
@@ -312,16 +323,92 @@
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field
-  (expect-reload !>(populated) expected-current)
-++  test-state-s0-upgrade-wraps-each-count-and-keeps-every-field
+  =/  loaded  (load:storage !>(populated))
   ;:  weld
-      (expect-reload !>(project-s0) expected-current)
+      (expect-reload !>(populated) expected-current)
+      (expect-eq !>(system.defaults.loaded) !>((compose-prompts:policy prompts.loaded)))
+  ==
+::  The layers and the inherited text are both saved; the load derives the
+::  text from the layers, so a save in which they differ comes back agreeing.
+++  test-a-reload-derives-the-inherited-text-from-the-layers
+  =/  p  populated
+  =.  prompts.p  (~(put by prompts.p) %'MEMORY.md' 'Private.')
+  =.  system.defaults.p  'Stale.\0a\0aPrivate.'
+  =/  loaded  (load:storage !>(p))
+  ;:  weld
+      (expect-eq !>(prompts.p) !>(prompts.loaded))
+      (expect-eq !>('Agents layer.\0a\0aSoul layer.') !>(system.defaults.loaded))
+  ==
+::  The old built-in text is replaced in the AGENTS.md layer as it is in a
+::  saved configuration, so the layer and the derived text agree.
+++  test-a-saved-agents-layer-holding-the-old-builtin-text-is-upgraded
+  =/  p  populated
+  =.  prompts.p  (~(put by prompts.p) %'AGENTS.md' legacy-memory-system)
+  =.  system.defaults.p  (compose-prompts:policy prompts.p)
+  =/  loaded  (load:storage !>(p))
+  =/  upgraded  (~(put by prompts.p) %'AGENTS.md' default-system:policy)
+  ;:  weld
+      (expect-eq !>(upgraded) !>(prompts.loaded))
+      (expect-eq !>((compose-prompts:policy upgraded)) !>(system.defaults.loaded))
+  ==
+::  The composed limit refuses writes, never an upgrade.
+++  test-an-upgrade-loads-a-text-over-the-composed-limit-as-it-was
+  =/  p  project-p0
+  =/  long  (fil 3 (add composed-limit:policy 1) 'a')
+  =.  system.defaults.p  long
+  =/  loaded  (load:storage !>(p))
+  ;:  weld
+      (expect-eq !>((my ~[[%'AGENTS.md' long]])) !>(prompts.loaded))
+      (expect-eq !>(long) !>(system.defaults.loaded))
+  ==
+++  test-state-p0-upgrade-keeps-every-field
+  (expect-reload !>(project-p0) expected-p0)
+::  Every bot inherits the same default instructions after any upgrade: they
+::  compose from the layers to the text it saved, as the load upgrades it.
+++  test-upgrade-keeps-the-composed-default-instructions
+  =/  saved=(list [vase config:h])
+    :~  [!>(project-p0) defaults:project-p0]
+        [!>(project-s0) defaults:project-s0]
+        [!>(project-before-maintenance) defaults:project-s0]
+        [!>(project-m0) defaults:project-m0]
+        [!>(project-c0) defaults:project-c0]
+        [!>(project-r0) defaults:project-r0]
+        [!>(project-le) defaults:project-le]
+        [!>(project-legacy-system) defaults:project-legacy-system]
+    ==
+  %-  zing
+  %+  turn  saved
+  |=  [old=vase =config:h]
+  =/  loaded  (load:storage old)
+  ;:  weld
+      (expect-eq !>(system:(upgrade-config config)) !>((compose-prompts:policy prompts.loaded)))
+      (expect-eq !>(system.defaults.loaded) !>((compose-prompts:policy prompts.loaded)))
+  ==
+::  The built-in text saved before memory migration is upgraded before it
+::  becomes the layer, as it is in the defaults.
+++  project-legacy-system
+  ^-  state-p0
+  =/  p  project-p0
+  p(system.defaults legacy-memory-system)
+++  test-empty-default-instructions-upgrade-to-no-layers
+  =/  p  project-p0
+  =.  system.defaults.p  ''
+  (expect-eq !>(*prompts:h) !>(prompts:(load:storage !>(p))))
+::  A save from before both upgrades takes each step once: every count
+::  becomes a limit and the default instructions become the AGENTS.md layer.
+++  test-state-s0-upgrade-wraps-each-count-adds-the-agents-layer-and-keeps-every-field
+  =/  loaded  (load:storage !>(project-s0))
+  ;:  weld
+      (expect-reload !>(project-s0) expected-p0)
       %+  expect-eq
         !>  ~[[0v7a `5] [0v7b `2] [0v7c `0] [0v7d `3]]
       !>  %+  sort
-            %+  turn  ~(tap by schedules:(load:storage !>(project-s0)))
+            %+  turn  ~(tap by schedules.loaded)
             |=([id=@uv job=schedule:cron] [id remaining.job])
           |=([a=[@uv *] b=[@uv *]] (lth -.a -.b))
+      %+  expect-eq
+        !>  (my ~[[%'AGENTS.md' system:(upgrade-config defaults:project-s0)]])
+      !>  prompts.loaded
   ==
 ++  test-state-before-maintenance-upgrade-keeps-every-field
   (expect-reload !>(project-before-maintenance) expected-before-maintenance)

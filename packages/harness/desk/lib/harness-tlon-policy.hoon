@@ -198,12 +198,18 @@
   ::  the head reads it as the speaker's words.
   =/  text
     ?:  plain.u.item  text.u.item
-    (attribute:input actor.u.item to.u.item text.u.item)
+    (attribute:input actor.u.item ~ to.u.item text.u.item)
   ::  The adapter may leave a channel message heard without a mention
   ::  unanswered; its event id is how the adapter and the head tell.
-  =/  id=@t  (scot %uv (sham [to.u.item key.u.item]))
+  =/  id=@t  (event-id to.u.item key.u.item)
   =?  id  &(?=(%channel -.to.u.item) !addressed.u.item)  (cat 3 'unaddressed/' id)
   `[[actor.u.item id to.u.item text] unaddressed]
+::  +event-id: the hand's name for one native message at one destination
+::
+++  event-id
+  |=  [to=destination:t key=message-key:a]
+  ^-  @t
+  (scot %uv (sham [to key]))
 ::  Whether an admitted event was a channel message heard without a mention.
 ::
 ++  unaddressed

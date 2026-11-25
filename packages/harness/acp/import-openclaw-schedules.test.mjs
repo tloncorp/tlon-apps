@@ -109,11 +109,11 @@ test('only enabled agent turns on a plain cron or one-time schedule are imported
   assert.match(planned({ trigger: { script: 'exit 0' } }).refuse, /trigger script/)
 })
 
-test('a prompt must be 1 to 4,096 bytes', () => {
+test('a prompt must be 1 to 8,192 bytes', () => {
   assert.equal(planned({ payload: { message: '  ' } }).refuse, 'empty prompt')
   assert.equal(planned({ payload: { message: undefined } }).refuse, 'empty prompt')
-  assert.ok(planned({ payload: { message: 'é'.repeat(2048) } }).import)
-  assert.match(planned({ payload: { message: `${'é'.repeat(2048)}x` } }).refuse, /prompt of 4097 bytes; Harness takes at most 4096/)
+  assert.ok(planned({ payload: { message: 'é'.repeat(4096) } }).import)
+  assert.match(planned({ payload: { message: `${'é'.repeat(4096)}x` } }).refuse, /prompt of 8193 bytes; Harness takes at most 8192/)
 })
 
 test('tool lists: none or every tool imports, OpenClaw\'s default list imports with its size, and any other list needs --widen-tools', () => {
@@ -267,7 +267,7 @@ test('a thread task goes to the existing thread conversation, else is refused un
   const missing = planned({ delivery: { to: `tlon:${nest}`, threadId: '170141184507774836402186419052111462401' } }).import.destination
   assert.equal(resolve(missing, conversations).refuse, 'no conversation in that thread yet; --threads-to-parent posts to its DM or channel instead')
   assert.deepEqual(resolve(missing, conversations, { threadsToParent: true }), { binding: 'b-channel', address: nest, notes: ['posts to the conversation, not the thread'] })
-  assert.equal(resolve(dmThread, conversations.slice(1, 2), { threadsToParent: true }).refuse, `no conversation in dm/${owner} yet; send the bot a message in it first`)
+  assert.deepEqual(resolve(dmThread, conversations.slice(1, 2), { threadsToParent: true }), { address: `dm/${owner}`, notes: ['posts to the conversation, not the thread'] })
   assert.equal(planned({ delivery: { threadId: 'not-an-id' } }).refuse, 'unreadable thread id not-an-id')
 })
 
@@ -288,6 +288,11 @@ function ship({ schedules = [], conversations = [{ binding: 'b-dm', destination:
         { kind: 'input', current: true, ...row }, { kind: 'admission', destination: row.destination },
       ])
       return { records, next: index ? null : 'cursor', limit: 16, headConnected }
+    }
+    if (method === 'harness/tlon/schedule-destination') {
+      if (params.address !== `dm/${owner}`) return { refuse: 'the bot cannot post there' }
+      if (params.open) conversations.push({ binding: 'owner-dm', destination: params.address })
+      return { binding: 'owner-dm', ready: conversations.some(({ binding }) => binding === 'owner-dm') }
     }
     if (method === 'harness/cron') return [...held.values()].map(({ row }) => ({ ...row }))
     if (method === 'harness/hand') return { binding: params.status.binding, hand: 'tlon', enabled: true }
@@ -330,12 +335,23 @@ test('an import creates each planned task in its conversation as the owner, and 
   const adds = calls.filter(({ method }) => method === 'harness/cron/add').map(({ params }) => params)
   assert.deepEqual(adds.map(({ id, binding, actor, kind }) => [id, binding, actor, kind]), [[idOf(jobs[0]), 'b-dm', owner, 'prompt'], [idOf(jobs[1]), 'b-channel', owner, 'prompt']])
   assert.ok(calls.some(({ method, params }) => method === 'harness/tlon/work' && params.before === 'cursor'), 'every page of conversations is read')
-  assert.match(lines[0], /^4 tasks from the export, 1 built-in OpenClaw jobs left out, 2 Tlon conversations on the ship$/)
+  assert.match(lines[0], /^4 tasks from the export, 1 built-in OpenClaw jobs left out, 2 Tlon conversations with recorded input$/)
   assert.match(output, /- Weekday digest \| cron "0 9 \* \* 1-5" America\/New_York \| dm\/~sampel-palnet \| imported, next run 2026-01-15 14:00 UTC \| /)
-  assert.match(output, new RegExp(`- Weekday digest \\| .* \\| chat/${host}/no-such-channel \\| refused: no conversation in chat/${host}/no-such-channel yet; send the bot a message in it first`))
+  assert.match(output, new RegExp(`- Weekday digest \\| .* \\| chat/${host}/no-such-channel \\| refused: the bot cannot post there`))
   assert.match(output, /disabled, not imported/)
   assert.match(lines.at(-1), /^imported 2, refused 1, disabled 1, of 4 tasks\.$/)
   assert.ok(!output.includes(job().payload.message), 'prompts are not printed')
+})
+
+test('an owner DM with no input is previewed, opened on apply and reused on retry', async () => {
+  const head = ship({ conversations: [] })
+  const jobs = [job()]
+  const preview = await importing(head.client, jobs, { dryRun: true })
+  assert.match(preview.output, /would import/)
+  assert.ok(head.calls.every(({ params }) => !params?.open))
+  assert.match((await importing(head.client, jobs)).output, /imported 1/)
+  assert.match((await importing(head.client, jobs)).output, /already there 1/)
+  assert.equal(head.calls.filter(({ params }) => params?.open).length, 1)
 })
 
 test('a dry run sends no create and says what is already there', async () => {
@@ -444,10 +460,22 @@ test('a rerun without --runs over a task imported earlier with a count says so, 
   }
   assert.equal(head.calls.filter(({ method }) => method === 'harness/cron/add').length, sent + 1, 'only the one-time task is sent again')
   assert.deepEqual(head.rows(), made)
-  head.edit(made[0].id, { prompt: 'Edited by the owner.' })
-  const edited = await importing(head.client, jobs)
-  assert.equal(edited.code, 1, 'an edited one is not the same task')
-  assert.match(edited.output, /failed: Schedule ID already belongs to a different request/)
+})
+
+test('a rerun without --runs over a task imported with a count and edited since sends nothing and differs, as its dry run says', async () => {
+  const head = ship()
+  await importing(head.client, [job()], { runs: 100 })
+  const [row] = head.rows()
+  head.edit(row.id, { prompt: 'Edited by the owner.' })
+  const edited = head.rows(), sent = head.calls.filter(({ method }) => method === 'harness/cron/add').length
+  for (const dryRun of [false, true]) {
+    const { code, output } = await importing(head.client, [job()], { dryRun })
+    assert.equal(code, 1, `dry run ${dryRun}`)
+    assert.match(output, /^- Weekday digest .*\| exists but differs \(edited since import\?\); left as it is \| .*last of its 100 runs on 2026-06-03 14:00 UTC$/m)
+    assert.match(output, /\bexists but differs 1, of 1 tasks\.$/m)
+  }
+  assert.equal(head.calls.filter(({ method }) => method === 'harness/cron/add').length, sent, 'no create is sent')
+  assert.deepEqual(head.rows(), edited, 'nothing is changed')
 })
 
 test('under --runs, a schedule edited to no count or to more runs differs, and one with runs used up is already there', async () => {

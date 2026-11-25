@@ -27,9 +27,16 @@
     =/  pending  u.pending.knowledge.state
     `pending(job (migrate-memory-job job.pending))
   =.  scopes.corpus.state  (~(run by scopes.corpus.state) migrate-conversation)
+  ::  The AGENTS.md layer holds what was the single text, upgraded as a saved
+  ::  configuration is, and the layers are the one source of the text new
+  ::  conversations inherit.
+  =/  agents  (~(get by prompts.state) %'AGENTS.md')
+  =?  prompts.state  &(?=(^ agents) =(memory-migration-system u.agents))
+    (~(put by prompts.state) %'AGENTS.md' default-system:policy)
+  =/  defaults  (migrate-config defaults.state)
   %=  state
     sessions  sessions
-    defaults  (migrate-config defaults.state)
+    defaults  defaults(system (compose-prompts:policy prompts.state))
     peer-base  (bind peer-base.state migrate-config)
     summary-models  :*  (bind compaction.summary-models.state migrate-config)
                         (bind lcm.summary-models.state migrate-config)
@@ -126,12 +133,26 @@
   ^-  state-0
   =/  current  (mole |.(!<(state-0 saved)))
   ?^  current  (migrate-memory-prefixes u.current)
-  (migrate-memory-prefixes (migrate-schedules (envelope-before-schedules saved)))
+  (migrate-memory-prefixes (migrate-prompts (envelope-before-prompts saved)))
+::  The single default instructions text becomes the AGENTS.md layer, which
+::  the load then upgrades as it does the configuration, so it composes to the
+::  same text.
+++  migrate-prompts
+  |=  old=state-p0
+  ^-  state-0
+  =/  system  system.defaults.old
+  [%0 ?:(=('' system) ~ (my ~[[%'AGENTS.md' system]])) +.old]
+++  envelope-before-prompts
+  |=  saved=vase
+  ^-  state-p0
+  =/  current  (mole |.(!<(state-p0 saved)))
+  ?^  current  u.current
+  (migrate-schedules (envelope-before-schedules saved))
 ::  A saved count becomes a limit of that many runs. No save before this
 ::  shape holds a schedule without one.
 ++  migrate-schedules
   |=  old=state-s0
-  ^-  state-0
+  ^-  state-p0
   =/  schedules
     %-  ~(run by schedules.old)
     |=  job=schedule-s0

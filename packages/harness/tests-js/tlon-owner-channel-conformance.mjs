@@ -26,14 +26,16 @@ const failures = [], inputs = [], systems = [], held = [], silent = new Set(), r
 let event = 0, holding = () => false, defaults, policy
 
 // Each turn answers every step its new input names. A held turn waits until
-// release() opens it.
+// release() opens it. A turn's public reference repeats earlier posts, heard or
+// not, so it is not part of the input.
 const words = (content) => typeof content === 'string' ? content : JSON.stringify(content ?? '')
+const reference = /^(Recent public channel activity|Public thread reference) captured at admission/
 const stepsIn = (text) => [...text.matchAll(new RegExp(`${marker}-(\\w+)`, 'g'))].map((m) => m[1])
 const server = createServer(async (req, res) => {
   try {
     const body = JSON.parse(await readText(req))
     const last = body.messages.findLastIndex((m) => m.role === 'assistant')
-    const input = body.messages.slice(last + 1).filter((m) => m.role === 'user').map((m) => words(m.content)).join('\n')
+    const input = body.messages.slice(last + 1).filter((m) => m.role === 'user').map((m) => words(m.content)).filter((text) => !reference.test(text)).join('\n')
     const steps = stepsIn(input)
     inputs.push(input)
     systems.push(words(body.messages.find((m) => m.role === 'system')?.content))

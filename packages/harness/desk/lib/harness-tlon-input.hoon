@@ -1,7 +1,7 @@
 ::  Native addressing syntax, not a second command interpreter. Only the head
 ::  decides which slash words are commands, after normal social admission.
 /-  d=story, t=harness-tlon
-/+  story=harness-tlon-story
+/+  story=harness-tlon-story, hp=harness-tlon-history-page
 |%
 ++  whitespace
   |=(c=@t |(=(c 32) =(c 9) =(c 10) =(c 13)))
@@ -47,20 +47,40 @@
     ?:  (levy (trip i.inlines) whitespace)  $(inlines t.inlines)
     (levy t.inlines |=(v=inline:d ?=(@ v)))
   &(=([%ship our] i.inlines) (levy t.inlines |=(v=inline:d ?=(@ v))))
+::  +label: a ship as a turn shows it, with its display name when it has one
+::
+::    the name is not ours to trust, so the characters that could pass
+::    for the label's own punctuation or start a line are dropped.
+++  label
+  |=  [who=@p name=(unit @t)]
+  ^-  @t
+  =/  nick=@t
+    ?~  name  ''
+    %+  clip-text:hp
+      %-  crip
+      %+  skip  (trip u.name)
+      |=(c=@t |((lth c 32) =(c '(') =(c ')') =(c '[') =(c ']')))
+    name-limit
+  ?:  (levy (trip nick) whitespace)  (scot %p who)
+  (rap 3 (scot %p who) ' (' nick ')' ~)
+++  name-limit  50
 ::  A channel's session is shared, so each message names its speaker. The
 ::  caller leaves out a command, which the head must still read as one, and
 ::  formatted text that normalization has already attributed.
 ::
 ++  attribute
-  |=  [actor=@p to=destination:t text=@t]
+  |=  [actor=@p name=(unit @t) to=destination:t text=@t]
   ^-  @t
   ?:  ?=(%dm -.to)  text
-  =/  prefix  (cat 3 (scot %p actor) ': ')
-  ?:  =(prefix (end [3 (met 3 prefix)] text))  text
-  (cat 3 prefix text)
-::  The longest prefix +attribute adds: a comet's name, a colon and a space.
+  =/  labeled  (cat 3 (label actor name) ': ')
+  ::  Normalization cannot read Contacts, so it attributes with the bare ship.
+  =/  starts  |=(prefix=@t =(prefix (end [3 (met 3 prefix)] text)))
+  ?:  |((starts (cat 3 (scot %p actor) ': ')) (starts labeled))  text
+  (cat 3 labeled text)
+::  The longest prefix +attribute adds: a comet with the longest name in
+::  parentheses, a colon and a space.
 ::
 ++  attribution-limit
   ^-  @ud
-  (add 2 (met 3 (scot %p (dec (bex 128)))))
+  :(add 5 name-limit (met 3 (scot %p (dec (bex 128)))))
 --
