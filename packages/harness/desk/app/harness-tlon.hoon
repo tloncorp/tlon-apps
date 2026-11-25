@@ -286,8 +286,8 @@
   =.  cor  (accepted who)
   =.  cor  (note 'dm-invite' who (scot %p who) '')
   (emit (accept-invitation:messenger who))
-::  +accepted: close .who's DM request, as the bot accepts its invitation
-::  or writes into the DM, which accepts it; there is nothing left to approve
+::  +accepted: close .who's DM request, as the bot accepts its invitation;
+::  there is nothing left to approve
 ::
 ++  accepted
   |=  who=@p
@@ -773,9 +773,8 @@
   ?~  effect.u.built  (finish-tool id (clip:ht body.u.built 24.000))
   =/  receipt  (~(got by tool-receipts) id)
   =.  tool-receipts  (~(put by tool-receipts) id receipt(body body.u.built))
-  =?  cor  (lien `(list @t)`~['accept_dm' 'send_dm' 'react' 'unreact'] |=(name=@t =(`[%s name] action)))
-    =/  to  (destination:tlon-spec u.parsed)
-    ?.(?=(%dm -.to) cor (accepted who.to))
+  =?  cor  =(`[%s 'accept_dm'] action)
+    (accepted (ship:tlon-spec (required:tlon-spec u.parsed 'ship' 128)))
   (emit u.effect.u.built)
 ::
 ++  tool-conversation
