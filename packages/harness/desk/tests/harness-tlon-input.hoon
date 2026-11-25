@@ -39,17 +39,70 @@
   =/  escaped=story:d  ~[[%inline ~[[%ship ~lux] ' //remember project no']]]
   (expect !>(&(=(~ (parse:cmd (text:input ~lux path))) =(~ (parse:cmd (text:input ~lux escaped))))))
 ++  test-address-normalization-never-grants-social-admission
-  =/  =policy:t  [& `~nec ~ %mentions ~ ~]
+  ::  The channel's own rule keeps the owner rule out of this.
+  =/  =policy:t  [& `~nec ~ %mentions ~ (my ~[[[%chat ~nec %test] [%mentions |]]])]
   =/  event=$>(%post incoming-event:v8:a)
     :*  %post  [[~nec ~2026.9.6] ~2026.9.6]  [%chat ~nec %test]  [~nec %test]
         ~[[%inline ~[[%ship ~lux] ' /memory']]]  |
     ==
-  =/  allowed  (normalize:p ~lux policy event(mention &))
+  =/  allowed  (normalize:p ~lux ~2026.9.6 policy event(mention &))
   ?>  ?=(^ allowed)
   %-  expect
-  !>  ?&  =('/memory' text.u.allowed)  =(~ (normalize:p ~lux policy event))
-          =(~ (normalize:p ~lux policy(enabled |) event(mention &)))
+  !>  ?&  =('/memory' text.u.allowed)  =(~ (normalize:p ~lux ~2026.9.6 policy event))
+          =(~ (normalize:p ~lux ~2026.9.6 policy(enabled |) event(mention &)))
       ==
+::  In a channel only one flat paragraph of plain text can carry a command.
+::  Formatted text is stored with its speaker's prefix, so the head reads it
+::  as words, and the prefix is never added twice.
+::
+++  owner-says
+  |=  content=story:d
+  ^-  (unit input:t)
+  =/  =policy:t  [& `~nec ~ %mentions ~ ~]
+  %:  normalize:p  ~lux  ~2026.9.6  policy
+    [%post [[~nec ~2026.9.6] ~2026.9.6] [%chat ~nec %test] [~nec %test] content |]
+  ==
+++  observed
+  |=  in=input:t
+  ^-  @t
+  ?^  (parse:cmd text.in)  text.in
+  (attribute:input actor.in ~ to.in text.in)
+++  test-an-unmentioned-plain-command-from-the-owner-is-a-command
+  =/  heard  (owner-says ~[[%inline ~['/stop']]])
+  ?~  heard  (expect !>(|))
+  ;:  weld
+      (expect-eq !>('/stop') !>((observed u.heard)))
+      (expect !>((stopping:cmd (observed u.heard))))
+  ==
+++  test-formatted-or-multi-paragraph-commands-are-attributed-text
+  =/  examples=(list story:d)
+    :~  ~[[%inline ~[[%inline-code '/stop']]]]
+        ~[[%inline ~[[%blockquote ~['/stop']]]]]
+        ~[[%inline ~['/memory off']] [%inline ~['second paragraph']]]
+        ~[[%inline ~['hello']] [%inline ~['/stop']]]
+    ==
+  %-  expect
+  !>  %+  levy  examples
+      |=  content=story:d
+      =/  heard  (owner-says content)
+      ?~  heard  |
+      =/  text  (observed u.heard)
+      ?&  =(~ (parse:cmd text))
+          =(text (attribute:input ~nec ~ to.u.heard (story-to-text:story content)))
+          =('~nec: ' (end 3^6 text))
+      ==
+++  test-attribution-is-never-added-twice
+  =/  room=destination:t  [%channel [%chat ~lux %test] ~]
+  ;:  weld
+      (expect-eq !>('~bus: hello') !>((attribute:input ~bus ~ room '~bus: hello')))
+      (expect-eq !>('~bus: ~nec: hello') !>((attribute:input ~bus ~ room '~nec: hello')))
+      ::  Normalization attributes with the bare ship, having no display name.
+      (expect-eq !>('~bus: hello') !>((attribute:input ~bus `'Bus' room '~bus: hello')))
+      %+  expect-eq  !>('~bus (Bus): hello')
+      !>((attribute:input ~bus `'Bus' room '~bus (Bus): hello'))
+      %+  expect-eq  !>('~bus (Bus): ~nec: hello')
+      !>((attribute:input ~bus `'Bus' room '~nec: hello'))
+  ==
 ::  Every channel message names its speaker, even one that starts with a
 ::  slash: the adapter leaves out text the head parses as a command before
 ::  attributing, so a path reaches the model attributed.
@@ -98,15 +151,25 @@
     |=  text=@t
     ^-  incoming-event:v8:a
     [%post [[comet ~2026.9.4] ~2026.9.4] [%chat ~lux %test] [~lux %test] ~[[%inline ~[text]]] &]
-  =/  admitted  (normalize-owned:p ~lux policy (post fits) |=(@p &))
+  =/  admitted  (normalize-owned:p ~lux ~2026.9.4 policy (post fits) |=(@p &))
   =/  dm-long=incoming-event:v8:a
     [%dm-post [[comet ~2026.9.4] ~2026.9.4] [%ship comet] ~[[%inline ~[long]]] |]
+  ::  Formatted text is attributed at admission; the limit is the raw text's.
+  =/  quoted=incoming-event:v8:a
+    :*  %post  [[comet ~2026.9.4] ~2026.9.4]  [%chat ~lux %test]  [~lux %test]
+        ~[[%inline ~[[%blockquote ~[fits]]]]]  &
+    ==
+  =/  formatted  (normalize-owned:p ~lux ~2026.9.4 policy quoted |=(@p &))
   ;:  weld
       (expect !>(?=(^ admitted)))
-      (expect !>(?=(~ (normalize-owned:p ~lux policy (post long) |=(@p &)))))
-      (expect !>(?=(^ (normalize-owned:p ~lux policy dm-long |=(@p &)))))
+      (expect !>(?=(~ (normalize-owned:p ~lux ~2026.9.4 policy (post long) |=(@p &)))))
+      (expect !>(?=(^ (normalize-owned:p ~lux ~2026.9.4 policy dm-long |=(@p &)))))
       ?~  admitted  ~
       %+  expect-eq  !>(65.536)
       !>((met 3 (attribute:input comet `(fil 3 60 'n') to.u.admitted text.u.admitted)))
+      ?~  formatted  (expect !>(|))
+      ::  Stored with the bare prefix, which a display name does not extend.
+      %+  expect-eq  !>((cat 3 (scot %p comet) (cat 3 ': ' fits)))
+      !>((attribute:input comet `(fil 3 60 'n') to.u.formatted text.u.formatted))
   ==
 --

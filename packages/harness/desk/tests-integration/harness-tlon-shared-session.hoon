@@ -4,7 +4,7 @@
 /-  t=harness-tlon, ad=harness-adapter, h=harness, g=groups-ver,
     a=activity-ver, hh=harness-hand, d=story
 /+  *test-agent, continuity=harness-tlon-continuity, policy-lib=harness-tlon-policy,
-    hj=harness-json
+    hj=harness-json, permissions=harness-tlon-permissions, codec=harness-acp
 /=  adapter  /app/harness-tlon
 |%
 ++  room  `destination:t`[%channel [%chat ~lux %test] ~]
@@ -309,4 +309,71 @@
   ;<  operator=?  bind:m  (may room-sid ~zod)
   ;<  partner=?  bind:m  (may 'dm' ~bus)
   (ex-equal !>([guest owner operator partner]) !>([| & & &]))
+::  The one-channel call changes only that channel's own rule, through the
+::  same path as a whole-policy save, and only at the current revision. A
+::  .rule of ~ leaves the key out of the request.
+::
+++  configure-channel
+  |=  [saved=state-5:t channel=@t rule=(unit json) revision=@t]
+  =/  m  (mare ,[(list card) state-5:t])
+  ^-  form:m
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a hands))
+  ;<  *  bind:m  (do-load adapter `!>(saved))
+  ;<  ~  bind:m  head-connected
+  =/  params
+    %-  pairs:enjs:format
+    %+  weld  `(list [@t json])`?~(rule ~ ~[['rule' u.rule]])
+    `(list [@t json])`~[['channel' %s channel] ['expectedRevision' %s revision]]
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %noun
+    !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/channel/configure' `params])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-5:t vase))
+++  current  (revision:permissions policy:ready epoch:ready)
+++  test-the-one-channel-call-sets-one-channels-rule-and-keeps-the-rest
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  rule  (pairs:enjs:format ~[['response' %s 'all'] ['everyone' %b |]])
+  ;<  [* s=state-5:t]  bind:m  (configure-channel ready 'chat/~lux/other' `rule current)
+  =/  expected  policy:ready
+  =.  channels.expected  (~(put by channels.expected) [%chat ~lux %other] [%all |])
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(expected))
+  (ex-equal !>((~(get by routes.s) room-sid)) !>(`['binding-room' %ready]))
+++  test-the-one-channel-call-removes-one-channels-rule-and-keeps-the-rest
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure-channel ready 'chat/~lux/test' `~ current)
+  =/  expected  policy:ready
+  =.  channels.expected  ~
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(expected))
+  ;<  ~  bind:m  (ex-equal !>((~(has by routes.s) room-sid)) !>(|))
+  (ex-equal !>((disabled caz 'binding-room')) !>(&))
+++  test-the-one-channel-call-refuses-a-stale-revision
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-5:t]  bind:m  (configure-channel ready 'chat/~lux/test' `~ 'stale')
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:ready))
+  (ex-equal !>((~(get by routes.s) room-sid)) !>(`['binding-room' %ready]))
+::  Only an explicit null removes a channel's rule: a request without the
+::  key is refused and changes nothing.
+::
+++  test-the-one-channel-call-refuses-a-request-without-a-rule
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure-channel ready 'chat/~lux/test' ~ current)
+  =/  refused
+    %:  acp-error-card:~(. codec ~zod)
+      'fixture'  [%n '1']  '-32602'
+      'Expected channel, expectedRevision and rule (response and everyone, or an explicit null to remove it)'
+    ==
+  ;<  ~  bind:m  (ex-equal !>(caz) !>(~[refused]))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:ready))
+  ;<  ~  bind:m  (ex-equal !>((revision:permissions policy.s epoch.s)) !>(current))
+  (ex-equal !>((~(get by routes.s) room-sid)) !>(`['binding-room' %ready]))
 --

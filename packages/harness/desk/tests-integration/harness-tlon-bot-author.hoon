@@ -236,7 +236,7 @@
   %-  eval-mare
   =/  event  (post-event ~nec)
   =/  rules=policy:t  policy:fixture
-  =/  input=input:t  (need (normalize:policy ~zod rules event))
+  =/  input=input:t  (need (normalize:policy ~zod now rules event))
   =/  sid  (identity:continuity to.input)
   =/  saved  fixture
   =.  jobs.saved  (my ~[[(sham [0 input]) [input sid %bind '']]])
@@ -257,6 +257,78 @@
   ;<  got=outcome  bind:m  (run saved (post-event ~nec) unread)
   ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(64))
+  (ex-equal !>(activity-through.saved.got) !>(~2026.10.1))
+::  The owner (~nec) hosts .nest. With its conversation full, a post heard
+::  only by the owner rule is dropped and catch-up moves past it; a
+::  mentioned post waits for room.
+::
+++  full-room
+  ^-  state-5:t
+  %+  roll  (gulf 1 8)
+  |=  [k=@ud s=_fixture]
+  (with-job s `@uv`k ~nec [%channel nest ~] %bind)
+++  test-an-owner-rule-post-is-dropped-when-its-conversation-is-full
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  event  (post-event ~nec)
+  ?>  ?=(%post -.event)
+  ;<  got=outcome  bind:m  (run full-room event(mention |) unread)
+  ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(8))
+  (ex-equal !>(activity-through.saved.got) !>(message-at))
+++  setup-receipt
+  '[{"type":"tlon-agent-intro-request","version":1,"groupId":"~nec/home"}]'
+++  setup-event
+  ^-  incoming-event:v8:a
+  =/  event  (post-event ~nec)
+  ?>  ?=(%post -.event)
+  event(mention |, content ~[[%inline ~['Let\'s get set up.']]])
+::  The owner's post at .message-at, by .who, carrying the setup receipt.
+++  setup-post
+  |=  who=@p
+  ^-  post-row
+  =/  p=post:v9:dv  *post:v9:dv
+  [message-at %& p(id message-at, author who, blob `setup-receipt)]
+::  The owner's setup request is addressed to the bot, so it waits like a
+::  mention instead of being dropped as heard only by the owner rule.
+++  test-a-setup-request-waits-when-its-conversation-is-full
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  got=outcome  bind:m
+    (run full-room setup-event `[& & message-at ~[(setup-post ~nec)] ~])
+  ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(8))
+  (ex-equal !>(activity-through.saved.got) !>(~2026.10.1))
+::  A setup message whose post cannot be read, or is missing or another
+::  author's, has no receipt: it is an ordinary owner message, not a crash.
+++  test-a-setup-message-whose-post-cannot-be-read-is-an-ordinary-message
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  ordinary
+    |=  =native
+    =/  m  (mare ,~)
+    ^-  form:m
+    ;<  got=outcome  bind:m  (run fixture setup-event `native)
+    ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~['message']))
+    ;<  ~  bind:m  (ex-equal !>(activity-through.saved.got) !>(message-at))
+    %+  ex-equal
+      !>((turn ~(val by jobs.saved.got) |=(=job:t text.input.job)))
+    !>(`(list @t)`~['Let\'s get set up.'])
+  ;<  ~  bind:m  (ordinary [| & message-at ~ ~])
+  ;<  ~  bind:m  (ordinary [& | message-at ~ ~])
+  ;<  ~  bind:m  (ordinary [& & message-at ~ ~])
+  ;<  ~  bind:m  (ordinary [& & message-at ~[[message-at %| [message-at ~nec 1 now]]] ~])
+  (ordinary [& & message-at ~[(setup-post ~bud)] ~])
+++  test-a-mentioned-post-waits-when-its-conversation-is-full
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  got=outcome  bind:m  (run full-room (post-event ~nec) unread)
+  ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(8))
   (ex-equal !>(activity-through.saved.got) !>(~2026.10.1))
 ++  test-no-read-for-a-denied-post
   %-  eval-mare
@@ -907,6 +979,53 @@
   ;<  s=state-5:t  bind:m  saved
   ;<  ~  bind:m  (ex-equal !>((messenger-pokes again)) !>(`(list [mark noun])`~))
   (ended s guest-sid 'refusal')
+::  The room's first route is still being set up for job 0v1. A second post
+::  there by the owner, then a DM from the guest, are read over .mention.
+++  behind-setup
+  |=  mention=?
+  =/  m  (mare ,state-5:t)
+  ^-  form:m
+  =/  [t1=@da t2=@da]  [(second 5) (second 6)]
+  =/  owner=[@da incoming-event:v8:a]
+    [t1 [%post [[~nec t1] t1] nest [~nec %home] ~[[%inline ~['hello']]] mention]]
+  =/  rows  ~[owner (dm-row guest t2)]
+  ;<  *  bind:m
+    %+  load-with
+      (setting-up room %create ~[[0v1 ~nec]])
+    (head-gate (stream-of rows) & ~)
+  saved
+++  room-jobs
+  |=  s=state-5:t
+  ^-  (list @uv)
+  %+  murn  ~(tap by jobs.s)
+  |=([id=@uv =job:t] ?.(=(room-sid sid.job) ~ `id))
+::  A post heard only by the owner rule is dropped, not held, while its
+::  room's first route is pending, so the guest's DM behind it is admitted
+::  and the post is never answered later.
+++  test-an-owner-rule-post-behind-a-pending-route-is-dropped
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  s=state-5:t  bind:m  (behind-setup |)
+  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>((second 6)))
+  ;<  ~  bind:m  (ex-equal !>((room-jobs s)) !>(~[0v1]))
+  ;<  ~  bind:m
+    (ex-equal !>((lien ~(val by jobs.s) |=(j=job:t =(guest-sid sid.j)))) !>(&))
+  ;<  *  bind:m  (route-ack room-sid %create |)
+  ;<  *  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  later=state-5:t  bind:m  saved
+  ;<  ~  bind:m  (ex-equal !>(activity-through.later) !>((second 6)))
+  (ex-equal !>((room-jobs later)) !>(~[0v1]))
+::  A mentioned post in the same place still waits for the route, holding
+::  the cursor.
+++  test-a-mentioned-post-behind-a-pending-route-is-held
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  s=state-5:t  bind:m  (behind-setup &)
+  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(~2026.10.1))
+  ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
+  (ex-equal !>((room-jobs s)) !>(~[0v1]))
 ++  test-a-failed-route-setup-tells-each-sender-waiting-in-a-channel
   %-  eval-mare
   =/  m  (mare ,~)

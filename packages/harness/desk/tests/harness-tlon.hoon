@@ -330,18 +330,105 @@
 ++  test-trusted-can-have-no-tools
   (expect-eq !>(`(list term)`~) !>((need (grants:p policy ~bud all-tools:ht))))
 ++  test-strangers-are-not-admitted
-  (expect-eq !>(`(unit input:t)`~) !>((normalize:p ~lux policy (dm ~wes))))
+  (expect-eq !>(`(unit input:t)`~) !>((normalize:p ~lux ~2026.9.4 policy (dm ~wes))))
 ++  test-disable-revokes-admission
   =/  cfg  policy
-  (expect-eq !>(`(unit input:t)`~) !>((normalize:p ~lux cfg(enabled |) (dm ~zod))))
+  (expect-eq !>(`(unit input:t)`~) !>((normalize:p ~lux ~2026.9.4 cfg(enabled |) (dm ~zod))))
 ++  test-dms-do-not-need-mentions
-  (expect !>(?=(^ (normalize:p ~lux policy (dm ~zod)))))
+  (expect !>(?=(^ (normalize:p ~lux ~2026.9.4 policy (dm ~zod)))))
 ++  test-self-messages-do-not-loop
-  (expect-eq !>(`(unit input:t)`~) !>((normalize:p ~zod policy (dm ~zod))))
+  (expect-eq !>(`(unit input:t)`~) !>((normalize:p ~zod ~2026.9.4 policy (dm ~zod))))
 ++  test-channel-address-requires-mention
   =/  evt=$>(%post incoming-event:v8:a)
-    [%post [[~zod ~2026.9.4] ~2026.9.4] [%chat ~zod %test] [~zod %test] ~[[%inline ~['hello']]] |]
-  (expect !>(&(=(~ (normalize:p ~lux policy evt)) ?=(^ (normalize:p ~lux policy evt(mention &))))))
+    [%post [[~nec ~2026.9.4] ~2026.9.4] [%chat ~zod %test] [~zod %test] ~[[%inline ~['hello']]] |]
+  %-  expect
+  !>  ?&  =(~ (normalize:p ~lux ~2026.9.4 policy evt))
+          ?=(^ (normalize:p ~lux ~2026.9.4 policy evt(mention &)))
+      ==
+::  The owner (~zod) is heard without a mention in a channel the bot (~lux)
+::  or the owner hosts, while the channel has no rule of its own and the post
+::  is within ten minutes of the bot's clock.
+::
+++  heard
+  |=  [cfg=policy:t now=@da event=incoming-event:v8:a]
+  ^-  (unit [input=input:t owner-only=?])
+  (normalize-heard:p ~lux now cfg event |=(who=@p =(`who owner.cfg)))
+++  said
+  |=  [host=@p who=@p mention=?]
+  ^-  $>(%post incoming-event:v8:a)
+  [%post [[who ~2026.9.4] ~2026.9.4] [%chat host %test] [host %test] ~[[%inline ~['hello']]] mention]
+++  test-owner-unmentioned-in-an-owner-hosted-channel-is-admitted
+  =/  plain  (heard policy ~2026.9.4 (said ~zod ~zod |))
+  =/  mentioned  (heard policy ~2026.9.4 (said ~zod ~zod &))
+  ?~  plain  (expect !>(|))
+  ?~  mentioned  (expect !>(|))
+  ;:  weld
+      %+  expect-eq
+        !>(`[@p destination:t @t ?]`[~zod [%channel [%chat ~zod %test] ~] 'hello' &])
+      !>([actor.input to.input text.input owner-only]:u.plain)
+      (expect !>(!owner-only.u.mentioned))
+  ==
+++  test-owner-unmentioned-in-a-bot-hosted-channel-is-admitted
+  (expect !>(?=(^ (heard policy ~2026.9.4 (said ~lux ~zod |)))))
+++  test-owner-unmentioned-in-a-channel-another-ship-hosts-is-dropped
+  (expect !>(?=(~ (heard policy ~2026.9.4 (said ~nec ~zod |)))))
+++  test-an-explicit-mentions-rule-turns-the-owner-rule-off
+  =/  policy  policy
+  =/  cfg  policy(channels (my ~[[[%chat ~zod %test] [%mentions |]]]))
+  %-  expect
+  !>  ?&  ?=(~ (heard cfg ~2026.9.4 (said ~zod ~zod |)))
+          ?=(^ (heard cfg ~2026.9.4 (said ~zod ~zod &)))
+      ==
+++  test-the-owner-rule-does-not-pass-off-or-a-disabled-policy
+  =/  policy  policy
+  %-  expect
+  !>  ?&  ?=(~ (heard policy(channels (my ~[[[%chat ~zod %test] [%off |]]])) ~2026.9.4 (said ~zod ~zod |)))
+          ?=(~ (heard policy(response %off) ~2026.9.4 (said ~zod ~zod |)))
+          ?=(~ (heard policy(enabled |) ~2026.9.4 (said ~zod ~zod |)))
+      ==
+++  test-another-allowed-ship-unmentioned-is-dropped
+  =/  policy  policy
+  =/  cfg  policy(allowed (silt ~[~bus]))
+  %-  expect
+  !>  ?&  ?=(~ (heard cfg ~2026.9.4 (said ~zod ~nec |)))
+          ?=(~ (heard cfg ~2026.9.4 (said ~zod ~bus |)))
+          ?=(~ (heard cfg ~2026.9.4 (said ~lux ~bus |)))
+      ==
+++  test-an-owner-reply-under-someone-elses-post-is-admitted-in-its-thread
+  =/  evt=incoming-event:v8:a
+    :*  %reply  [[~zod ~2026.9.4] ~2026.9.4]  [[~nec ~2026.9.3] ~2026.9.3]
+        [%chat ~zod %test]  [~zod %test]  ~[[%inline ~['hello']]]  |
+    ==
+  =/  found  (heard policy ~2026.9.4 evt)
+  ?~  found  (expect !>(|))
+  %+  expect-eq
+    !>(`destination:t`[%channel [%chat ~zod %test] `~2026.9.3])
+  !>(to.input.u.found)
+++  test-an-owner-image-only-post-is-admitted
+  =/  evt  (said ~zod ~zod |)
+  =.  content.evt  ~[[%block [%image 'https://example.com/a.png' 1 1 '']]]
+  =/  found  (heard policy ~2026.9.4 evt)
+  ?~  found  (expect !>(|))
+  (expect-eq !>('~zod: [Image: https://example.com/a.png]') !>(text.input.u.found))
+++  test-a-stale-owner-post-is-dropped-and-a-mentioned-one-is-not
+  =/  late  (add ~2026.9.4 ~m10)
+  =/  early  (sub ~2026.9.4 ~m10)
+  %-  expect
+  !>  ?&  ?=(^ (heard policy late (said ~zod ~zod |)))
+          ?=(^ (heard policy early (said ~zod ~zod |)))
+          ?=(~ (heard policy +(late) (said ~zod ~zod |)))
+          ?=(~ (heard policy (dec early) (said ~zod ~zod |)))
+          ?=(^ (heard policy ~2026.9.5 (said ~zod ~zod &)))
+          ?=(^ (heard policy ~2026.9.3 (said ~zod ~zod &)))
+      ==
+++  test-a-reply-under-the-bots-post-is-admitted-as-before
+  =/  evt=incoming-event:v8:a
+    :*  %reply  [[~nec ~2026.9.4] ~2026.9.4]  [[~lux ~2026.9.3] ~2026.9.3]
+        [%chat ~nus %test]  [~nus %test]  ~[[%inline ~['hello']]]  |
+    ==
+  =/  found  (heard policy ~2026.9.6 evt)
+  ?~  found  (expect !>(|))
+  (expect !>(!owner-only.u.found))
 ::  A channel's session is the destination's, whoever speaks; its threads and
 ::  grant epochs still separate. It can never equal an earlier per-speaker id,
 ::  which named a speaker in the hash.
@@ -362,7 +449,7 @@
     :*  %dm-reply  [[~zod ~2026.9.4] ~2026.9.5]  [[~nec ~2026.9.2] ~2026.9.3]  [%ship ~zod]
         ~[[%inline ~['hello']]]  |
     ==
-  =/  input  (need (normalize:p ~lux policy evt))
+  =/  input  (need (normalize:p ~lux ~2026.9.4 policy evt))
   (expect-eq !>(`destination:t`[%dm ~zod `[~nec ~2026.9.2]]) !>(to.input))
 ++  test-policy-json-roundtrips
   (expect-eq !>(policy) !>((json-policy:p (policy-json:p policy))))

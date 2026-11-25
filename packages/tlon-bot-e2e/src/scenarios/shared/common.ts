@@ -77,16 +77,16 @@ const REACTION_PROVENANCE_BY_DRIVER: Partial<
 };
 // Scenarios that test behavior Harness does not have.
 const HARNESS_SKIPS = {
-  ownerListen:
-    'Harness has no owner-listen mode; under response: mentions it admits only addressed channel posts.',
-  ownerListenOff: 'Harness has no owner-listen setting to turn off.',
-  ownerListenMute: 'Harness has no per-channel owner-listen mute.',
+  ownerListenOff:
+    "Harness has no owner-listen setting; a channel's own rule turns it off for that channel.",
+  ownerListenMute:
+    "Harness has no muted-channels setting; a channel's own rule turns owner-listen off there.",
   ownerListenCommand: 'Harness has no /owner-listen command.',
   migrate:
     'Harness has no /migrate command; diary migration is a tlon tool workflow.',
   reaction: 'Harness does not start a turn on a reaction.',
   threadFollow:
-    "Harness admits an unmentioned channel thread reply only in a thread rooted at the bot's post.",
+    'Harness hears the owner unmentioned in every thread of a channel the owner hosts, so it answers the unparticipated-thread control.',
   sse: 'Harness runs on the bot ship and holds no SSE connection to it.',
   nudge: 'Harness sends no nudge or re-engagement messages.',
 };
@@ -279,7 +279,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'owner-listen-channel-plain-owner-post-engages',
-    { driverSkips: { harness: HARNESS_SKIPS.ownerListen } },
+    {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       const key = scenarioKey('owner-listen-plain-on');

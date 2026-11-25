@@ -26,9 +26,9 @@
 
 # Scripts that check they run on ~lux.
 lux_tests="tlon-notes-conformance tlon-completion-conformance tlon-hooks-publishing-conformance"
-# Scripts that need ~nec: one on ~nec alone, and one with ~zod as the bot, ~lux as its
+# Scripts that need ~nec: one on ~nec alone, and two with ~zod as the bot, ~lux as its
 # owner and ~nec as a guest in the same channel.
-nec_tests="tlon-permissions-conformance tlon-shared-channel-conformance"
+nec_tests="tlon-permissions-conformance tlon-shared-channel-conformance tlon-owner-channel-conformance"
 
 # A group's test files, in the order the full run takes them: the offline tests, the
 # live scripts on ~zod, with ~lux as their peer, those on ~lux and those needing ~nec.
@@ -67,7 +67,7 @@ then
 fi
 
 # Is the test file of this group in this shard? The last shard takes the offline tests
-# and the ~lux and ~nec scripts; it boots ~zod only for the shared channel script. The
+# and the ~lux and ~nec scripts; it boots ~zod only for the shared channel scripts. The
 # others deal out the ~zod scripts in turn, sorted bytewise so that every machine deals
 # them alike; that also spreads the slow tlon- scripts, which sort together.
 function in_shard
@@ -762,7 +762,7 @@ then
     fi
   fi
 
-  if matches tlon-shared-channel-conformance && shard_has nec
+  if { matches tlon-shared-channel-conformance || matches tlon-owner-channel-conformance; } && shard_has nec
   then
     echo "Live tests on ~zod with ~lux and ~nec in one channel"
     if boot_ships zod 9190 lux 9191 nec 9192
@@ -776,6 +776,7 @@ then
       then
         export TEST_NEST
         live tlon-shared-channel-conformance tests-js/tlon-shared-channel-conformance.mjs nec
+        live tlon-owner-channel-conformance tests-js/tlon-owner-channel-conformance.mjs nec
       else
         result test-channel "FAILED (see $logs/test-channel.log)"
       fi

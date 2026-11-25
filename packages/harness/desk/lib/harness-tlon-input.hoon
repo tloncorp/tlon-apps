@@ -33,6 +33,20 @@
   ?:  (whitespace i.chars)  $(chars t.chars)
   ?.  =(i.chars '/')  original
   (crip chars)
+::  Whether a channel post is one flat paragraph of plain text, after any
+::  leading mention of this ship: the only form whose text can be a command.
+::
+++  plain
+  |=  [our=@p content=story:d]
+  ^-  ?
+  ?.  ?=([[%inline *] ~] content)  |
+  =/  inlines  p.i.content
+  |-
+  ?~  inlines  &
+  ?@  i.inlines
+    ?:  (levy (trip i.inlines) whitespace)  $(inlines t.inlines)
+    (levy t.inlines |=(v=inline:d ?=(@ v)))
+  &(=([%ship our] i.inlines) (levy t.inlines |=(v=inline:d ?=(@ v))))
 ::  +label: a ship as a turn shows it, with its display name when it has one
 ::
 ::    the name is not ours to trust, so the characters that could pass
@@ -51,13 +65,18 @@
   (rap 3 (scot %p who) ' (' nick ')' ~)
 ++  name-limit  50
 ::  A channel's session is shared, so each message names its speaker. The
-::  caller leaves out a command, which the head must still read as one.
+::  caller leaves out a command, which the head must still read as one, and
+::  formatted text that normalization has already attributed.
 ::
 ++  attribute
   |=  [actor=@p name=(unit @t) to=destination:t text=@t]
   ^-  @t
   ?:  ?=(%dm -.to)  text
-  (rap 3 (label actor name) ': ' text ~)
+  =/  labeled  (cat 3 (label actor name) ': ')
+  ::  Normalization cannot read Contacts, so it attributes with the bare ship.
+  =/  starts  |=(prefix=@t =(prefix (end [3 (met 3 prefix)] text)))
+  ?:  |((starts (cat 3 (scot %p actor) ': ')) (starts labeled))  text
+  (cat 3 labeled text)
 ::  The longest prefix +attribute adds: a comet with the longest name in
 ::  parentheses, a colon and a space.
 ::

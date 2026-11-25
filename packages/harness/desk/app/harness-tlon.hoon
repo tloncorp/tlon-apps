@@ -1045,6 +1045,41 @@
         'Owner changed; reload Tlon settings. Use the ownership endpoint to change administrators.'
       =.  cor  (configure p.parsed sibling-moon-owners)
       (emit (reply status))
+    ::
+    ::  One channel's own rule, set or removed, leaving every other part of
+    ::  the policy as saved.
+        %'harness/tlon/channel/configure'
+      =/  parsed
+        %-  mole
+        |.
+        =,  dejs:format
+        =/  params  (need params.inbound)
+        ?>  ?=(%o -.params)
+        ::  Only an explicit null removes the rule: a request that leaves the
+        ::  key out is refused, so a dropped field cannot remove access.
+        =/  rule=(unit channel-rule:t)
+          =/  value  (~(got by p.params) 'rule')
+          ?~  value  ~
+          =/  [response=@t everyone=?]  ((ot ~[response+so everyone+bo]) value)
+          ?>  ?=(?(%off %mentions %all) response)
+          `[response everyone]
+        :+  nest=(nest:tlon-spec (so (~(got by p.params) 'channel')))
+          revision=(so (~(got by p.params) 'expectedRevision'))
+        rule=rule
+      ?~  parsed
+        %-  emit
+        %+  fail
+          '-32602'
+        'Expected channel, expectedRevision and rule (response and everyone, or an explicit null to remove it)'
+      ?.  =(revision.u.parsed (revision:permissions policy epoch))
+        (emit (fail '-32602' 'Permissions changed; reload Tlon settings before saving.'))
+      =/  channels
+        ?~  rule.u.parsed  (~(del by channels.policy) nest.u.parsed)
+        (~(put by channels.policy) nest.u.parsed u.rule.u.parsed)
+      ?:  (gth ~(wyt by channels) 256)
+        (emit (fail '-32602' 'At most 256 channels can have their own rule'))
+      =.  cor  (configure policy(channels channels) sibling-moon-owners)
+      (emit (reply status))
     ==
   ++  lens-method
     ?+  method.inbound  work-method
@@ -2500,11 +2535,15 @@
   ::  Changing owners never retargets retained private run contents.
   =?  lens  !=(owner.updated-policy owner.policy)  *lens-sync:t
   =/  sibling-change  !=(siblings sibling-moon-owners)
+  =/  =owners:continuity
+    :+  our.bowl
+      |=(who=@p (owner:~(. ownership bowl) owner.before sibling-moon-owners who))
+    |=(who=@p (owner:~(. ownership bowl) owner.updated-policy siblings who))
   =/  affected=(set @t)
     %-  silt
     %+  murn  ~(tap by lanes)
     |=  [sid=@t lane=lane:t]
-    ?.  ?|  (affected:continuity before updated-policy lane)
+    ?.  ?|  (affected:continuity owners before updated-policy lane)
             ?&  sibling-change
                 ?=(%dm -.to.lane)
                 (sibling:~(. ownership bowl) who.to.lane)
@@ -2517,7 +2556,7 @@
   =/  speakers=(set @p)
     (silt (turn ~(val by jobs) |=(job=job:t actor.input.job)))
   =.  cuts  (cutoffs:continuity before updated-policy identities speakers cuts now.bowl)
-  =.  channel-cuts  (channel-cutoffs:continuity before updated-policy channel-cuts now.bowl)
+  =.  channel-cuts  (channel-cutoffs:continuity owners before updated-policy channel-cuts now.bowl)
   =?  channel-after  !=(response.before response.updated-policy)  now.bowl
   =?  after  !=(enabled.before enabled.updated-policy)  now.bowl
   =/  hands  ledger
@@ -3131,9 +3170,6 @@
   ^+  engine
   ?~  rows  engine
   =/  row  i.rows
-  ::  Leave the cursor before work we cannot retain. A later head fact or
-  ::  bounded catch-up wake can continue without dropping an accepted input.
-  ?:  (gte ~(wyt by jobs.engine) 64)  engine(catching-up &)
   =/  event  (supported:activity-read event.row)
   ?~  event  $(rows t.rows, engine engine(activity-through at.row))
   =/  actor  (actor:continuity u.event)
@@ -3144,16 +3180,25 @@
     $(rows t.rows, engine engine(activity-through at.row))
   ?:  &(?=(^ actor) (lte at.row (fall (~(get by cuts.engine) u.actor) `@da`0)))
     $(rows t.rows, engine engine(activity-through at.row))
-  ?.  (activity-room:engine u.event)  engine(catching-up &)
+  ::  Leave the cursor before work we cannot retain. A later head fact or
+  ::  bounded catch-up wake can continue without dropping an accepted input.
+  =/  room  (activity-room:engine u.event)
+  ?:  =(%hold room)  engine(catching-up &)
+  ?:  =(%drop room)  $(rows t.rows, engine engine(activity-through at.row))
   =.  engine  (activity:engine(activity-through at.row) u.event)
   $(rows t.rows)
+::  A post heard only by the owner rule never waits for capacity: it is
+::  dropped, so unmentioned chatter cannot hold the cursor for every other
+::  conversation.
 ::
 ++  activity-room
   |=  event=incoming-event:v8:a
-  ^-  ?
-  =/  input  (normalize-owned:p our.bowl policy event actor-owner)
-  ?~  input  &
-  =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
+  ^-  ?(%room %hold %drop)
+  =/  heard
+    (normalize-heard:p our.bowl now.bowl policy addressed:(introduce event) actor-owner)
+  ?~  heard  ?:((lth ~(wyt by jobs) 64) %room %hold)
+  =/  input  input.u.heard
+  =/  sid  (fall (~(get by identities) to.input) (identity:continuity to.input))
   =/  pending
     %-  lent
     %+  skim  ~(val by jobs)
@@ -3163,14 +3208,20 @@
   =/  route  (~(get by routes) sid)
   ::  Finish the first route before collecting more input for a new head;
   ::  otherwise creation recovery would enumerate jobs by hash, not arrival.
-  ?:  &((gth pending 0) !(route-ready sid))  |
+  ::  An owner-only post is dropped instead: holding it would stop Activity
+  ::  for every other conversation until the route is set up.
+  ?:  &((gth pending 0) !(route-ready sid))
+    ?:(owner-only.u.heard %drop %hold)
   =/  counts  (queued-counts:hd hands ?~(route '' binding.u.route) sid)
   ::  Cards emitted in this turn have not reached the head yet. Count local
   ::  admission jobs as reservations as well as the head's waiting work.
-  ?&  (lth (add (lent queue.hands) ~(wyt by jobs)) 128)
-      (lth (add session.counts pending) 8)
-      (lth (add binding.counts pending) 8)
-  ==
+  ?:  ?&  (lth ~(wyt by jobs) 64)
+          (lth (add (lent queue.hands) ~(wyt by jobs)) 128)
+          (lth (add session.counts pending) 8)
+          (lth (add binding.counts pending) 8)
+      ==
+    %room
+  ?:(owner-only.u.heard %drop %hold)
 ::
 ++  activity
   |=  event=incoming-event:v8:a
@@ -3209,9 +3260,12 @@
     (accept-invitation p.whom.event)
   (admit-message event)
 ::
-++  admit-message
+::  The owner's setup request, read from its receipt, and the event as
+::  admitted: a channel setup request counts as addressed to the bot.
+::
+++  introduce
   |=  event=incoming-event:v8:a
-  ^+  cor
+  ^-  [introduction=(unit @t) addressed=incoming-event:v8:a]
   =/  introduction=(unit @t)
     ?.  ?=(?(%dm-post %post) -.event)  ~
     ?.  (actor-owner p.id.key.event)  ~
@@ -3221,9 +3275,15 @@
     ?.  =('Let\'s get set up.' text)  ~
     =/  found  (mole |.((onboarding-request:messenger event)))
     ?~(found ~ u.found)
-  =/  addressed  event
-  =?  addressed  &(?=(^ introduction) ?=(%post -.event))  event(mention &)
-  =/  input  (normalize-owned:p our.bowl policy addressed actor-owner)
+  :-  introduction
+  ?.  &(?=(^ introduction) ?=(%post -.event))  event
+  event(mention &)
+::
+++  admit-message
+  |=  event=incoming-event:v8:a
+  ^+  cor
+  =/  [introduction=(unit @t) addressed=incoming-event:v8:a]  (introduce event)
+  =/  input  (normalize-owned:p our.bowl now.bowl policy addressed actor-owner)
   ?~  input  cor
   =?  text.u.input  ?=(^ introduction)  u.introduction
   ::  A tap on a workspace card is the owner's own DM post carrying the app's
@@ -3286,7 +3346,7 @@
   =/  sender  (sender:denial our.bowl event)
   ?~  sender  cor
   ?^  (actor-grants u.sender ~)  cor
-  ?:  ?=(^ (normalize-owned:p our.bowl policy event actor-owner))  cor
+  ?:  ?=(^ (normalize-owned:p our.bowl now.bowl policy event actor-owner))  cor
   ::  Catch-up must not answer historical posts after a grant is revoked.
   =/  cutoff  (max after (fall (~(get by cuts) u.sender) `@da`0))
   ?.  ?=(%dm-invite -.event)

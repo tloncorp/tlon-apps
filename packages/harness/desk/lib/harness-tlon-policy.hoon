@@ -121,43 +121,72 @@
   ==
 ::
 ++  normalize
-  |=  [our=@p policy=policy:t event=incoming-event:v8:a]
+  |=  [our=@p now=@da policy=policy:t event=incoming-event:v8:a]
   ^-  (unit input:t)
-  (normalize-owned our policy event |=(actor=@p =(`actor owner.policy)))
+  (normalize-owned our now policy event |=(actor=@p =(`actor owner.policy)))
 ::
 ++  normalize-owned
-  |=  [our=@p policy=policy:t event=incoming-event:v8:a owner-test=$-(@p ?)]
+  |=  [our=@p now=@da policy=policy:t event=incoming-event:v8:a owner-test=$-(@p ?)]
   ^-  (unit input:t)
-  =/  item=(unit [actor=@p key=message-key:a to=destination:t text=@t addressed=?])
+  (bind (normalize-heard our now policy event owner-test) head)
+::  An owner is heard without a mention in a channel the bot or an owner
+::  hosts while the channel has no rule of its own; adding one is the off
+::  switch. A channel that inherits %all or %off needs no exception.
+::
+++  owner-channel
+  |=  [our=@p policy=policy:t nest=nest:c owner-test=$-(@p ?)]
+  ^-  ?
+  ?&  =(%mentions response.policy)
+      !(~(has by channels.policy) nest)
+      |(=(our ship.nest) (owner-test ship.nest))
+  ==
+::  The admitted input, and whether only the owner rule admitted it.
+::
+++  normalize-heard
+  |=  [our=@p now=@da policy=policy:t event=incoming-event:v8:a owner-test=$-(@p ?)]
+  ^-  (unit [input=input:t owner-only=?])
+  =/  item=(unit [actor=@p key=message-key:a to=destination:t text=@t addressed=? plain=?])
     ?+  -.event  ~
         %dm-post
       ?.  ?=(%ship -.whom.event)  ~
-      `[p.id.key.event key.event [%dm p.whom.event ~] (story-to-text:story content.event) &]
+      `[p.id.key.event key.event [%dm p.whom.event ~] (story-to-text:story content.event) & &]
         %dm-reply
       ?.  ?=(%ship -.whom.event)  ~
       :-  ~
       :*  p.id.key.event  key.event  [%dm p.whom.event `id.parent.event]
-          (story-to-text:story content.event)  &
+          (story-to-text:story content.event)  &  &
       ==
         %post
       :-  ~
       :*  p.id.key.event  key.event  [%channel channel.event ~]  (text:input our content.event)
-          mention.event
+          mention.event  (plain:input our content.event)
       ==
         %reply
       :-  ~
       :*  p.id.key.event  key.event  [%channel channel.event `time.parent.event]
           (text:input our content.event)  |(mention.event =(our p.id.parent.event))
+          (plain:input our content.event)
       ==
     ==
   ?~  item  ~
   ?:  =(actor.u.item our)  ~
   ?~  (destination-grants policy actor.u.item to.u.item ~ (owner-test actor.u.item))  ~
-  ?:  ?&  ?=(%channel -.to.u.item)
-          =(%mentions response:(channel-rule policy nest.to.u.item))
-          !addressed.u.item
-      ==
-    ~
+  =/  unaddressed=?
+    ?&  ?=(%channel -.to.u.item)
+        =(%mentions response:(channel-rule policy nest.to.u.item))
+        !addressed.u.item
+    ==
+  ::  The host's stamp bounds replay: posts from before an upgrade, from
+  ::  downtime or from before a rule was removed are not answered late, and
+  ::  a far-future stamp does not pass.
+  =/  owner-heard=?
+    ?&  ?=(%channel -.to.u.item)
+        (owner-test actor.u.item)
+        (owner-channel our policy nest.to.u.item owner-test)
+        (lte time.key.u.item (add now ~m10))
+        (lte now (add time.key.u.item ~m10))
+    ==
+  ?:  &(unaddressed !owner-heard)  ~
   ::  A DM's partner must be its source author, not an asserted third party.
   ?:  &(?=(%dm -.to.u.item) !=(who.to.u.item actor.u.item))  ~
   ::  A channel message is observed with its speaker's prefix, which must
@@ -165,7 +194,12 @@
   =/  limit
     ?:(?=(%dm -.to.u.item) 65.536 (sub 65.536 attribution-limit:input))
   ?:  |(=('' text.u.item) (gth (met 3 text.u.item) limit))  ~
-  `[actor.u.item (event-id to.u.item key.u.item) to.u.item text.u.item]
+  ::  Formatted channel text is never a command: it is stored attributed, so
+  ::  the head reads it as the speaker's words.
+  =/  text
+    ?:  plain.u.item  text.u.item
+    (attribute:input actor.u.item ~ to.u.item text.u.item)
+  `[[actor.u.item (event-id to.u.item key.u.item) to.u.item text] unaddressed]
 ::  +event-id: the hand's name for one native message at one destination
 ::
 ++  event-id

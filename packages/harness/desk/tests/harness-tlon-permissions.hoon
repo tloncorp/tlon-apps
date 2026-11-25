@@ -4,6 +4,11 @@
 ++  policy
   ^-  policy:t
   [& `~nec ~ %mentions (silt ~[~bud]) ~]
+::  The bot is ~zod, and each snapshot's own owner is its only owner.
+++  owners
+  |=  [before=policy:t after=policy:t]
+  ^-  owners:c
+  [~zod |=(who=@p =(`who owner.before)) |=(who=@p =(`who owner.after))]
 ++  test-allowed-ships-have-web-without-peer-trust
   ;:  weld
       (expect-eq !>(`(unit (list tool-grant:h))`[~ ~[%web]]) !>((grants:p policy ~bud ~)))
@@ -30,10 +35,10 @@
   =/  policy  policy
   =/  next  policy(channels (my ~[[[%chat ~nec %test] [%off |]]]))
   ;:  weld
-      (expect !>((affected:c policy next [[%channel [%chat ~nec %test] ~] 1 ~[%web]])))
-      (expect !>((affected:c policy next [[%channel [%chat ~nec %test] `~2026.9.1] 1 ~[%web]])))
-      (expect !>(!(affected:c policy next [[%channel [%chat ~nec %elsewhere] ~] 1 ~[%web]])))
-      (expect !>(!(affected:c policy next [[%dm ~bud ~] 1 ~[%web]])))
+      (expect !>((affected:c (owners policy next) policy next [[%channel [%chat ~nec %test] ~] 1 ~[%web]])))
+      (expect !>((affected:c (owners policy next) policy next [[%channel [%chat ~nec %test] `~2026.9.1] 1 ~[%web]])))
+      (expect !>(!(affected:c (owners policy next) policy next [[%channel [%chat ~nec %elsewhere] ~] 1 ~[%web]])))
+      (expect !>(!(affected:c (owners policy next) policy next [[%dm ~bud ~] 1 ~[%web]])))
   ==
 ++  test-policy-roundtrip
   =/  policy  policy
@@ -42,7 +47,7 @@
 ++  test-channel-cutoffs-preserve-unrelated-input
   =/  policy  policy
   =/  next  policy(channels (my ~[[[%chat ~nec %test] [%off |]]]))
-  =/  cuts  (channel-cutoffs:c policy next (my ~[[[%chat ~nec %other] ~2026.9.1]]) ~2026.9.2)
+  =/  cuts  (channel-cutoffs:c (owners policy next) policy next (my ~[[[%chat ~nec %other] ~2026.9.1]]) ~2026.9.2)
   ;:  weld
       (expect-eq !>(`@da`~2026.9.1) !>((~(got by cuts) [%chat ~nec %other])))
       (expect-eq !>(`@da`~2026.9.2) !>((~(got by cuts) [%chat ~nec %test])))

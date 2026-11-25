@@ -145,17 +145,24 @@
   ^-  (unit @t)
   ::  Activity does not carry blobs. Read only the exact native post, never a
   ::  conversation-wide search that could attach somebody else's setup data.
+  ::  A channel post is read as a one-post page bounded just above its ID, as
+  ::  +bot-author reads it, and used only at that ID and by its author: a
+  ::  missing, deleted or unreadable post has no receipt.
   ?+  -.event  ~
       %dm-post
     (request:onboarding p.id.key.event (dm-blob event))
       %post
-    =/  post=(may:v9:dv post:v9:dv)
-      .^  (may:v9:dv post:v9:dv)  %gx
+    ?.  .^(? %gu /(scot %p our.bowl)/channels/(scot %da now.bowl)/$)  ~
+    ?.  .^(? %gu (channel:read-path %v4 channel.event))  ~
+    =/  page=paged-posts:v9:dv
+      .^  paged-posts:v9:dv  %gx
         %+  weld  (channel-posts:read-path %v4 channel.event)
-        /post/id/(scot %ud time.key.event)/channel-post-4
+        /older/(scot %ud +(time.key.event))/1/outline/channel-posts-4
       ==
-    ?:  ?=(%| -.post)  ~
-    (request:onboarding p.id.key.event blob:+.+.+.post)
+    =/  post  (get:on-posts:v9:dv posts.page time.key.event)
+    ?.  ?=([~ %& *] post)  ~
+    ?.  =(p.id.key.event (author-ship:authors author:+.+.+.u.post))  ~
+    (request:onboarding p.id.key.event blob:+.+.+.u.post)
   ==
 ::
 ++  history

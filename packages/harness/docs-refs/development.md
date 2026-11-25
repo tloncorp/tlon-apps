@@ -134,7 +134,8 @@ each ship's output to `.test-run/js/logs/ship-<ship>.log`.
 CI splits `test-js` across runners. `TEST_SHARD=I/N just test-js` runs the Ith of N
 parts of the full run, on fresh ships. With more than one part, the last takes the
 `node --test` files and the scripts restricted to `~lux` and `~nec`, and boots
-`~zod` only for `tlon-shared-channel-conformance.mjs`, which needs all three ships;
+`~zod` only for `tlon-shared-channel-conformance.mjs` and
+`tlon-owner-channel-conformance.mjs`, which need all three ships;
 the others deal out the `~zod` scripts in turn. A shard takes no PATTERN.
 `just test-js --list` prints what a run would take, as `GROUP NAME` lines, without
 ships; with `TEST_SHARD`, what that shard would take.

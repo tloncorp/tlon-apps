@@ -477,6 +477,11 @@ addressing prefix is removed before the shared command interpreter runs; it does
 not bypass sender or mention authorization. Plain-text ship spellings, other
 ships' mentions, formatted command text and multi-paragraph messages do not use
 this shortcut. DMs and replies to the bot's own channel posts do not need it.
+In a channel, text is a command only when the message is one paragraph of plain
+text, optionally after the bot's mention. Code, quotes, styled text and
+multi-paragraph messages reach the model as the speaker's words, with the
+speaker's prefix, wherever no mention is needed too. That prefix is the ship
+alone, without its nickname.
 
 Memories retain their source actor. A save from the owner's DM onto a channel
 fact makes it private, and the reply says so. They survive compaction and
@@ -670,6 +675,22 @@ messaging the sender.
 - Channels require a mention by default. Replies to the bot's own posts count
   as addressed; DMs do not require mentions. Turn the requirement off to answer
   every message from allowed actors in channels the ship has joined.
+- The owner is heard without a mention, in the channel and in each of its
+  threads, in a channel that the bot or the owner hosts while the channel has
+  no rule of its own. With sibling moon owners on, a sibling moon counts as the
+  owner, as speaker and as host. Only a post stamped within ten minutes of the
+  bot's clock, either way, is heard this way, so posts from before an upgrade,
+  from downtime or from before a rule was removed are not answered late; a
+  mentioned post is answered whatever its age. Other ships still need a
+  mention there, and a channel another ship hosts is unchanged. Giving the
+  channel its own rule, `mentions` included, turns this off for that channel;
+  `harness/tlon/channel/configure` sets or removes one channel's rule. The
+  app's bot settings screen writes a `mentions` rule for each channel it adds,
+  and turns a removed channel `off`, so it cannot return a channel to having no
+  rule. A post heard only this way never waits for room: when its
+  conversation, the admission queue or the hand ledger is full, or its
+  conversation's first route is still being set up, it is dropped and Activity
+  reading moves on.
 - The exact destination determines the stable conversation: a DM, a channel
   and each thread in either have one conversation each. Every admitted speaker
   in a channel shares its conversation, and each message there reaches the
@@ -719,7 +740,9 @@ have replies turned off.
 Permission changes retire only affected authorization routes. Adding an unrelated
 trusted actor leaves existing conversations, in-flight work, notes, saved model
 settings and schedules alone. Changing the mention requirement or a channel's
-rule affects that channel's routes, not DMs. Changing an actor's role or
+rule affects that channel's routes, not DMs. Where the owner is heard without a
+mention, giving the channel its own rule or removing it is such a change even
+when the rule matches the default. Changing an actor's role or
 effective grants retires that actor's DM route; in a channel it keeps the route
 and binding, and cancels only that actor's running and queued work there.
 Grant order alone is not a revocation. Disabling Tlon affects every route.
@@ -774,6 +797,7 @@ These owner-authenticated extensions work from any initialized ACP client:
 | --- | --- | --- |
 | `harness/tlon` | `{}` | Policy, connection status, queue counts, recent activity |
 | `harness/tlon/configure` | Policy below | Acknowledged adapter state |
+| `harness/tlon/channel/configure` | `channel` (`chat/~host/name`), `rule` (`{ "response", "everyone" }`, or `null` to remove the channel's own rule; a request without `rule` is refused) and `expectedRevision` (the `revision` from `harness/tlon`) | Acknowledged adapter state; only that channel's rule changed |
 | `harness/tlon/contacts` | `{}` | `ship`, `nickname`, `contact` directory entries |
 | `harness/tlon/profile` | `{}` | Public `nickname` and `avatar` from Contacts |
 | `harness/tlon/profile/set` | `{ "nickname": "Bot", "avatar": "https://…" }` | Profile read back after Contacts acknowledges the two-field edit |
@@ -1248,3 +1272,12 @@ its own, that each turn's input names its speaker, that each turn is offered onl
 its speaker's tools in either order and a guest's forged call is refused, and that
 changing or revoking the guest's grants keeps the channel session and its history.
 It restores defaults and policy; messages remain.
+
+`tests-js/tlon-owner-channel-conformance.mjs` runs on the same three ships, with the
+guest an allowed ship and `TEST_NEST` hosted by the owner. It checks that the owner
+is answered there without a mention and the guest is not, that a quoted `/stop`
+does not stop a running turn and reaches the model as the owner's words, that a
+burst of unmentioned owner lines does not delay a DM from the guest and lines that
+found no room are never answered, and that `harness/tlon/channel/configure` with a
+`mentions` rule changes only that channel, after which the owner needs a mention
+and the guest is still answered. It restores defaults and policy; messages remain.
