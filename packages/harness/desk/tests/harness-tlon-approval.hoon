@@ -100,7 +100,7 @@
       (expect-eq !>('short') !>((preview:ask 'short')))
   ==
 ::  As OpenClaw reads them: the argument trimmed, as typed, and none when
-::  absent; a ship after one space, as a button sends, is the request's.
+::  absent; a token after one space, as a button sends, is the request's.
 ::  Other commands and ordinary text are not orders.
 ::
 ++  test-the-approval-commands-are-read-with-their-trimmed-id
@@ -110,7 +110,8 @@
       (expect-eq !>(`[%ban `'D1234' ~]) !>((read-order:ask '/ban D1234')))
       (expect-eq !>(`[%allow ~ ~]) !>((read-order:ask '/allow')))
       (expect-eq !>(`[%ban `'d1 d2' ~]) !>((read-order:ask '/ban d1 d2')))
-      (expect-eq !>(`[%allow `'d1234' `~dev]) !>((read-order:ask '/allow d1234 ~dev')))
+      (expect-eq !>(`[%allow `'d1234' `0v1.2abcd]) !>((read-order:ask '/allow d1234 0v1.2abcd')))
+      (expect-eq !>(`[%allow `'d1234 ~dev' ~]) !>((read-order:ask '/allow d1234 ~dev')))
       (expect-eq !>(`[%ban `'d1234 dev' ~]) !>((read-order:ask '/ban d1234 dev')))
       (expect-eq !>(~) !>((read-order:ask '/allowed d1234')))
       (expect-eq !>(~) !>((read-order:ask '/help')))
@@ -118,12 +119,14 @@
       (expect-eq !>(~) !>((read-order:ask '/Allow d1234')))
   ==
 ::  Exact first, then the one id the text begins, case as typed; no id is
-::  the only open request, and none of several. With a ship, the exact id
-::  of that ship's request only.
+::  the only open request, and none of several. With a token, the exact id
+::  of the request that token was made for only.
 ::
 ++  test-an-order-finds-its-request-as-openclaw-does
   =/  three  (open:ask staggered 'c5699' [~bus `room ~2026.9.9..00.00.02])
   =/  one  (open:ask *approvals:t 'c5699' [~bus `room ~2026.9.9..00.00.02])
+  =/  dm  (button-token:ask 'd1234' [~dev ~ ~2026.9.9])
+  =/  older  (button-token:ask 'd1234' [~dev ~ ~2026.9.8])
   ;:  weld
       (expect-eq !>(`['d1234' [~dev ~ ~2026.9.9]]) !>((pick:ask three `'d1234' ~)))
       (expect-eq !>(`['d1234' [~dev ~ ~2026.9.9]]) !>((pick:ask three `'d1' ~)))
@@ -133,9 +136,9 @@
       (expect-eq !>(~) !>((pick:ask three ~ ~)))
       (expect-eq !>(`['c5699' [~bus `room ~2026.9.9..00.00.02]]) !>((pick:ask one ~ ~)))
       (expect-eq !>(~) !>((pick:ask *approvals:t ~ ~)))
-      (expect-eq !>(`['d1234' [~dev ~ ~2026.9.9]]) !>((pick:ask three `'d1234' `~dev)))
-      (expect-eq !>(~) !>((pick:ask three `'d1234' `~bus)))
-      (expect-eq !>(~) !>((pick:ask three `'d1' `~dev)))
+      (expect-eq !>(`['d1234' [~dev ~ ~2026.9.9]]) !>((pick:ask three `'d1234' `dm)))
+      (expect-eq !>(~) !>((pick:ask three `'d1234' `older)))
+      (expect-eq !>(~) !>((pick:ask three `'d1' `dm)))
   ==
 ++  test-several-open-requests-are-listed-oldest-first
   %+  expect-eq

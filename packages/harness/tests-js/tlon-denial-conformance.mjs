@@ -137,8 +137,10 @@ try {
   assert.equal(parts.get('title').text, `Allow ${peer} to DM the bot?`)
   assert.equal(parts.get('copy').text, `Message: "${sentText('first')}"`)
   const buttons = ['allow', 'reject', 'ban'].map((id) => [parts.get(parts.get(id).child).text, parts.get(id).action.event.context.text])
-  assert.deepEqual(buttons, [['Allow', `/allow ${request.id} ${peer}`], ['Reject', `/reject ${request.id} ${peer}`], ['Block', `/ban ${request.id} ${peer}`]])
-  console.log('PASS the card names the peer and its message, and its buttons carry the request id and ship')
+  const token = buttons[0][1].split(' ')[2]
+  assert.match(token, /^0v[0-9a-v.]+$/)
+  assert.deepEqual(buttons, [['Allow', `/allow ${request.id} ${token}`], ['Reject', `/reject ${request.id} ${token}`], ['Block', `/ban ${request.id} ${token}`]])
+  console.log('PASS the card names the peer and its message, and its buttons carry the request id and token')
 
   assert.equal(denials(await status()).length, 1, 'the first message recorded one denial')
   // Later messages arrive within the five-minute denial limit, which stops them before

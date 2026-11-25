@@ -493,22 +493,23 @@
   %+  ex-equal
     !>(approvals.s)
   !>(`approvals:t`[(my ~[[id [~dev `room-nest start]]]) (my ~[[[~dev `room-nest] id]])])
-++  test-the-cards-buttons-send-allow-reject-and-ban-with-the-requests-id-and-ship
+++  test-the-cards-buttons-send-allow-reject-and-ban-with-the-requests-id-and-token
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  [caz=(list card) s=state-6:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
   =/  id  (requested s ~dev `room-nest)
+  =/  token  (scot %uv (button-token:ask id [~dev `room-nest start]))
   =/  cards  (sent caz)
   ?>  ?=([* ~] cards)
   ;<  ~  bind:m  (ex-equal !>((met 3 id)) !>(5))
   %+  ex-equal
     !>((buttons blob.i.cards))
   !>  ^-  (list [@t @t])
-      :~  ['Allow' (rap 3 '/allow ' id ' ~dev' ~)]
-          ['Reject' (rap 3 '/reject ' id ' ~dev' ~)]
-          ['Block' (rap 3 '/ban ' id ' ~dev' ~)]
+      :~  ['Allow' (rap 3 '/allow ' id ' ' token ~)]
+          ['Reject' (rap 3 '/reject ' id ' ' token ~)]
+          ['Block' (rap 3 '/ban ' id ' ' token ~)]
       ==
 ++  test-a-message-from-a-ship-without-access-is-never-admitted-as-a-turn
   %-  eval-mare
@@ -1068,6 +1069,12 @@
     =/  two  (open:ask one 'c0001' [~dev `room-nest (add start ~m1)])
     (open:ask two 'c0002' [~wes `room-nest (add start ~m2)])
   s
+::  The token the card of request .id in .s sends with its buttons
+::
+++  token
+  |=  [s=state-6:t id=@t]
+  ^-  @t
+  (scot %uv (button-token:ask id (~(got by by-id.approvals.s) id)))
 ::  A DM post from .who
 ::
 ++  said
@@ -1289,8 +1296,9 @@
   ^-  form:m
   ;<  [caz=(list card) s=state-6:t]  bind:m
     %^  admit  asked  later
-    :~  [told (said ~nec '/ban c0001 ~dev' told)]
-        [(add told ~s1) (said ~nec '/ban c0001 ~dev' (add told ~s1))]
+    =/  tap  (rap 3 '/ban c0001 ' (token asked 'c0001') ~)
+    :~  [told (said ~nec tap told)]
+        [(add told ~s1) (said ~nec tap (add told ~s1))]
     ==
   =/  wires  (turn (blocks caz) head)
   ?>  ?=([* * ~] wires)
@@ -1484,19 +1492,31 @@
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
   (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
-::  A stale card's button: its request closed and ~wes's later request got
-::  its id, or its id begins a longer open id. Neither acts.
+::  A stale card's button: its request closed and a later request got its
+::  id, ~wes's or ~dev's own in another channel, or its id begins a longer
+::  open id. None acts.
 ::
-++  test-a-button-acts-only-on-its-own-ships-request-with-that-exact-id
+++  test-a-button-acts-only-on-the-request-its-card-was-made-for
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
+  =/  tapped  (rap 3 '/allow c0001 ' (token asked 'c0001') ~)
   =/  recycled  asked
   =.  approvals.recycled
     (open:ask (close:ask approvals.recycled 'c0001') 'c0001' [~wes `all-nest start])
   ;<  [caz=(list card) s=state-6:t]  bind:m
-    (admit recycled later ~[[told (said ~nec '/allow c0001 ~dev' told)]])
+    (admit recycled later ~[[told (said ~nec tapped told)]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.recycled))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #c0001']])
+  =/  moved  asked
+  =.  approvals.moved
+    (open:ask (close:ask approvals.moved 'c0001') 'c0001' [~dev `all-nest (add start ~m6)])
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit moved later ~[[told (said ~nec tapped told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.moved))
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
   ;<  ~  bind:m
     %+  ex-equal  !>((answered caz))
@@ -1505,7 +1525,7 @@
   =.  approvals.extended
     (open:ask (close:ask approvals.extended 'c0001') 'c00011234' [~dev `room-nest start])
   ;<  [caz=(list card) s=state-6:t]  bind:m
-    (admit extended later ~[[told (said ~nec '/ban c0001 ~dev' told)]])
+    (admit extended later ~[[told (said ~nec (rap 3 '/ban c0001 ' (token asked 'c0001') ~) told)]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.extended))
   ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m

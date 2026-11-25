@@ -7,10 +7,10 @@
 |%
 ::  $order: the owner's answer to a request, typed or sent by a card's button
 ::
-::    A button also names the request's ship, so that a stale card's id,
-::    reused by a later request, acts on nothing.
+::    A button also sends its request's +button-token, so that a stale
+::    card's id, reused by a later request, acts on nothing.
 ::
-+$  order  [action=?(%allow %reject %ban) id=(unit @t) ship=(unit @p)]
++$  order  [action=?(%allow %reject %ban) id=(unit @t) token=(unit @uv)]
 ::  +find: the id of the request open for a ship in a place
 ::
 ++  find
@@ -31,6 +31,16 @@
   ?~  found  approvals
   :-  (~(del by by-id.approvals) id)
   (~(del by by-place.approvals) [who place]:u.found)
+::  +button-token: what a card's buttons send after the id
+::
+::    Ids are unique only among open requests, but no two requests have the
+::    same ship and opening time: the denial limit lets a ship open at most
+::    one request per five minutes.
+::
+++  button-token
+  |=  [id=@t =approval:t]
+  ^-  @uv
+  (sham id approval)
 ::  +keep: only the requests .keep accepts
 ::
 ++  keep
@@ -43,8 +53,8 @@
 ::  +read-order: the approval command .text is, if it is one
 ::
 ::    As OpenClaw reads it: the id is the rest of the text, trimmed, and
-::    none when nothing follows the command; but a ship after the id and one
-::    space, as the card's buttons send, is the request's ship.
+::    none when nothing follows the command; but a token after the id and
+::    one space, as the card's buttons send, is the request's token.
 ::
 ++  read-order
   |=  text=@t
@@ -53,33 +63,33 @@
   ?~  parsed  ~
   =/  arg  (trip arg.u.parsed)
   =/  gap  (^find " " arg)
-  =/  ship=(unit @p)  ?~(gap ~ (slaw %p (crip (slag +(u.gap) arg))))
+  =/  token=(unit @uv)  ?~(gap ~ (slaw %uv (crip (slag +(u.gap) arg))))
   =/  id=(unit @t)
     ?:  =('' arg.u.parsed)  ~
     ?~  gap  `arg.u.parsed
-    ?~  ship  `arg.u.parsed
+    ?~  token  `arg.u.parsed
     `(crip (scag u.gap arg))
   ?+  name.u.parsed  ~
-    %allow  `[%allow id ship]
-    %reject  `[%reject id ship]
-    %ban  `[%ban id ship]
+    %allow  `[%allow id token]
+    %reject  `[%reject id token]
+    %ban  `[%ban id token]
   ==
 ::  +pick: the request an order names
 ::
 ::    As OpenClaw finds it, the exact id, else the one id it begins. With no
 ::    id, the only open request; unlike OpenClaw, never one of several. With
-::    a ship, only the exact id, and only if the request is that ship's.
+::    a token, only the exact id, and only if the token is that request's.
 ::
 ++  pick
-  |=  [=approvals:t id=(unit @t) ship=(unit @p)]
+  |=  [=approvals:t id=(unit @t) token=(unit @uv)]
   ^-  (unit [id=@t =approval:t])
   =/  all  ~(tap by by-id.approvals)
   ?~  id
     ?.  ?=([* ~] all)  ~
     `i.all
   =/  exact  (~(get by by-id.approvals) u.id)
-  ?^  ship
-    ?.  &(?=(^ exact) =(u.ship who.u.exact))  ~
+  ?^  token
+    ?.  &(?=(^ exact) =(u.token (button-token u.id u.exact)))  ~
     `[u.id u.exact]
   ?^  exact  `[u.id u.exact]
   =/  begun
@@ -227,12 +237,13 @@
 ::    .where is the channel's name and group, or ~ for a DM.
 ::
 ++  card
-  |=  $:  id=@t  who=@p
+  |=  $:  id=@t  =approval:t
           where=(unit [channel=@t group=(unit @t)])
           preview=(unit @t)
       ==
   ^-  [text=@t blob=@t]
-  =/  ship  (scot %p who)
+  =/  ship  (scot %p who.approval)
+  =/  token  (scot %uv (button-token id approval))
   =*  words  text:work-card
   =/  lines=(list @t)
     ?~  where  ~[(cat 3 'Sender: ' ship)]
@@ -287,9 +298,9 @@
           `'caption'
           (column 'actions' 'Row' ~['allow' 'reject' 'ban'])
       ==
-      (button 'allow' 'Allow' `'primary' (rap 3 '/allow ' id ' ' ship ~))
-      (button 'reject' 'Reject' ~ (rap 3 '/reject ' id ' ' ship ~))
-      (button 'ban' 'Block' `'borderless' (rap 3 '/ban ' id ' ' ship ~))
+      (button 'allow' 'Allow' `'primary' (rap 3 '/allow ' id ' ' token ~))
+      (button 'reject' 'Reject' ~ (rap 3 '/reject ' id ' ' token ~))
+      (button 'ban' 'Block' `'borderless' (rap 3 '/ban ' id ' ' token ~))
     ==
   :_  (surface:work-card (cat 3 'approval-' id) components |)
   ?~  where  (cat 3 'DM request from ' ship)

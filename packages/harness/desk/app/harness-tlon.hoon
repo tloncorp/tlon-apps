@@ -2968,7 +2968,7 @@
   =.  approvals  (open:ask approvals id [who place now.bowl])
   =.  cor  (note 'approval-request' who (address:p (place-to:p who place)) id)
   =/  [text=@t blob=@t]
-    (card:ask id who (approval-channel place) (approval-preview who event cutoff))
+    (card:ask id [who place now.bowl] (approval-channel place) (approval-preview who event cutoff))
   =.  last-sent  (next-message-stamp:p now.bowl last-sent)
   %-  emit
   %:  publish:messenger
@@ -3087,7 +3087,7 @@
   ::  not mean, so it lists them instead.
   ?:  &(?=(~ id.order) (gth ~(wyt by by-id.approvals) 1))
     (answer-order to (choices:ask approvals))
-  =/  found  (pick:ask approvals [id ship]:order)
+  =/  found  (pick:ask approvals [id token]:order)
   ?~  found  (answer-order to (unknown:ask id.order))
   =/  [id=@t =approval:t]  u.found
   =/  address  (address:p (place-to:p [who place]:approval))
