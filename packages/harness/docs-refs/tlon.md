@@ -742,7 +742,10 @@ hand handles no message from its own ship.
   with an ID:`, then lines such as `c1a2b ~ship chat/~host/name` or
   `d3c4d ~ship dm/~ship`. OpenClaw acts on the newest; this differs on
   purpose. A request whose 48 hours have
-  passed expires before the id is looked up. An id that names no open request,
+  passed is never looked up, even when a reload's catch-up reaches the
+  command before anything has expired the request; the command does not
+  expire it, so that no decline follows an accept the same event sent. An
+  id that names no open request,
   including a closed or expired one from an older card, changes nothing and
   gets `No pending approval found for ID: #<id>`, or `No pending approval
   found.` with no id; ids are unique only among open requests and are not
@@ -1267,7 +1270,7 @@ nothing and gets no reply; and no DM command text is in a model request. The two
 apart, since the denial limit lets a ship ask once per five minutes.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM
 and channel requests, `/ban`'s block, its refusal and a second refused tap, unknown, closed and
-expired ids, a button whose id was reused, by another ship or by the same
+expired ids, an overdue request's id in a command caught up on reload, a button whose id was reused, by another ship or by the same
 ship in another place, or extended, a command with no id
 among one or several requests, a command in a DM thread, a command in code
 or a blockquote, a

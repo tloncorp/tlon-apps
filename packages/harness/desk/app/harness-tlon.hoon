@@ -3083,11 +3083,15 @@
   ?~  heard  cor
   =/  to  to.u.heard
   ?:  (lte (posted-at:continuity event) (admission-cutoff who to))  cor
+  ::  A request past its lifetime is not looked up, though a reload's
+  ::  catch-up reaches here before anything expires it. Expiring it here
+  ::  instead could decline a DM after an accept this event already sent.
+  =/  live  (live:ask approvals now.bowl)
   ::  Among several, a bare command could act on a request the owner did
   ::  not mean, so it lists them instead.
-  ?:  &(?=(~ id.order) (gth ~(wyt by by-id.approvals) 1))
-    (answer-order to (choices:ask approvals))
-  =/  found  (pick:ask approvals [id token]:order)
+  ?:  &(?=(~ id.order) (gth ~(wyt by by-id.live) 1))
+    (answer-order to (choices:ask live))
+  =/  found  (pick:ask live [id token]:order)
   ?~  found  (answer-order to (unknown:ask id.order))
   =/  [id=@t =approval:t]  u.found
   =/  address  (address:p (place-to:p [who place]:approval))

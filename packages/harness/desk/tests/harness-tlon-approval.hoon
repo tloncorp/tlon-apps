@@ -43,6 +43,8 @@
       %+  expect-eq
         !>(`(list [@t approval:t])`~)
       !>((expired:ask staggered ~2026.9.10..23.59.59))
+      (expect-eq !>((close:ask staggered 'd1234')) !>((live:ask staggered ~2026.9.11)))
+      (expect-eq !>(staggered) !>((live:ask staggered ~2026.9.10..23.59.59)))
   ==
 ++  test-the-next-expiry-is-the-oldest-requests
   ;:  weld

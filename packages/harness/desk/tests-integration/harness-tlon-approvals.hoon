@@ -1378,6 +1378,30 @@
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
   %+  ex-equal  !>((answered caz))
   !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #c0001']])
+::  A reload catches up on the owner's command waiting in Activity without
+::  the expiry each other event runs first; the overdue request is found
+::  as no request.
+::
+++  test-a-command-caught-up-on-reload-acts-on-no-overdue-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  late  (add start (add ~h48 ~m3))
+  =/  events  (stream ~[[late (said ~nec '/allow c0001' late)]])
+  ;<  ~  bind:m
+    (set-bowl %*(. *bowl our ~zod, src ~zod, now (add late ~s1), eny (shax 'approvals')))
+  ;<  ~  bind:m  head-connected
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=(b=bowl b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4])))
+  ;<  ~  bind:m  (set-scry-gate (scries events))
+  ;<  caz=(list card)  bind:m  (do-load adapter `!>(asked))
+  ;<  =vase  bind:m  get-save
+  =/  s  !<(state-6:t vase)
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-allowed')) !>(0))
+  %+  ex-equal  !>((answered caz))
+  !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #c0001']])
 ::  ~bus has DM access, ~ryd is trusted, ~wes has no access. None of their
 ::  DM commands opens a request, records an attempt or starts a turn.
 ::

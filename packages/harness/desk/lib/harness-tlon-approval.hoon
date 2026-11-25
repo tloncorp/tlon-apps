@@ -184,6 +184,12 @@
   %+  skim  ~(tap by by-id.approvals)
   |=  [id=@t =approval:t]
   (lte (add at.approval lifetime) now)
+::  +live: the requests open for less than .lifetime at .now
+::
+++  live
+  |=  [=approvals:t now=@da]
+  ^-  approvals:t
+  (keep approvals |=(=approval:t (gth (add at.approval lifetime) now)))
 ::  +next-expiry: when the oldest open request expires
 ::
 ++  next-expiry
