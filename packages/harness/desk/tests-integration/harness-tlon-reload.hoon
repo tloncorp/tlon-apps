@@ -55,7 +55,7 @@
   ;<  ~  bind:m  (ex-equal !>(browser-entries.saved) !>(browser-entries.state))
   (ex-equal !>(wake.saved) !>(`deadline))
 ::
-++  test-version-three-save-loads-as-version-four
+++  test-version-three-save-loads-with-no-browser-handoff
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m

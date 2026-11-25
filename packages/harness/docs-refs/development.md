@@ -249,7 +249,7 @@ For runtime performance characteristics and benchmark instructions, see
 ### Saved state across upgrades
 
 `tests/harness-upgrade.hoon` holds populated saved states: `populated` for
-`%harness`, `populated-4` for `%harness-tlon` and `acp-populated` for `%acp`,
+`%harness`, `populated-5` for `%harness-tlon` and `acp-populated` for `%acp`,
 with the unowned hand `unowned` for owner initialization. In a populated
 state every field holds a value that is not its default, and every collection
 has an entry whose fields are set. `test-populated-state-is-populated` checks

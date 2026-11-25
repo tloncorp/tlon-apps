@@ -968,7 +968,7 @@ Kernel to revoke it, including when policy changes while the head is offline.
 Harness also revokes known forms when posting fails or a handoff times out,
 and cancels known wallet requests through `payment_cancel`. An in-progress fill
 or an unconfirmed revocation leaves the outcome uncertain. Pending handoffs
-are saved in adapter state version 4 so a desk reload can continue checking
+are saved in adapter state so a desk reload can continue checking
 the outcome or revoke the form. Browser handoffs require a direct Kernel HTTP
 endpoint; registration through the ship's MCP proxy is unsupported.
 For a trusted ship, adding a browser grant preserves its running conversation
