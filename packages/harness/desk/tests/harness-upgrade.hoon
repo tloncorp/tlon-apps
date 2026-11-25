@@ -70,7 +70,8 @@
       saved-keys
       (my ~[[1 ['conn-1' n+~.7]]])
       2
-      (legacy-config 'defaults' openai-legacy 'Defaults system.')
+      ::  The composition of the layers above, as every save holds it.
+      (legacy-config 'defaults' openai-legacy 'Agents layer.\0a\0aSoul layer.')
       (my ~[['docs' ['Docs' 'https://mcp.example' ~[['authorization' 'mcp-secret']] |]]])
       (my ~[[['alpha' 2] ['Partial reply' 4]]])
       hands
@@ -322,7 +323,44 @@
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field
-  (expect-reload !>(populated) expected-current)
+  =/  loaded  (load:storage !>(populated))
+  ;:  weld
+      (expect-reload !>(populated) expected-current)
+      (expect-eq !>(system.defaults.loaded) !>((compose-prompts:policy prompts.loaded)))
+  ==
+::  The layers and the inherited text are both saved; the load derives the
+::  text from the layers, so a save in which they differ comes back agreeing.
+++  test-a-reload-derives-the-inherited-text-from-the-layers
+  =/  p  populated
+  =.  prompts.p  (~(put by prompts.p) %'MEMORY.md' 'Private.')
+  =.  system.defaults.p  'Stale.\0a\0aPrivate.'
+  =/  loaded  (load:storage !>(p))
+  ;:  weld
+      (expect-eq !>(prompts.p) !>(prompts.loaded))
+      (expect-eq !>('Agents layer.\0a\0aSoul layer.') !>(system.defaults.loaded))
+  ==
+::  The old built-in text is replaced in the AGENTS.md layer as it is in a
+::  saved configuration, so the layer and the derived text agree.
+++  test-a-saved-agents-layer-holding-the-old-builtin-text-is-upgraded
+  =/  p  populated
+  =.  prompts.p  (~(put by prompts.p) %'AGENTS.md' legacy-memory-system)
+  =.  system.defaults.p  (compose-prompts:policy prompts.p)
+  =/  loaded  (load:storage !>(p))
+  =/  upgraded  (~(put by prompts.p) %'AGENTS.md' default-system:policy)
+  ;:  weld
+      (expect-eq !>(upgraded) !>(prompts.loaded))
+      (expect-eq !>((compose-prompts:policy upgraded)) !>(system.defaults.loaded))
+  ==
+::  The composed limit refuses writes, never an upgrade.
+++  test-an-upgrade-loads-a-text-over-the-composed-limit-as-it-was
+  =/  p  project-p0
+  =/  long  (fil 3 (add composed-limit:policy 1) 'a')
+  =.  system.defaults.p  long
+  =/  loaded  (load:storage !>(p))
+  ;:  weld
+      (expect-eq !>((my ~[[%'AGENTS.md' long]])) !>(prompts.loaded))
+      (expect-eq !>(long) !>(system.defaults.loaded))
+  ==
 ++  test-state-p0-upgrade-keeps-every-field
   (expect-reload !>(project-p0) expected-p0)
 ::  Every bot inherits the same default instructions after any upgrade: they

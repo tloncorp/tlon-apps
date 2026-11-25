@@ -52,6 +52,24 @@
   |=  [id=@ud method=@t params=json]
   =/  m  (mare ,json)
   ^-  form:m
+  ;<  reply=json  bind:m  (do-acp-reply id method params)
+  =/  result  (get:j reply 'result')
+  ?~  result  |=(s=state |+~[leaf+"no result for {(trip method)}"])
+  (pure:m u.result)
+::  Send one ACP request and return its error message.
+++  do-acp-error
+  |=  [id=@ud method=@t params=json]
+  =/  m  (mare ,@t)
+  ^-  form:m
+  ;<  reply=json  bind:m  (do-acp-reply id method params)
+  =/  error  (get:j reply 'error')
+  ?~  error  |=(s=state |+~[leaf+"no error for {(trip method)}"])
+  (pure:m (string:j u.error 'message'))
+::  Send one ACP request and return its one reply.
+++  do-acp-reply
+  |=  [id=@ud method=@t params=json]
+  =/  m  (mare ,json)
+  ^-  form:m
   =/  payload
     %-  en:json:html
     %-  pairs:enjs:format
@@ -70,11 +88,8 @@
     =/  action  !<(action:v1:ac data)
     ?>  ?=(%send -.action)
     (de:json:html payload.action)
-  =/  result
-    %+  murn  replies
-    |=(reply=json (get:j reply 'result'))
-  ?~  result  |=(s=state |+~[leaf+"no result for {(trip method)}"])
-  (pure:m i.result)
+  ?~  replies  |=(s=state |+~[leaf+"no reply for {(trip method)}"])
+  (pure:m i.replies)
 ::  The body of a hosted reply in one event.
 ++  hosted-body
   |=  cards=(list card)
@@ -240,4 +255,97 @@
   %+  ex-equal
     !>((string:j !<(json q.cage) 'system'))
   !>('Agents.\0a\0aSoul.\0a\0aUser.')
+::
+++  test-a-set-memory-layer-does-not-reach-what-a-new-conversation-inherits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  remembered  (~(put by layered) %'MEMORY.md' 'Private.')
+  ;<  ~                bind:m  setup
+  ;<  stored=(list card)  bind:m  (set-layer %'MEMORY.md' 'Private.')
+  ;<  *                bind:m  (do-acp 1 'session/new' (pairs:enjs:format ~[['name' %s 'fresh']]))
+  ;<  after=state-0    bind:m  get-state
+  ;<  layers=cage      bind:m  (got-peek /x/v1/prompts)
+  ::  It is stored, readable and on the feed.
+  ;<  ~  bind:m  (ex-equal !>(prompts.after) !>(remembered))
+  ;<  ~  bind:m  (ex-equal q.layers !>(remembered))
+  ;<  ~  bind:m  (ex-equal !>((feed stored)) !>(~[remembered]))
+  ::  It is not in the defaults, a new conversation, or the Tlon hand's scry.
+  ;<  ~  bind:m  (ex-equal !>(system.defaults.after) !>('Agents.\0a\0aSoul.'))
+  =/  fresh  system:config:(play:hl log:(~(got by sessions.after) 'fresh'))
+  ;<  ~  bind:m  (ex-equal !>(fresh) !>('Agents.\0a\0aSoul.'))
+  ;<  tlon=cage  bind:m  (got-peek /x/defaults)
+  (ex-equal !>((string:j !<(json q.tlon) 'system')) !>('Agents.\0a\0aSoul.'))
+::  'Agents.' and 'Soul.' with a blank line, then USER.md, are 65.552 bytes;
+::  TOOLS.md of this size brings the composition to its limit.
+++  to-the-limit
+  ^-  @ud
+  (sub composed-limit:policy 65.554)
+++  fill-to-the-limit
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (set-layer %'USER.md' (fil 3 65.536 'u'))
+  ;<  *  bind:m  (set-layer %'TOOLS.md' (fil 3 to-the-limit 't'))
+  ;<  full=state-0  bind:m  get-state
+  (ex-equal !>((met 3 system.defaults.full)) !>(composed-limit:policy))
+++  test-a-layer-set-may-reach-the-composed-limit-but-not-pass-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~             bind:m  fill-to-the-limit
+  ;<  full=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-fail (set-layer %'TOOLS.md' (fil 3 +(to-the-limit) 't')))
+  ;<  ~  bind:m  (ex-fail (set-layer %'IDENTITY.md' 'x'))
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>([prompts defaults]:after) !>([prompts defaults]:full))
+  ::  MEMORY.md does not count toward it, but keeps its own limit.
+  ;<  ~  bind:m  (ex-fail (set-layer %'MEMORY.md' (fil 3 65.537 'm')))
+  ;<  *  bind:m  (set-layer %'MEMORY.md' (fil 3 65.536 'm'))
+  ;<  final=state-0  bind:m  get-state
+  (ex-equal !>((~(get by prompts.final) %'MEMORY.md')) !>(`(fil 3 65.536 'm')))
+++  test-a-defaults-write-past-the-composed-limit-is-refused-and-changes-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~             bind:m  fill-to-the-limit
+  ;<  full=state-0  bind:m  get-state
+  =/  longer  defaults.full(system 'Agents!!', key '')
+  ;<  ~  bind:m
+    (ex-fail (do-poke %harness-action !>(`action:h`[%defaults longer])))
+  ;<  read=json  bind:m  (do-acp 1 'harness/defaults' (pairs:enjs:format ~))
+  ?>  ?=(%o -.read)
+  =/  config=json
+    [%o (~(gas by p.read) ~[['system' %s 'Agents!!'] ['key' %s '']])]
+  ;<  refused=@t  bind:m
+    %^  do-acp-error  2  'harness/defaults/configure'
+    (pairs:enjs:format ~[['config' config]])
+  ;<  ~  bind:m
+    (ex-equal !>(refused) !>('Default instructions must be at most 131072 bytes in all.'))
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>([prompts defaults]:after) !>([prompts defaults]:full))
+  ::  A shorter text is accepted.
+  ;<  *  bind:m
+    (do-poke %harness-action !>(`action:h`[%defaults longer(system 'Agent.')]))
+  ;<  shorter=state-0  bind:m  get-state
+  (ex-equal !>((~(get by prompts.shorter) %'AGENTS.md')) !>(`'Agent.'))
+++  test-a-hosted-soul-write-past-the-composed-limit-is-refused-and-changes-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~             bind:m  fill-to-the-limit
+  ;<  full=state-0  bind:m  get-state
+  ;<  out=(list card)  bind:m
+    %+  do-poke  %harness-hosted
+    !>  ^-  request:hosted
+    :+  'soul'  'soul'
+    %-  pairs:enjs:format
+    :~  ['revision' %s (soul-revision:content 'Agents.')]
+        ['body' %s 'Agents!!']
+    ==
+  ;<  after=state-0  bind:m  get-state
+  =/  reply  (snag 0 (hosted-replies out))
+  ;<  ~  bind:m  (ex-equal !>((number:j reply 'status' 0)) !>(400))
+  ;<  ~  bind:m  (ex-equal !>((feed out)) !>(`(list prompts:h)`~))
+  (ex-equal !>([prompts defaults]:after) !>([prompts defaults]:full))
 --

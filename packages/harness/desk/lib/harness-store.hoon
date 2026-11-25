@@ -27,9 +27,16 @@
     =/  pending  u.pending.knowledge.state
     `pending(job (migrate-memory-job job.pending))
   =.  scopes.corpus.state  (~(run by scopes.corpus.state) migrate-conversation)
+  ::  The AGENTS.md layer holds what was the single text, upgraded as a saved
+  ::  configuration is, and the layers are the one source of the text new
+  ::  conversations inherit.
+  =/  agents  (~(get by prompts.state) %'AGENTS.md')
+  =?  prompts.state  &(?=(^ agents) =(memory-migration-system u.agents))
+    (~(put by prompts.state) %'AGENTS.md' default-system:policy)
+  =/  defaults  (migrate-config defaults.state)
   %=  state
     sessions  sessions
-    defaults  (migrate-config defaults.state)
+    defaults  defaults(system (compose-prompts:policy prompts.state))
     peer-base  (bind peer-base.state migrate-config)
     summary-models  :*  (bind compaction.summary-models.state migrate-config)
                         (bind lcm.summary-models.state migrate-config)
@@ -127,12 +134,13 @@
   =/  current  (mole |.(!<(state-0 saved)))
   ?^  current  (migrate-memory-prefixes u.current)
   (migrate-memory-prefixes (migrate-prompts (envelope-before-prompts saved)))
-::  The single default instructions text becomes the AGENTS.md layer, as the
-::  load's configuration upgrade leaves it, so it composes to the same text.
+::  The single default instructions text becomes the AGENTS.md layer, which
+::  the load then upgrades as it does the configuration, so it composes to the
+::  same text.
 ++  migrate-prompts
   |=  old=state-p0
   ^-  state-0
-  =/  system  system:(migrate-config defaults.old)
+  =/  system  system.defaults.old
   [%0 ?:(=('' system) ~ (my ~[[%'AGENTS.md' system]])) +.old]
 ++  envelope-before-prompts
   |=  saved=vase

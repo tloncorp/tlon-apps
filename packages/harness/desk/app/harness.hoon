@@ -3045,6 +3045,8 @@
         (mule |.((apply-soul:hosted-content editable-defaults args.request)))
       ?:  ?=(%| -.attempted)
         [~[(reply (error:hosted-auth 400 'Invalid soul settings.'))] state]
+      ?.  (prompt-fits:policy prompts %'AGENTS.md' system.config.p.attempted)
+        [~[(reply (error:hosted-auth 400 composed-too-long))] state]
       =.  state  (set-prompt %'AGENTS.md' system.config.p.attempted)
       [~[(reply response.p.attempted)] state]
     ?:  =('skills' action.request)
@@ -3755,6 +3757,8 @@
   =/  decoded  (mule |.((json-config:hj u.raw)))
   ?:  ?=(%| -.decoded)
     (acp-fail rpc '-32602' 'Invalid configuration')
+  ?.  (prompt-fits:policy prompts %'AGENTS.md' system.p.decoded)
+    (acp-fail rpc '-32602' composed-too-long)
   =^  configured  state  (handle-action [%defaults p.decoded])
   (acp-respond rpc configured (config-json:hj editable-defaults))
 ::
@@ -4856,6 +4860,7 @@
   ^-  (quip card _state)
   ?>  ?=(%defaults -.action)
   =/  =config:h  config.action
+  ?>  (prompt-fits:policy prompts %'AGENTS.md' system.config)
   =?  provider-keys  !=('' key.config)
     (put-key:auth provider-keys (credential-for-url:auth url.config) key.config)
   =.  state  state(defaults config(key ''), model-defaults-set &)
@@ -4866,6 +4871,7 @@
   ^-  (quip card _state)
   ?>  ?=(%prompt-set -.action)
   ?>  (lte (met 3 body.action) prompt-limit:policy)
+  ?>  (prompt-fits:policy prompts name.action body.action)
   `(set-prompt name.action body.action)
 ::  The single-text surfaces (Settings, harness/defaults and hosted-soul) read
 ::  and write the AGENTS.md layer; new conversations copy the composition.
@@ -4876,10 +4882,11 @@
 ++  set-prompt
   |=  [name=prompt-name:h body=@t]
   ^+  state
-  =.  prompts
-    ?:  =('' body)  (~(del by prompts) name)
-    (~(put by prompts) name body)
+  =.  prompts  (put-prompt:policy prompts name body)
   state(system.defaults (compose-prompts:policy prompts))
+++  composed-too-long
+  ^-  @t
+  'Default instructions must be at most 131072 bytes in all.'
 ::
 ++  action-mcp-config
   |=  action=action:h
