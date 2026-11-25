@@ -250,6 +250,36 @@
   |=  c=card
   ?.  ?=([%pass * %agent [@ %chat] %poke %chat-dm-rsvp *] c)  ~
   `!<([@p ?] q.cage.task.q.c)
+::  What the cards do to a DM, in dispatch order: decline or accept its
+::  invitation, or send a message from a tool call.
+::
+++  dm-effects
+  |=  caz=(list card)
+  ^-  (list @tas)
+  %+  murn  caz
+  |=  c=card
+  ?:  ?=([%pass * %agent [@ %chat] %poke %chat-dm-rsvp *] c)
+    `?:(+:!<([@p ?] q.cage.task.q.c) %accept %decline)
+  ?.  ?=([%pass [%tlon-tool *] %agent [@ %chat] %poke %chat-dm-action-2 *] c)  ~
+  `%send
+::  Load .saved at .now, then run an authorized Tlon tool call with .args.
+::
+++  call-tool
+  |=  [saved=state-5:t now=@da args=@t]
+  =/  m  (mare ,[(list card) state-5:t])
+  ^-  form:m
+  =/  call=tool-call:h  ['call-1' 'tlon' args]
+  ;<  ~  bind:m  (boot saved now *stream:v10:a)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %harness @ %tool-call *] path)
+      `!>(`(unit tool-authority:ad)``[call ~])
+    ((scries *stream:v10:a) path)
+  ;<  caz=(list card)  bind:m
+    (do-poke %harness-tool !>(`tool-request:ad`['sid' 0 call]))
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-5:t vase))
 ::  .saved with .count requests in place of its own, from planets with no
 ::  access, each in .room-nest, opened at .at.
 ::
@@ -935,30 +965,21 @@
   ;<  ~  bind:m  (ex-equal !>((open s)) !>((places ~[[~dev ~]])))
   (ex-equal !>((declined caz)) !>(`(list [@p ?])`~))
 ::  The owner's accept_dm, then ~dev's DM access, each accept ~dev's
-::  invitation in an event whose expiry would otherwise decline it as still
-::  pending: %chat takes that decline as leaving the accepted DM and deletes
-::  its history.
+::  invitation when its request is overdue. A decline after the accept would
+::  be taken by %chat as leaving the accepted DM, deleting its history; one
+::  before it is the expiry's.
 ::
-++  test-accepting-an-invitation-whose-request-is-overdue-sends-no-decline
+++  test-accepting-an-invitation-whose-request-is-overdue-sends-no-decline-after-it
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  saved  fixture
   =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
   =/  due  (add start ~h48)
-  =/  call=tool-call:h  ['call-1' 'tlon' '{"action":"accept_dm","ship":"~dev"}']
-  ;<  ~  bind:m  (boot saved due *stream:v10:a)
-  ;<  ~  bind:m
-    %-  set-scry-gate
-    |=  =path
-    ?:  ?=([%gx @ %harness @ %tool-call *] path)
-      `!>(`(unit tool-authority:ad)``[call ~])
-    ((scries *stream:v10:a) path)
-  ;<  caz=(list card)  bind:m
-    (do-poke %harness-tool !>(`tool-request:ad`['sid' 0 call]))
-  ;<  tooled=vase  bind:m  get-save
-  ;<  ~  bind:m  (ex-equal !>((open !<(state-5:t tooled))) !>(`(set [@p place:t])`~))
-  ;<  ~  bind:m  (ex-equal !>((rsvps caz)) !>(`(list [@p ?])`~[[~dev &]]))
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (call-tool saved due '{"action":"accept_dm","ship":"~dev"}')
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((dm-effects caz)) !>(`(list @tas)`~[%decline %accept]))
   =.  dm-grants.policy.saved  (~(put in dm-grants.policy.saved) ~dev)
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now due, eny (shax 'approvals')))
   ;<  ~  bind:m  head-connected
@@ -969,6 +990,32 @@
   ;<  granted=vase  bind:m  get-save
   ;<  ~  bind:m  (ex-equal !>((open !<(state-5:t granted))) !>(`(set [@p place:t])`~))
   (ex-equal !>((weld (rsvps loaded) (rsvps woken))) !>(`(list [@p ?])`~[[~dev &] [~dev &]]))
+::  A message into a pending DM accepts its invitation in %chat, so a decline
+::  after it would delete the DM.
+::
+++  test-send-dm-to-a-ship-whose-request-is-overdue-leaves-no-decline-after-the-send
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (call-tool saved (add start ~h48) '{"action":"send_dm","ship":"~dev","text":"hello"}')
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  (ex-equal !>((dm-effects caz)) !>(`(list @tas)`~[%decline %send]))
+::  The message accepts the invitation, so nothing is left to approve, and no
+::  later expiry may decline the DM.
+::
+++  test-send-dm-to-a-ship-with-an-open-request-closes-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
+  ;<  [caz=(list card) s=state-5:t]  bind:m
+    (call-tool saved (add start ~h1) '{"action":"send_dm","ship":"~dev","text":"hello"}')
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  (ex-equal !>((dm-effects caz)) !>(`(list @tas)`~[%send]))
 ::  The cap declines ~dev's first invitation; ten minutes later, with a slot
 ::  free, ~dev's next one is a new attempt.
 ::

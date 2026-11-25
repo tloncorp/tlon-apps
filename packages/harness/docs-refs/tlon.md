@@ -638,15 +638,16 @@ by every author.
 - A request closes when the owner answers it with an approval command, when
   its ship gains access in its place, by any settings save that gives it, and
   when the bot leaves or loses the channel. A DM request closes when the bot
-  accepts the ship's invitation, by the owner's `accept_dm` or because the
-  ship gained DM access, so its expiry cannot decline an accepted DM, which
-  `%chat` would take as leaving it. If
+  accepts the ship's invitation, by `accept_dm` or because the ship gained DM
+  access, or writes into the DM with `send_dm`, `react` or `unreact`, which
+  accepts it: nothing is left to approve. If
   Messenger rejects the card, the request closes too, so none stays open that
   the owner was not told of; the ship's next attempt opens it again.
 - A request expires 48 hours after it opened, as on OpenClaw. The next poke,
-  timer or response from another agent the hand handles after that expires
-  it; a subscription opening or closing, a reload and the acknowledgements of
-  its profile claim, Steward lease and telemetry do not. When none comes, the
+  timer, upload response or response from another agent the hand handles
+  after that expires it, before the hand does anything else for it; a
+  subscription opening or closing, a reload and the acknowledgements of its
+  profile claim, Steward lease and telemetry do not. When none comes, the
   maintenance wake does, since the earliest expiry is one of its deadlines,
   recomputed from saved state after a reload. A disabled hand expires nothing
   and puts no expiry on its wake; once it is enabled again, the next of these
@@ -656,7 +657,11 @@ by every author.
   pending: `%chat` reports a pending invitation once and none of its later
   messages, so an invitation left pending would keep the ship from reaching
   the bot by DM. Declining deletes it, so the ship's next message invites the
-  bot again and opens a new request. A channel request's expiry declines
+  bot again and opens a new request. Expiry comes first, so the decline reaches
+  `%chat` before an accept or a message the same event sends the ship; after
+  them, `%chat` would take it as leaving the DM and delete it.
+  An `accept_dm` that follows the decline opens a new, empty DM with the
+  ship. A channel request's expiry declines
   nothing. After expiry, the same ship in the same place opens a new request,
   and the owner gets a new card, under the same limits.
 - At most 100 requests are open at once, as on OpenClaw. At that limit an
