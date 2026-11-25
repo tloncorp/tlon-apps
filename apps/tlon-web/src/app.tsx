@@ -93,7 +93,7 @@ const ReactQueryDevtoolsProduction = React.lazy(() =>
 );
 
 function authRedirect() {
-  document.location = `${document.location.protocol}//${document.location.host}`;
+  document.location = `/~/login?${new URLSearchParams({ redirect: `${document.location.pathname}${document.location.search}` })}`;
 }
 
 function checkIfLoggedIn() {
