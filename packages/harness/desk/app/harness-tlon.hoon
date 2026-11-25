@@ -2214,7 +2214,7 @@
     [%create @ ~]  (agent-create wire sign)
     [%hand @ @ ~]  (agent-hand wire sign)
     [%refusal @ ~]  (agent-refusal wire sign)
-    [%approval @ @ *]  (agent-approval wire sign)
+    [%approval @ @ @ ~]  (agent-approval wire sign)
     [%approval-waiting @ ~]  (agent-approval-waiting wire sign)
     [%approval-full @ ~]  (agent-approval-full wire sign)
     [%approval-ban @ @ @ ~]  (agent-approval-ban wire sign)
@@ -2694,17 +2694,14 @@
 ++  agent-approval
   |=  [=wire =sign:agent:gall]
   ^+  cor
-  ?>  ?=([%approval @ @ *] wire)
+  ?>  ?=([%approval @ @ @ ~] wire)
   ?.  ?=(%poke-ack -.sign)  cor
   =/  id  i.t.wire
   =/  found=(unit approval:t)
     =/  held  (~(get by by-id.approvals) id)
     ?.  &(?=(^ held) =(i.t.t.wire (scot %da at.u.held)))  ~
     held
-  ::  A card an earlier version sent names no place.
-  =/  to=(unit destination:t)
-    ?.  ?=([@ @ @ @ ~] wire)  ~
-    ;;((unit destination:t) (cue (slav %uv i.t.t.t.wire)))
+  =/  to  ;;((unit destination:t) (cue (slav %uv i.t.t.t.wire)))
   ?~  p.sign
     ?~  found  cor
     (tell-waiting who.u.found to &)

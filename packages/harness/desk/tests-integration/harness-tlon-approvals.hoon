@@ -723,15 +723,9 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-6:t]  bind:m
+  ;<  [caz=(list card) *]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
-  =/  id  (requested s ~dev ~)
-  ;<  ~  bind:m  (boot s start *stream:v10:a)
-  ;<  *  bind:m
-    %^  do-agent  /approval/[id]/(scot %da start)  [~zod %chat]
-    [%poke-ack `~[leaf+"no"]]
-  ;<  =vase  bind:m  get-save
-  =/  w  !<(state-6:t vase)
+  ;<  [* w=state-6:t]  bind:m  (ack-card caz `~[leaf+"no"])
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   (ex-equal !>((kinds w 'approval-card-rejected')) !>(1))
 ::  The second attempt is within ten minutes of the notice.
@@ -2018,7 +2012,10 @@
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
   ;<  ~  bind:m  (ex-equal !>((lent (sent caz))) !>(1))
   ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
-  (ex-equal !>((waiting out)) !>(`(list [@t @t])`~))
+  ::  Nothing is posted anywhere, by DM or in a channel.
+  %+  ex-equal
+    !>((lien out |=(c=card ?=([%pass * %agent [@ ?(%chat %channels)] %poke *] c))))
+  !>(|)
 ::  The rejected card closes the request, so the next mention opens it again.
 ::
 ++  test-a-mention-whose-card-is-rejected-is-told-to-mention-the-bot-again
