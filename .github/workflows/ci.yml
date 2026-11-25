@@ -346,9 +346,14 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Run Backend Tests for Groups
+        # The ship runs in a container, which has the tools click needs; the
+        # desk is assembled on the runner, which needs rsync. docker is the
+        # runtime the other jobs use on these runners.
+        env:
+          CONTAINER_RUNTIME: docker
         run: |
           sudo apt-get update
-          sudo apt-get install -y socat patch rsync
+          sudo apt-get install -y rsync
           ./scripts/backend/run-tests.sh
   # Parallel E2E Tests using Docker containers
   e2e-parallel:

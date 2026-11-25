@@ -1,0 +1,86 @@
+name: Deploy Harness
+# Publishes one commit's %harness desk on ~wannec-dozzod-marnus, from which
+# hosted moons install it; packages/harness/README.md has the setup. A moon
+# takes every commit published here, so a person picks when.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        type: string
+        required: true
+        description: Commit SHA, tag or branch to publish; Harness CI must have passed on its commit
+permissions:
+  contents: read
+  actions: read
+# deploy.yml's group, so that this never runs while a %groups deploy uses the
+# ship's lens port, which takes one request at a time. The group matches only
+# for a run from develop. A push to develop cancels a run here in progress
+# (deploy.yml cancels in progress); the next run remounts the desk, so run
+# this again.
+concurrency:
+  group: ${{ format('{0}-{1}', github.ref, 'deploy') }}
+  cancel-in-progress: false
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    name: "Require a green Harness CI run"
+    outputs:
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - name: Require a run from develop
+        env:
+          RUN_REF: ${{ github.ref }}
+        run: |
+          if [ "$RUN_REF" != refs/heads/develop ]; then
+            echo "::error::Run this workflow from develop, not $RUN_REF: only there does it share deploy.yml's concurrency group, which keeps it from running during a %groups deploy."
+            exit 1
+          fi
+      - id: gate
+        name: Resolve the ref and find its Harness CI run on develop
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ inputs.ref }}
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$REF" --jq .sha) || {
+            echo "::error::$REF is not a commit, tag or branch of $GITHUB_REPOSITORY"
+            exit 1
+          }
+          [[ $sha =~ ^[0-9a-f]{40}$ ]] || { echo "::error::$REF resolved to '$sha'"; exit 1; }
+          echo "$REF is $sha"
+          # A pull request's run tests its merge with the base, not head_sha, so
+          # only a run from a push to develop tested this tree.
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/harness-ci.yml/runs?head_sha=$sha&status=success&event=push&branch=develop" --jq .total_count)
+          if [ "$runs" -eq 0 ]; then
+            echo "::error::No successful Harness CI (Hoon and E2E Tests) run from a push to develop for $sha. Harness CI runs only on commits that change its paths, and develop's tip is often an 'update glob [skip actions]' commit with no run: pick the pull request's merge commit on develop."
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+  deploy:
+    runs-on: ubuntu-latest
+    needs: gate
+    name: "Publish %harness on ~wannec-dozzod-marnus"
+    # The build, the upload through the tunnel, and the ship's waits: one
+    # minute for the mount and ten for the commit.
+    timeout-minutes: 30
+    steps:
+      # The workflow's own commit, whose deploy.sh reads the variables below.
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
+      - id: "auth"
+        uses: "google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69" # v1
+        with:
+          credentials_json: "${{ secrets.GCP_SERVICE_KEY }}"
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@e30db14379863a8c79331b04a9969f4c1e225e0b" # v1
+      - id: deploy
+        name: Deploy
+        run:
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps harness
+          wannec-dozzod-marnus us-central1-a mainnet-tlon-other-2d "$SHA"
+        env:
+          SHA: ${{ needs.gate.outputs.sha }}
+          DESK_JUSTFILE: packages/harness/justfile
+          DESK_REF_SHA: "1"
+          DESK_TARBALL: janeway-harness.tgz
+          DESK_VERIFY: "1"
+          SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
+          SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}

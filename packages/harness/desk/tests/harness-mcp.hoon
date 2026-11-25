@@ -19,6 +19,30 @@
       ==
 ++  test-multiple-servers-advertise-one-schema-family
   (expect-eq !>((tool-defs:ht ~[[%mcp 'a']])) !>((tool-defs:ht ~[[%mcp 'a'] [%mcp 'b']])))
+++  test-mcp-call-without-a-tool-name-produces-no-request
+  =/  call=tool-call:h  ['a' 'call_mcp_tool' '{"server":"kernel-browser"}']
+  =/  valid  call(args '{"server":"kernel-browser","name":"browser_session_create"}')
+  (expect !>(&(?=(~ (mcp-payload:effects call)) ?=(^ (mcp-payload:effects valid)))))
+++  test-kernel-owner-handoffs-cannot-use-the-raw-mcp-mutation
+  =/  tools=(list tool-grant:h)  ~[[%mcp 'kernel-browser']]
+  =/  list-login=tool-call:h
+    ['a' 'call_mcp_tool' '{"server":"kernel-browser","name":"browser_login","arguments":"{\\"action\\":\\"list\\"}"}']
+  =/  raw-login=tool-call:h
+    ['a' 'call_mcp_tool' '{"server":"kernel-browser","name":"browser_login","arguments":"{}"}']
+  =/  raw-payment=tool-call:h
+    ['a' 'call_mcp_tool' '{"server":"kernel-browser","name":"payment_request","arguments":"{}"}']
+  =/  raw-wallet=tool-call:h
+    ['a' 'call_mcp_tool' '{"server":"kernel-browser","name":"wallet_connect","arguments":"{}"}']
+  %-  expect
+  !>  ?&  (call-granted:ht list-login tools)
+          !(call-granted:ht raw-login tools)
+          !(call-granted:ht raw-payment tools)
+          !(call-granted:ht raw-wallet tools)
+          (call-granted:ht ['a' 'browser_approve_login' '{}'] tools)
+          (call-granted:ht ['a' 'browser_request_payment' '{}'] tools)
+          (call-granted:ht ['a' 'browser_connect_wallet' '{}'] tools)
+          !(call-granted:ht ['a' 'browser_approve_login' '{}'] ~[[%mcp 'other']])
+      ==
 ++  test-discovery-hides-enabled-but-ungranted-servers
   =/  servers=(map mcp-server-id:h mcp-server:h)
     (my ~[['a' ['Allowed' 'https://a.example' ~ &]] ['b' ['Not granted' 'https://b.example' ~ &]]])

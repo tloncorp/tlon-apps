@@ -34,18 +34,18 @@ hands use the same command interpreter; adapters do not implement command logic.
 | Command | Effect |
 | --- | --- |
 | `/help` | List commands and usage. |
-| `/status` | Show provider/model, tool-grant count, recorded token usage and a safe description of the last failure. |
+| `/status` | Show provider/model, the count of tool grants the turn can use, recorded token usage and a safe description of the last failure. |
 | `/model` | Show the conversation's provider and model. |
 | `/model <id>` | Change the model within the current provider. |
 | `/model default` | Copy the current default provider/model settings into this conversation. |
 | `/context` | Inspect the encoded-request estimate, input/output budgets, retained context and compaction usage. |
 | `/compact` | Summarize older complete exchanges through the configured summary route; retain the recent turn and full transcript. |
-| `/memory [query]` | Inspect or search shared memories. |
+| `/memory [query]` | Inspect or search the memories this conversation sees. |
 | `/memory off` / `/memory on` | Disable or enable shared memory for this conversation and its descendants. |
 | `/remember <name> <text>` | Save or correct a shared fact. |
 | `/forget <name>` | Forget a shared fact; earlier messages and checkpoints are retained. |
 | `/work` | Inspect and manage work; protected changes need confirmation. See [work commands](work-control.md). |
-| `/stop` | Cancel the current turn and queued hand work; acknowledge locally. |
+| `/stop` | Cancel the current turn, the subagents it started, and queued hand work; acknowledge locally. |
 
 Only `/compact` calls a model. Work management requires current owner or scoped
 workspace authority; the other commands require no tool grant. Model changes retain
@@ -113,7 +113,10 @@ read bodies; **Search content** uses the separate indexed corpus methods below.
   Settings exposes these shared instructions in a themed plain-text editor;
   attributed shared facts remain a separate resource.
 - `harness/defaults`
-- `harness/defaults/configure`
+- `harness/defaults/configure` — here and in `harness/defaults`, `system` is
+  the `AGENTS.md` layer of the default instructions, not the composition new
+  conversations inherit; see
+  [Soul and shared skills](hosting-contract.md#soul-and-shared-skills).
 - `harness/summary-models` — `{compaction: config|null, lcm: config|null}`.
 - `harness/summary-models/configure` — accepts `{models: {compaction, lcm}}`;
   null follows the current global default. Credentials use the existing store.

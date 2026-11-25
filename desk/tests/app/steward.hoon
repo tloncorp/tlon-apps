@@ -2652,13 +2652,23 @@
 ::
 ::  HTTP fixtures
 ::
+::  a request with a body declares it JSON, as every real client does;
+::  +http-request-typed sets the content-type explicitly
+::
 ++  http-request
   |=  [authenticated=? method=method:http url=@t body=(unit @t)]
+  ^-  inbound-request:eyre
+  =/  ct=(unit @t)  ?~(body ~ `'application/json')
+  (http-request-typed authenticated method url body ct)
+++  http-request-typed
+  |=  [authenticated=? method=method:http url=@t body=(unit @t) ct=(unit @t)]
   ^-  inbound-request:eyre
   :*  authenticated
       |
       [%ipv4 .127.0.0.1]
-      [method url ~ ?~(body ~ `(as-octs:mimes:html u.body))]
+      :^  method  url
+        ?~(ct ~ ~[['content-type' u.ct]])
+      ?~(body ~ `(as-octs:mimes:html u.body))
   ==
 ++  do-http
   |=  [eyre-id=@ta req=inbound-request:eyre]
@@ -3410,6 +3420,67 @@
   ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-3' 400 'text/plain' 'malformed action'))
   ;<  reqs=requests:v1:au  bind:m  got-requests
   (ex-equal !>(reqs) !>(*requests:v1:au))
+::
+::  a cross-site form can send only text/plain, urlencoded or multipart, so
+::  an edit must declare JSON. a refused edit records no request and relays
+::  nothing; a charset parameter is still JSON
+::
+++  test-automation-http-edit-requires-json
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-owner
+  =/  forged
+    (http-request-typed & %'POST' edit-url `(edit-post-body &) `'text/plain')
+  ;<  caz=(list card)  bind:m  (do-http 'eyre-1' forged)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-1' 415 'text/plain' 'content-type must be application/json')
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-2'
+    (http-request-typed & %'POST' edit-url `(edit-post-body &) ~)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-2' 415 'text/plain' 'content-type must be application/json')
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  ;<  ~  bind:m  (ex-equal !>(reqs) !>(*requests:v1:au))
+  =/  charset
+    %:  http-request-typed  &  %'POST'  edit-url  `(edit-post-body &)
+        `'application/json; charset=utf-8'
+    ==
+  ;<  caz=(list card)  bind:m  (do-http 'eyre-3' charset)
+  (ex-cards caz (ex-relay moon edit-create ~2024.1.1))
+::
+::  the same holds for the harness's finalize: a refused one answers no
+::  requester and leaves the command pending
+::
+++  test-automation-http-finalize-requires-json
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  =/  forged
+    %:  http-request-typed  &  %'POST'  finalize-url
+        `(finalize-post-body created)  `'text/plain'
+    ==
+  ;<  caz=(list card)  bind:m  (do-http 'eyre-1' forged)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    (ex-http 'eyre-1' 415 'text/plain' 'content-type must be application/json')
+  ;<  pen=pending:v1:au  bind:m  got-pending
+  ;<  ~  bind:m  (ex-equal !>((~(has by pen) rid)) !>(&))
+  =/  charset
+    %:  http-request-typed  &  %'POST'  finalize-url
+        `(finalize-post-body created)  `'application/json; charset=utf-8'
+    ==
+  ;<  caz=(list card)  bind:m  (do-http 'eyre-2' charset)
+  %+  ex-cards  caz
+  [(ex-bot-response ~bus created) (ex-http-finalized 'eyre-2' &)]
 ::
 ++  test-automation-http-wrong-method-is-405
   %-  eval-mare

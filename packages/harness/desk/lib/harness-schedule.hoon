@@ -1,7 +1,7 @@
 ::  Transport-independent schedule validation and evidence projection.
 ::  No Gall effects or inference. The head commits each run before dispatch.
 /-  c=harness-cron, h=harness, hh=harness-hand
-/+  calendar=harness-cron, reminder=harness-reminder, hl=harness
+/+  calendar=harness-cron, reminder=harness-reminder, hl=harness, hd=harness-hand
 |%
 ::
 ++  maintenance-needed
@@ -44,7 +44,7 @@
   ^-  schedule:c
   ?>  ?=(%add -.action)
   ?>  enabled.source
-  ?>  (lien actors.source |=(actor=@t =(actor actor.action)))
+  ?>  (actor-allowed:hd actors.source actor.action)
   =/  =job:c
     %*  .  *job:c
       kind  kind.action
@@ -79,16 +79,17 @@
       pattern  *pattern:c
       prompt  text.fields
       next  at.time
-      remaining  1
+      remaining  `1
     ==
-  ::  Model work either runs once at an exact time or follows a UTC pattern.
+  ::  Model work either runs once at an exact time or follows a pattern at
+  ::  UTC or a fixed offset.
   ?>  ?=(%o -.args)
   ?:  (~(has by p.args) 'at')
     =/  fields=[at=@t prompt=@t]
       %.  args
       %-  ot:dejs:format
       ~[at+so:dejs:format prompt+so:dejs:format]
-    ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) 4.096))
+    ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) max-prompt-bytes))
     =/  time  (parse:reminder at.fields now)
     %*  .  job
       timezone  timezone.time
@@ -96,45 +97,68 @@
       pattern  *pattern:c
       prompt  prompt.fields
       next  at.time
-      remaining  1
+      remaining  `1
     ==
-  =/  fields=[schedule=@t timezone=@t prompt=@t runs=@t]
+  =/  fields=[schedule=@t timezone=@t prompt=@t]
     %.  args
     %-  ot:dejs:format
     :~  schedule+so:dejs:format
         timezone+so:dejs:format
         prompt+so:dejs:format
-        runs+so:dejs:format
     ==
-  ?>  =('UTC' timezone.fields)
-  ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) 4.096))
-  =/  runs  (number:calendar runs.fields)
-  ?>  &((gth runs 0) (lte runs 100))
+  =/  offset  (zone timezone.fields)
+  ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) max-prompt-bytes))
+  ::  runs is optional: a count limits the job, and without one it repeats
+  ::  until it is cancelled.
+  =/  runs  (bind (~(get by p.args) 'runs') count)
   =/  pattern  (parse:calendar schedule.fields)
   %*  .  job
-    timezone  'UTC'
+    timezone  timezone.fields
     expression  schedule.fields
     pattern  pattern
     prompt  prompt.fields
-    next  (need (next:calendar pattern now))
+    next  (need (next-at-offset:calendar pattern offset now))
     remaining  runs
   ==
+::  A runs argument: a decimal string for a count from 1 to +max-runs.
+++  count
+  |=  value=json
+  ^-  @ud
+  =/  runs  (need (rush (so:dejs:format value) dem))
+  ?>  &((gth runs 0) (lte runs max-runs))
+  runs
+::  Listings give the count as a JSON number, which is exact only below
+::  2^53. This keeps it there; it is not a limit on recurring work, which
+::  without runs repeats until cancelled. Every minute, it lasts two years.
+++  max-runs  1.000.000
+++  max-prompt-bytes  8.192
+::
+++  zone
+  |=  timezone=@t
+  ^-  [east=? delta=@dr]
+  ::  Recurring work keeps one fixed offset forever: UTC, or +HH:MM/-HH:MM
+  ::  as RFC3339 writes it. IANA names would imply daylight-saving rules.
+  ?:  =('UTC' timezone)  [& ~s0]
+  (offset:reminder timezone)
 ::
 ++  busy
-  |=  [job=job:c db=state:hh]
+  |=  [job=job:c ledger=indexed:hh]
   ^-  ?
+  =*  db  db.ledger
   ::  Reservation and admission evidence can arrive separately. Keep a
   ::  reserved input busy until its observation establishes execution state.
   ?:  &(?=(^ last.job) !(~(has by observations.db) u.last.job))  &
-  ?|  %+  lien  ~(val by observations.db)
-      |=  observation=observation:hh
-      ?&  =(run-sid.job binding.observation)
-          ?=(?(%queued %running) phase.observation)
+  %+  lien  ~(tap in open.index.ledger)
+  |=  id=input-id:h
+  =/  observation  (~(get by observations.db) id)
+  =/  publication  (~(get by outbox.db) id)
+  ?|  ?&  ?=(^ observation)
+          =(run-sid.job binding.u.observation)
+          ?=(?(%queued %running) phase.u.observation)
       ==
-      %+  lien  ~(val by outbox.db)
-      |=  publication=publication:hh
-      ?&  =(run-sid.job sid.publication)
-          ?=(?(%pending %claimed %uncertain) status.publication)
+      ?&  ?=(^ publication)
+          =(run-sid.job sid.u.publication)
+          ?=(?(%pending %claimed %uncertain) status.u.publication)
       ==
   ==
 ::
@@ -157,8 +181,9 @@
   ==
 ::
 ++  retryable
-  |=  [job=job:c db=state:hh]
+  |=  [job=job:c ledger=indexed:hh]
   ^-  ?
+  =*  db  db.ledger
   ?.  ?&  =(%prompt kind.job)
           ?=(?(%active %complete) state.job)
           ?=(^ last.job)
@@ -171,7 +196,7 @@
       =(%failed phase.u.observation)
       ?=(^ publication)
       =(%failure kind.u.publication)
-      !(busy job db)
+      !(busy job ledger)
   ==
 ::
 ++  retry-session
@@ -196,10 +221,11 @@
   &(?=(%hand -.source) =(binding binding.source))
 ::
 ++  clearable
-  |=  [job=job:c db=state:hh]
+  |=  [job=job:c ledger=indexed:hh]
   ^-  ?
-  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(0 remaining.job)))  |
-  ?:  (busy job db)  |
+  =*  db  db.ledger
+  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(`0 remaining.job)))  |
+  ?:  (busy job ledger)  |
   ?~  last.job  =(%cancelled state.job)
   =/  last  (~(get by observations.db) u.last.job)
   ?~  last  |
@@ -208,14 +234,17 @@
 ++  advance
   |=  [job=schedule:c input=@uv now=@da]
   ^-  schedule:c
-  ?>  &(=(%active state.job) (gth remaining.job 0))
+  ?>  =(%active state.job)
+  =/  left
+    %+  bind  remaining.job
+    |=(runs=@ud ?>((gth runs 0) (dec runs)))
   =.  job
     %*  .  job
-      remaining  (dec remaining.job)
+      remaining  left
       last  `input
     ==
-  ?:  =(0 remaining.job)  job(state %complete)
-  =/  next  (next:calendar pattern.job now)
+  ?:  =(`0 left)  job(state %complete)
+  =/  next  (next-at-offset:calendar pattern.job (zone timezone.job) now)
   ?~  next  job(state %complete)
   job(next (need next))
 ::
@@ -226,8 +255,9 @@
   ?~(found ~ `i.found)
 ::
 ++  one-json
-  |=  [id=@uv job=schedule:c db=state:hh]
+  |=  [id=@uv job=schedule:c ledger=indexed:hh]
   ^-  json
+  =*  db  db.ledger
   =/  observation  ?~(last.job ~ (~(get by observations.db) u.last.job))
   =/  publication  ?~(last.job ~ (~(get by outbox.db) u.last.job))
   %-  pairs:enjs:format
@@ -244,26 +274,26 @@
       ['destination' %s destination.job]
       ['prompt' %s prompt.job]
       ['next' %s (scot %da next.job)]
-      ['remaining' (numb:enjs:format remaining.job)]
+      ['remaining' ?~(remaining.job ~ (numb:enjs:format u.remaining.job))]
       ['state' %s state.job]
       ['reason' %s reason.job]
       ['lastInput' ?~(last.job ~ [%s (scot %uv u.last.job)])]
       ['execution' ?~(observation ~ [%s phase.u.observation])]
       ['delivery' ?~(publication ~ [%s status.u.publication])]
       ['evidenceAvailable' %b &]
-      ['clearable' %b (clearable (job-value job) db)]
-      ['retryable' %b (retryable (job-value job) db)]
+      ['clearable' %b (clearable (job-value job) ledger)]
+      ['retryable' %b (retryable (job-value job) ledger)]
   ==
 ::
 ++  list-json
-  |=  [jobs=(map @uv schedule:c) db=state:hh binding=(unit @t)]
+  |=  [jobs=(map @uv schedule:c) ledger=indexed:hh binding=(unit @t)]
   ^-  json
   :-  %a
   %+  murn  ~(tap by jobs)
   |=  [id=@uv job=schedule:c]
   ^-  (unit json)
   ?.  ?~(binding & =(u.binding binding.job))  ~
-  `(one-json id job db)
+  `(one-json id job ledger)
 ::
 ++  json-action
   |=  value=json

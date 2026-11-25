@@ -1,8 +1,10 @@
 # Companion workflows
 
 A companion is an agent you can reach through the web app, Tlon, or another
-client. Each conversation has its own history; relevant durable facts are
-shared across conversations. Use `/memory off` to opt a conversation out.
+client. Each conversation has its own history; relevant durable facts learned in
+channels are shared across conversations, and those learned in a DM stay
+there and in the owner's DM. The owner's general preferences are the
+exception: recall gives them in every conversation. Use `/memory off` to opt a conversation out.
 
 ## Set up a companion
 
@@ -49,7 +51,8 @@ incoming group-DM messages do not start automatic replies.
 ## Schedule a report or reminder
 
 Ask for a one-time follow-up or a recurring report. Scheduled agents receive a
-brief and permitted tools, not the original transcript. Recurring schedules use UTC.
+brief and permitted tools, not the original transcript. Recurring schedules use UTC
+or a fixed UTC offset that does not follow daylight saving.
 
 Use a literal reminder when the desired output is already known. It needs an
 explicit time offset and destination, but no model or provider credits when due.

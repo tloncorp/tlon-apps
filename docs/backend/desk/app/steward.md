@@ -255,7 +255,7 @@ The hops, and the response walking back the same way:
 
 #### HTTP surface
 
-`%steward` binds `/steward` in Eyre on init and on every load. Every route requires Eyre's authenticated session; a request id is not a capability, so GET is gated like POST.
+`%steward` binds `/steward` in Eyre on init and on every load. Every route requires Eyre's authenticated session; a request id is not a capability, so GET is gated like POST. Every `POST` must send `content-type: application/json` (a `charset` parameter is fine) or it gets 415 `content-type must be application/json` before anything else: a cross-site form can only send text, urlencoded or multipart bodies, so this forces a CORS preflight and blocks a forged edit or finalize riding the owner's session cookie. The prompts routes apply the same check.
 
 - `POST /steward/~/v1/automation` — body `{ "requestId"?: "0v…", "bot": "~ship", "action": { "create": { …task } } | { "update": { "id": "…", …task } } | { "delete": { "id": "…" } } }`. Held open until the terminal response or the pending wake; the body is the `response` JSON. Malformed input is a 400.
 - `GET /steward/~/v1/automation/request/<uv>` — the current record as `response` JSON (`%pending` with the poke status while in flight); marks it fetched. Unknown is 404.

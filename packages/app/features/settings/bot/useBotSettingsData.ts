@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { desig, preSig } from '@tloncorp/api/lib/urbit';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
@@ -40,6 +41,9 @@ import {
   mergeProviderModels,
 } from './openAiSubscription';
 import { trackTlonbotSettingUpdated } from './botSettingsTelemetry';
+import { useBotSettingsDraftStore } from './botSettingsDraftStore';
+
+const logger = createDevLogger('botSettings', false);
 
 /**
  * Identifiers for the tlonbot hosting endpoints. User-level endpoints
@@ -462,7 +466,7 @@ export function useBotSettingsMutations() {
   });
 
   const savePrimaryModel = useMutation({
-    mutationFn: (update: ModelFormValues) => {
+    mutationFn: async (update: ModelFormValues) => {
       // A row with a provider but no model (or vice versa) is incomplete. Fail
       // rather than silently dropping it, so the caller doesn't mark a fallback
       // change as applied while the server actually saved nothing for it. Basic
@@ -483,17 +487,35 @@ export function useBotSettingsMutations() {
       // unchanged. applyChanges skips the empty-model guard for Basic, so this
       // is also what prevents a provider-only switch to Basic from persisting an
       // empty/stale model.
-      return api.setTlawnPrimaryModel(hostingUserId, {
-        ...toBackendModel(update.provider, update.model),
-        zdr: update.zdr || undefined,
-        fallbacks: update.fallbacks
-          .filter(
-            (fallback) =>
-              fallback.provider &&
-              (fallback.model || fallback.provider === BASIC_PROVIDER_ID)
-          )
-          .map((fallback) => toBackendModel(fallback.provider, fallback.model)),
-      });
+      useBotSettingsDraftStore.getState().setModelRestartShip(ship);
+      try {
+        const saved = await api.setTlawnPrimaryModel(hostingUserId, {
+          ...toBackendModel(update.provider, update.model),
+          zdr: update.zdr || undefined,
+          fallbacks: update.fallbacks
+            .filter(
+              (fallback) =>
+                fallback.provider &&
+                (fallback.model || fallback.provider === BASIC_PROVIDER_ID)
+            )
+            .map((fallback) =>
+              toBackendModel(fallback.provider, fallback.model)
+            ),
+        });
+        // Hosting can restart the whole pod without publishing an offline
+        // contact claim, so keep the DM indicator until the bot runs again.
+        if (
+          !(await api.awaitBotRunning(ship, {
+            timeoutMs: 120_000,
+            pollIntervalMs: 1500,
+          }))
+        ) {
+          logger.trackError('Bot model restart timed out', { ship });
+        }
+        return saved;
+      } finally {
+        useBotSettingsDraftStore.getState().setModelRestartShip(null);
+      }
     },
     onSuccess: setProviderConfig,
   });

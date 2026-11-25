@@ -22,7 +22,9 @@ Hands also support [scheduled work](scheduling.md), managed in Settings → Sche
 ## Binding and authority
 
 A binding has an immutable id, hand id, opaque destination address, session id,
-an explicit actor allowlist, and an enabled flag. Create and configure the
+an explicit actor allowlist, and an enabled flag. The allowlist `["*"]` admits
+any actor; an empty allowlist is refused. Outside that exact list `*` is an
+ordinary actor name. Create and configure the
 session first. Its model, instructions, and execution-time tool grants govern
 the work. New sessions inherit global defaults, **including enabled tools**:
 narrow these before accepting input from an external channel.
@@ -33,6 +35,10 @@ their model context: an answer on either can draw on the other's history.
 Adapters have owner authority through same-ship native calls or authenticated ACP.
 Hand and worker IDs are labels, not credentials. The adapter must authenticate
 actors, exclude its own messages, and enforce membership and mention rules.
+An adapter that binds `["*"]` lets several speakers share one session, so it
+must decide itself which speakers to observe: Harness checks nothing about
+them. A wildcard binding cannot name a work owner; `hand-access` requires a
+binding that lists the actor.
 Keep ship login codes private; remote ships use the [peer interface](peers.md).
 
 Binding identity and actor grants are immutable; use a new binding id to change
@@ -95,12 +101,12 @@ is not that evidence.
 
 | Action | Parameters | Result |
 |---|---|---|
-| `bind` | `id`, `config` as above | Binding status |
+| `bind` | `id`, `config` as above | Binding fields; a new binding's result also has an empty `observations` array |
 | `register` | `config` | Binding status with a ship-allocated, never-reused id |
-| `enable` | `id`, `enabled` | Binding status |
+| `enable` | `id`, `enabled` | Binding fields; its observations are read through `status` |
 | `remove` | `id` | Empty object; only for bindings with no observations |
 | `observe` | `binding`, `event`, `actor`, `text` | `inputId`, `phase`, `sourceEvent` |
-| `status` | `binding` | Binding and observation statuses |
+| `status` | `binding` | Binding, `observationCount`, and the statuses of its newest 256 observations plus any queued or running ones |
 | `outbox` | `hand` | Undelivered publications for enabled bindings |
 | `publications` | `hand`, `after` (id or null), `limit` | Bounded `records` and `next` cursor |
 | `effect` | `hand`, `effect` | Publication, including terminal receipts |
@@ -140,8 +146,17 @@ write bound sessions: use the authenticated hand protocol and its actor checks.
 Use `status` for admission recovery and `outbox` for delivery work. Inspect
 native snapshots or `harness/session/snapshot` for progress and diagnostics.
 No client connection owns the run. `session/cancel` cancels both the active turn
-and queued observations for that session. Queued cancellations appear in status
-without creating a reply; active cancellations produce a cancellation publication.
+and queued observations for that session. Recent queued cancellations appear in
+status without creating a reply; active cancellations produce a cancellation publication.
+
+An observed `/stop` is one speaker's. It cancels the running turn, and the
+subagents it started, only when that turn is the speaker's own, and only the
+speaker's queued observations; other
+speakers' work continues. The bot's owner, on the Tlon hand, stops the whole
+session as `session/cancel` does. The local action `[%fence-actor sid actor]`
+revokes one speaker the same way: their running turn, the subagent sessions it
+delegated to, and their queued observations, leaving timers, configuration and other speakers' work alone. `%fence`
+still fences the whole session and its descendants.
 
 Native hands watch `%harness` at `/hand-events` for `%noun` `%changed` facts.
 Read the ledger on each notification; facts contain no transcript or provider
@@ -153,7 +168,9 @@ Publications carry `version`, `effectId`, `inputId`, `binding`, `hand`, `address
 `sessionId`, `capability`, `kind`, `text`, `status`, `worker`, `externalId`, and
 `attempt`, chronological `receipts`, and owner `resolutions`. One terminal publication is created per executed
 observation, with `effectId = inputId`. Kinds are `reply`, `failure`, or
-`cancelled`. Failures expose a generic message, not internal diagnostics.
+`cancelled`. Failures expose a generic message, not internal diagnostics. A turn
+the loop guard halts, after four failing tool results in a row or 24 assistant
+turns since its input, is a `failure` whose message asks for a new message.
 
 The outbox is unordered. For chat delivery, match `inputId` to chronological
 session entries and send one publication at a time per destination. Adapters
@@ -207,12 +224,34 @@ its bindings, and 128 globally. One stalled conversation cannot consume the
 whole waiting queue. Duplicate admissions are checked before capacity limits,
 so retrying an already admitted event still recovers its identity.
 
-The ledger allows 256 observations per binding, 2,048 globally, and 256 active
-bindings. Text is limited to 65,536 bytes and source IDs to 512 bytes; metadata
-and recovery histories also have admission limits. Full capacity rejects work
-without deleting records or pruning session history.
+The ledger has no limit on finished records or on bindings. A hand adds a
+binding for each conversation it serves, and the binding stays, enabled or not,
+until it is retired or, if it never had observations, removed, so saved state
+grows with every conversation. Two costs that grow with the number of
+conversations are accepted. Resetting every conversation at once, as turning the
+Tlon hand off does, sends one fence per conversation, and each fence goes
+through every session, so the reset takes time that grows with the square of the
+number of conversations. Each message still goes through every session to update
+the session index and to synchronize the corpus.
+Text is limited to 65,536 bytes and source IDs to 512 bytes; metadata and
+recovery histories also have admission limits. A full waiting queue rejects
+work without deleting records or pruning session history. Records are kept
+until their binding is retired, about 2 KB for each answered message.
 
-Rotate a binding epoch before it fills:
+Paths that run on every message, head event, timer or delivery poll read three
+indexes of the ledger instead of walking it: the records not finished (a queued
+or running observation, or a publication that is not `delivered` or
+`abandoned`), each hand's newest 64 observations, and the bindings that name
+each session, enabled or not. The indexes are not saved; every load of
+`%harness` rebuilds them in time linear in the ledger's size. Owner reads that
+list history (`status`, `records`, the inbox and work pages) still read every
+record, so they slow down as history grows, and so does binding a new id, which
+checks every observation for its reuse and answers with its status. `status`
+lists the newest 256 observations, any queued or running work and the total
+count; older finished observations are in `records`. The `outbox` and `health`
+replies and the index of unfinished records grow with unresolved publications.
+
+Rotate a binding epoch to release its records:
 
 1. Stop consuming new source events and disable that binding.
 2. Settle or cancel its queued/running work. Reconcile every publication to
@@ -225,8 +264,8 @@ Rotate a binding epoch before it fills:
 Never relabel old source events with the new binding: deduplication is scoped
 to the binding epoch. Retired binding ids reject all further observations.
 Ship-allocated `hand--…` ids use a monotonic counter instead of an ever-growing
-tombstone set. Manually named ids remain available, but their combined active
-and retired identity capacity is 4,096; use `register` for continuous rotation.
+tombstone set. Manually named ids remain available, and each one retired stays
+in that set.
 
 The owner-side command performs the export-before-release sequence:
 
@@ -267,6 +306,8 @@ when a response is lost. A successful poke ack alone is not admission success.
 - `/x/hands/<binding>`: binding/observation JSON status.
 - `/x/hand-outbox/<hand>`: publication JSON outbox.
 - `/x/hand-state`: owner-only typed bookkeeping state.
+- `/x/hand-index`: owner-only typed `index:hh`, the open records, each
+  hand's newest observations and each session's bindings.
 
 Eyre projects the JSON scries at `/~/scry/harness/hands/<binding>.json` and
 `/~/scry/harness/hand-outbox/<hand>.json`. Both transports call the same pure

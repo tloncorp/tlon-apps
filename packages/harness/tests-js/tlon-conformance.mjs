@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie as harnessCookie, base as harnessUrl } from './lib/ship-client.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 const peerUrl = process.env.PEER_URL
 const nest = process.env.TEST_NEST
@@ -48,7 +49,7 @@ const marker = `grove-${Date.now()}`
 const essay = (content) => ({ content, author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null })
 const prompt = (word, mention = false) => [{ inline: [...(mention ? [{ ship }] : []), ` Reply with exactly ${marker}-${word}. Do not use tools.`] }]
 const has = (value, word) => JSON.stringify(value).includes(`${marker}-${word}`)
-const fromBot = (post, word) => post?.essay?.author === ship && has(post.essay.content, word)
+const fromBot = (post, word) => authorShip(post?.essay?.author) === ship && has(post.essay.content, word)
 const channelPosts = () => scry(`channels/v5/${nest}/posts/newest/32/post`)
 const dmPosts = () => scry(`chat/v4/dm/${ship}/writs/newest/32/light`)
 const post = (content) => poke('channels', 'channel-action-1', { channel: { nest, action: { post: { add: essay(content) } } } })
@@ -74,24 +75,28 @@ try {
   console.log('Testing DM admission and remote delivery')
   await poke('chat', 'chat-dm-action-2', { ship, diff: { id: `${peer}/${da()}`, delta: { add: { essay: essay(prompt('dm')), time: null } } } })
   const dmAnswer = await until('DM model answer delivered to peer', async () => Object.values((await dmPosts()).writs).find((p) => fromBot(p, 'dm')))
+  assertBotAuthor(dmAnswer.essay.author, ship)
   await poke('chat', 'chat-dm-action-2', { ship, diff: { id: dmAnswer.seal.id, delta: { reply: {
     id: `${peer}/${da()}`, meta: null, delta: { add: { 'reply-essay': {
       content: prompt('dm-thread'), author: peer, sent: Date.now(), blob: null,
     }, time: null } },
   } } } })
-  await until('DM thread answer uses its author-qualified parent', async () => {
+  const dmThreadAnswer = await until('DM thread answer uses its author-qualified parent', async () => {
     const page = await scry(`chat/v4/dm/${ship}/writs/newest/32/heavy`)
-    return Object.values(page.writs).some((p) => Object.values(p.seal?.replies || {}).some((r) => r['reply-essay']?.author === ship && has(r, 'dm-thread')))
+    return Object.values(page.writs).flatMap((p) => Object.values(p.seal?.replies || {})).find((r) => authorShip(r['reply-essay']?.author) === ship && has(r, 'dm-thread'))
   })
+  assertBotAuthor(dmThreadAnswer['reply-essay'].author, ship)
   await post(prompt('channel', true))
   const answer = await until('mentioned channel answer delivered to peer', async () => Object.entries((await channelPosts()).posts).find(([, p]) => fromBot(p, 'channel')))
+  assertBotAuthor(answer[1].essay.author, ship)
   await poke('channels', 'channel-action-1', { channel: { nest, action: { post: { reply: { id: answer[0], action: { add: {
     content: prompt('thread'), author: peer, sent: Date.now(),
   } } } } } } })
-  await until('reply to bot is admitted without another mention', async () => {
+  const threadAnswer = await until('reply to bot is admitted without another mention', async () => {
     const posts = (await channelPosts()).posts
-    return Object.values(posts[answer[0]]?.seal?.replies || {}).some((p) => p?.['reply-essay']?.author === ship && has(p, 'thread'))
+    return Object.values(posts[answer[0]]?.seal?.replies || {}).find((p) => authorShip(p?.['reply-essay']?.author) === ship && has(p, 'thread'))
   })
+  assertBotAuthor(threadAnswer['reply-essay'].author, ship)
   const status = await client.call('harness/tlon')
   assert.equal(status.error, '')
   assert.equal((await client.call('harness/tlon/configure', status.policy)).lanes, status.lanes, 'saving unchanged policy preserves routes')
@@ -103,8 +108,37 @@ try {
   assert.ok(list.some((s) => s.sessionId.startsWith(`${peer.slice(1)}-dm-`)), 'DM visible to any ACP session client')
   assert.ok(list.some((s) => s.sessionId.includes('-thread-')), 'thread has a separate session')
   console.log('PASS ACP activity and global session discovery')
+  // The owner and trust change retires the peer's DM routes. Channel routes
+  // are shared by every speaker, so one speaker's change keeps them.
+  const channelLanes = status.sessions.filter((sid) => !sid.startsWith(`${peer.slice(1)}-dm-`)).length
+  assert.ok(channelLanes > 0, 'the channel and its thread have routes')
+  // A post or reply whose author carries a bot profile is recorded as a bot's
+  // message; one by a bare ship as a message. Both are answered.
+  const author = (value) => (typeof value === 'string' ? value : value?.ship)
+  const botProfile = { ship: peer, nickname: 'Peer bot', avatar: null }
+  const kinds = async (address) => (await client.call('harness/tlon')).events.filter((e) => address(e.address)).map((e) => e.kind)
+  const top = (address) => address === nest
+  const thread = (address) => address.startsWith(`${nest}/`)
+  const topKinds = await kinds(top)
+  assert.ok(topKinds.includes('message') && !topKinds.includes('bot-message'), 'a bare-ship mention is a message')
+  const threadKinds = await kinds(thread)
+  assert.ok(threadKinds.includes('message') && !threadKinds.includes('bot-message'), 'a bare-ship thread reply is a message')
+  await poke('channels', 'channel-action-1', { channel: { nest, action: { post: { add: { ...essay(prompt('bot-channel', true)), author: botProfile } } } } })
+  await until('bot-profile mention answered', async () => Object.values((await channelPosts()).posts).some((p) => author(p?.essay?.author) === ship && has(p.essay.content, 'bot-channel')))
+  assert.equal((await kinds(top)).filter((kind) => kind === 'bot-message').length, 1, 'a bot-profile mention is a bot message')
+  await poke('channels', 'channel-action-1', { channel: { nest, action: { post: { reply: { id: answer[0], action: { add: {
+    content: prompt('bot-thread'), author: botProfile, sent: Date.now(),
+  } } } } } } })
+  await until('bot-profile thread reply answered', async () => {
+    const posts = (await channelPosts()).posts
+    return Object.values(posts[answer[0]]?.seal?.replies || {}).some((p) => author(p?.['reply-essay']?.author) === ship && has(p, 'bot-thread'))
+  })
+  assert.equal((await kinds(thread)).filter((kind) => kind === 'bot-message').length, 1, 'a bot-profile thread reply is a bot message')
+  const events = (await client.call('harness/tlon')).events.filter((e) => top(e.address) || thread(e.address))
+  console.log(`Channel activity: ${events.map((e) => `${e.kind} ${e.address}`).join('; ')}`)
+  console.log('PASS bot-profile posts and replies are recorded as bot messages')
   await client.call('harness/tlon/configure', { enabled: true, owner: ship, response: 'mentions', allowed: [], channels: [], trusted: [{ ship: peer, tools: [] }] })
-  assert.equal((await client.call('harness/tlon')).lanes, 0, 'revoked routes do not consume the next policy epoch')
+  assert.equal((await client.call('harness/tlon')).lanes, channelLanes, 'an owner change retires DM routes and keeps shared channel routes')
   await poke('chat', 'chat-dm-action-2', { ship, diff: { id: `${peer}/${da()}`, delta: { add: { essay: essay(prompt('trusted')), time: null } } } })
   await until('trusted ship with no tools can still chat', async () => Object.values((await dmPosts()).writs).find((p) => fromBot(p, 'trusted')))
   const sessions = (await client.call('session/list')).sessions.filter((s) => s.sessionId.startsWith(`${peer.slice(1)}-dm-`))

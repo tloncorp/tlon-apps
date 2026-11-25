@@ -1,7 +1,8 @@
-/-  *harness-store, hn=harness-notes
+/-  *harness-store, hn=harness-notes, runner=harness-runner
 ::  Opt-in full-agent evaluation: -test /=harness=/tests-integration/harness-reload
 /+  *test-agent, notes=harness-notes
 /=  head  /app/harness
+/=  up  /tests/harness-upgrade
 |%
 ::  Existing agents are live, but their new endpoints are not loaded yet.
 ::  A data scry during reload must fail rather than be silently stubbed.
@@ -98,4 +99,27 @@
   %+  ex-equal
     !>((lien emitted |=(c=card ?=([%pass * %agent * %poke %notes-action-1 *] c))))
   !>(|)
+::  The reload clears the saved wakes and runner streams, then re-arms each
+::  wake from the populated work: the parked runner job, the queued corpus
+::  scope and the pending memory capture. The active schedule is checked a
+::  tick later, once every agent on the desk has loaded.
+++  test-reload-keeps-populated-state
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  now=@da  ~2026.11.15
+  =/  e  expected-current:up
+  =.  registry.runners.e
+    (~(run by registry.runners.e) |=(r=runner:runner r(stream ~)))
+  =.  wake.runners.e  `(add now ~s15)
+  =.  schedule-wake.e  `+(now)
+  =.  corpus-wake.e  `(add now (div ~s1 10))
+  =.  wake.knowledge.e  `(add now ~s1)
+  ::  Every load fences capture and compaction work sent before it.
+  =.  barrier.knowledge.e  +(barrier.knowledge.e)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now now)))
+  ;<  ~  bind:m  live-only
+  ;<  *  bind:m  (do-load head `!>(populated:up))
+  ;<  saved=vase  bind:m  get-save
+  (ex-same:up saved !>(e))
 --

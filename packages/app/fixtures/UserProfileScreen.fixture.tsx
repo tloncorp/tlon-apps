@@ -149,7 +149,6 @@ function useFixtureActions(
     onToggleContact: () => setIsContact((v) => !v),
     onToggleMute: () => setIsMuted((v) => !v),
     onToggleBlock: () => setIsBlocked((v) => !v),
-    onShare: noop,
   };
 }
 

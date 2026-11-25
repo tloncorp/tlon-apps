@@ -6,6 +6,7 @@ import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
+import { assertBotAuthor } from './lib/author.mjs'
 
 const ship = cookie.split('=')[0].slice('urbauth-'.length)
 assert.equal(ship, '~lux', 'This fixture is restricted to the local fake ~lux')
@@ -121,6 +122,11 @@ try {
     const reply = thread.messages.find((p) => p.text === `${slug} reply`); assert.ok(reply)
     await invoke('edit_message', { ...target, parent: post.message_id, message_id: reply.message_id, text: 'edited reply' }, target.ship ? 'error' : 'accepted')
     if (!target.ship) assert.equal((await invoke('get_message', { ...target, parent: post.message_id, message_id: reply.message_id }, 'read')).text, 'edited reply')
+    if (!target.ship) {
+      const edited = Object.values((await scry(`channels/v5/${channel}/posts/newest/20/post`)).posts).find((p) => JSON.stringify(p.essay?.content).includes(`${slug} edited`))
+      assertBotAuthor(edited.essay.author, ship)
+      assertBotAuthor(Object.values(edited.seal.replies).find((r) => JSON.stringify(r['reply-essay'].content).includes('edited reply'))['reply-essay'].author, ship)
+    }
     await invoke('history_around', { ...target, parent: post.message_id, message_id: reply.message_id }, 'read')
     await invoke('delete_message', { ...target, parent: post.message_id, message_id: reply.message_id, confirm: reply.message_id })
     await invoke('get_message', { ...target, parent: post.message_id, message_id: reply.message_id }, 'error')
@@ -146,6 +152,9 @@ try {
   assert.equal((await invoke('get_club_message', { club, message_id: clubPost.message_id }, 'read')).text, `${slug} group DM`)
   const clubReply = (await invoke('club_history', { club, parent: clubPost.message_id }, 'read')).messages.find((p) => p.text === 'group DM reply')
   assert.equal((await invoke('get_club_message', { club, parent: clubPost.message_id, message_id: clubReply.message_id }, 'read')).text, 'group DM reply')
+  const clubNative = Object.values((await scry(`chat/v4/club/${club}/writs/newest/20/heavy`)).writs).find((p) => JSON.stringify(p.essay?.content).includes(`${slug} group DM`))
+  assertBotAuthor(clubNative.essay.author, ship)
+  assertBotAuthor(Object.values(clubNative.seal.replies).find((r) => JSON.stringify(r['reply-essay'].content).includes('group DM reply'))['reply-essay'].author, ship)
   await invoke('delete_club_message', { club, parent: clubPost.message_id, message_id: clubReply.message_id, confirm: clubReply.message_id })
   await invoke('delete_club_message', { club, message_id: clubPost.message_id, confirm: clubPost.message_id })
   await invoke('get_club_message', { club, message_id: clubPost.message_id }, 'error')
@@ -180,18 +189,19 @@ try {
   } else {
     originalStorage = { cred: (await scry('storage/credentials'))['storage-update'].credentials, conf: (await scry('storage/configuration'))['storage-update'].configuration }
     await storageSet({ 'set-endpoint': origin(storage), 'set-access-key-id': 'COMPLETIONFIXTURE', 'set-secret-access-key': randomUUID(), 'set-region': 'us-east-1', 'set-current-bucket': slug, 'set-public-url-base': '', 'toggle-service': 'credentials' })
-    await invoke('upload_file', { path }, 'error'); assert.equal(puts.length, 0)
-    await configure(['tlon', { clay: '/harness/lib/harness-tlon-tool/hoon' }])
+    // These are owner turns, which hold all of Clay whatever the saved grant
+    // names, so a path outside it uploads too.
     const upload = await invoke('upload_file', { path }, 'read')
     assert.ok(upload.url.startsWith(origin(storage))); assert.equal(puts.length, 1)
     assert.equal(puts[0].type, 'text/plain'); assert.match(puts[0].data.toString(), /Public Tlon tool contract/)
-    await invoke('upload_file', { path: '/harness/lib/harness-s3/hoon' }, 'error'); assert.equal(puts.length, 1)
-    await invoke('upload_file', { path, url: 'https://example.com/test.txt' }, 'error'); assert.equal(puts.length, 1)
+    await configure(['tlon', { clay: path }])
+    await invoke('upload_file', { path: '/harness/lib/harness-s3/hoon' }, 'read'); assert.equal(puts.length, 2)
+    await invoke('upload_file', { path, url: 'https://example.com/test.txt' }, 'error'); assert.equal(puts.length, 2)
     const source = 'https://www.python.org/static/img/python-logo.png'
     const image = await invoke('upload_image', { url: source }, 'read')
-    assert.equal(image.content_type, 'image/png'); assert.equal(puts.length, 2)
+    assert.equal(image.content_type, 'image/png'); assert.equal(puts.length, 3)
     const downloaded = await invoke('upload_file', { url: 'https://raw.githubusercontent.com/tloncorp/tlon-apps/938f0c44d693f6f7391cca8107c7b3a40b834a01/README.md' }, 'read')
-    assert.equal(downloaded.content_type, 'text/plain'); assert.equal(puts.length, 3)
+    assert.equal(downloaded.content_type, 'text/plain'); assert.equal(puts.length, 4)
   }
   await invoke('delete_channel', { group, channel, confirm: channel })
   await invoke('delete_group', { group, confirm: group }); createdGroup = false

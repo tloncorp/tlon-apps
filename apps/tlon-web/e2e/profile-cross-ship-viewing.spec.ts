@@ -60,6 +60,10 @@ test('should allow viewing and syncing profiles across ships', async ({
   await tenPage.getByText('Zod Testing nickname').first().click();
   await expect(tenPage.getByTestId('UserProfileScreen')).toBeVisible();
 
+  // Someone else's profile has no Share circle
+  await expect(tenPage.getByTestId('ProfileMessageButton')).toBeVisible();
+  await expect(tenPage.getByTestId('ProfileShareButton')).toHaveCount(0);
+
   // Verify ~ten can see all of ~zod's custom profile data
   await expect(tenPage.getByText('Zod Testing nickname').first()).toBeVisible();
   await expect(tenPage.getByText('Zod Testing status').first()).toBeVisible();

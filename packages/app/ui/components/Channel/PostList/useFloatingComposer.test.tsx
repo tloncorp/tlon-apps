@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   distance: 0,
   navigating: true,
   hasNewerPosts: false,
+  opensAtEnd: false,
 }));
 vi.mock('../ConversationLayout', async () => {
   const { useState } = await import('react');
@@ -50,7 +51,8 @@ function Harness() {
     true,
     isSending,
     isBrowsingHistory,
-    state.hasNewerPosts
+    state.hasNewerPosts,
+    state.opensAtEnd
   );
   return null;
 }
@@ -63,6 +65,7 @@ beforeEach(() => {
   state.distance = 0;
   state.navigating = true;
   state.hasNewerPosts = false;
+  state.opensAtEnd = false;
   frames = new Map();
   let id = 0;
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -138,6 +141,13 @@ it('starts floating when a selected history message is the initial anchor', () =
   state.distance = 400;
   mount();
   expect(state.floating).toBe(true);
+});
+
+it('starts docked when the list opened at its end, while new posts are still followed', () => {
+  state.opensAtEnd = true;
+  state.distance = 400;
+  mount();
+  expect(state.floating).toBe(false);
 });
 
 it('handles short content, bottom bounce, and a dead zone without mode chatter', () => {

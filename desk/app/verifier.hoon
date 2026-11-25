@@ -33,6 +33,7 @@
 =>
 |%
 +$  state-1  [%1 state]
++$  state-2  [%2 state]
 +$  card     card:agent:gall
 ::
 ++  attempt-timeout  ~h1
@@ -476,7 +477,7 @@
   ==
 --
 ::
-=|  state-1
+=|  state-2
 =*  state  -
 ::
 =+  log=l
@@ -499,14 +500,15 @@
   |^  ^-  (quip card _this)
       =/  old=state-any  !<(state-any ole)
       =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-      ?>  ?=(%1 -.old)
+      =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+      ?>  ?=(%2 -.old)
       =.  state  old
       ::  we always send an endpoint update, to trigger lanyard clients
       ::  to send us their invite links if necessary
       ::
       [[(give-endpoint domain)]~ this]
   ::
-  +$  state-any  $%(state-0 state-1)
+  +$  state-any  $%(state-0 state-1 state-2)
   ::
   +$  state-0
     $:  %0
@@ -527,6 +529,22 @@
     |=  s=state-0
     ^-  state-1
     s(- %1, domain [domain.s invites=~])
+  ::  +state-1-to-2: refill every ship's %whose-bulk allowance once
+  ::
+  ::    a ship whose client lost its discovery cursor is charged for its whole
+  ::    set on every lookup, and is refused once the allowance runs below it.
+  ::    the refill lets it make one full lookup, after which lanyard keeps
+  ::    the cursor.
+  ::
+  ++  state-1-to-2
+    |=  s=state-1
+    ^-  state-2
+    =*  max  batch:*allowance
+    %=  s
+      -                  %2
+      solo.limits        (~(run by solo.limits.s) |=(a=allowance a(batch max)))
+      batch.pool.limits  batch:allowance:pool:rates
+    ==
   --
 ::
 ++  on-poke

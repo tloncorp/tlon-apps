@@ -32,7 +32,7 @@ packageExtensionsChecksum: sha256-K4eydWmeQNcdzWbHGrjh8w9sCBKxxun5omSxd05+kpE=
 patchedDependencies:
   '@10play/tentap-editor': 520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41
   '@expo/ui@58.0.19': 1a3d305eb55f9b19ed9f5c5fde10eb1296853613e289e5bfbf4727b5d77fbe7b
-  '@legendapp/list@3.3.3': fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf
+  '@legendapp/list@3.3.3': 9cdd7b0c82b10f6509b643828b59ab7c826094a361d09c5c51970836095b8368
   '@mattermost/react-native-paste-input@2.0.1': be2614ef9b3732a54bda5c8f8d8a4346b8a729d569a8221d2a88649a725017c5
   '@op-engineering/op-sqlite@15.2.5': d68786db70ee88fc274b9f30605c8872d03765159287ce69cb6eeb6b3efc5f2b
   '@react-native-cookies/cookies@6.2.1': f253213b0c58e56f0c955b5130bebeb1b79888bc6114166ba0e450a2f8646813
@@ -1021,7 +1021,7 @@ importers:
         version: 1.1.2
       '@legendapp/list':
         specifier: 3.3.3
-        version: 3.3.3(patch_hash=fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+        version: 3.3.3(patch_hash=9cdd7b0c82b10f6509b643828b59ab7c826094a361d09c5c51970836095b8368)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       '@mattermost/react-native-paste-input':
         specifier: 2.0.1
         version: 2.0.1(patch_hash=be2614ef9b3732a54bda5c8f8d8a4346b8a729d569a8221d2a88649a725017c5)(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -1093,6 +1093,8 @@ importers:
       vitest:
         specifier: ^1.0.4
         version: 1.5.0(@types/node@25.9.3)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
+
+  packages/harness: {}
 
   packages/hermes-tlon-adapter: {}
 
@@ -17795,7 +17797,7 @@ snapshots:
   '@koromix/koffi-win32-x64@3.1.6':
     optional: true
 
-  '@legendapp/list@3.3.3(patch_hash=fcd44042e1c7883ea1b22893bda269f5e8dc9ee7a5cecfe36315b3d3ac3ca8cf)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
+  '@legendapp/list@3.3.3(patch_hash=9cdd7b0c82b10f6509b643828b59ab7c826094a361d09c5c51970836095b8368)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@react-native/metro-config@0.88.0)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
     dependencies:
       react: 19.3.0
       use-sync-external-store: 1.6.0(react@19.3.0)

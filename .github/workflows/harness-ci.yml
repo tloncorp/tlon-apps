@@ -5,7 +5,8 @@ on:
     # Harness, and what its desk is assembled from: the Tlon files listed in
     # packages/harness/desk-deps.yaml (tests-js/modules.test.mjs keeps both
     # lists below in step with it), the root justfile and fetch script its
-    # build runs, and the root desk-deps.yaml, which pins %mcp.
+    # build runs, and the root desk-deps.yaml, which pins %mcp; and the fake
+    # ship image the tests run their ships from.
     paths:
       - "packages/harness/**"
       - "desk/sur/activity-ver.hoon"
@@ -21,6 +22,7 @@ on:
       - "desk/sur/presence.hoon"
       - "desk/sur/reel.hoon"
       - "desk/sur/steward.hoon"
+      - "desk/sur/steward/automation.hoon"
       - "desk/sur/steward/gateway.hoon"
       - "desk/sur/steward/lens.hoon"
       - "desk/sur/story.hoon"
@@ -46,6 +48,7 @@ on:
       - "desk-deps.yaml"
       - "justfile"
       - "scripts/backend/fetch-deps.sh"
+      - "scripts/backend/container/**"
       - ".github/workflows/harness-ci.yml"
   push:
     branches: [develop]
@@ -64,6 +67,7 @@ on:
       - "desk/sur/presence.hoon"
       - "desk/sur/reel.hoon"
       - "desk/sur/steward.hoon"
+      - "desk/sur/steward/automation.hoon"
       - "desk/sur/steward/gateway.hoon"
       - "desk/sur/steward/lens.hoon"
       - "desk/sur/story.hoon"
@@ -89,6 +93,7 @@ on:
       - "desk-deps.yaml"
       - "justfile"
       - "scripts/backend/fetch-deps.sh"
+      - "scripts/backend/container/**"
       - ".github/workflows/harness-ci.yml"
   workflow_dispatch:
 
@@ -122,27 +127,28 @@ jobs:
           just-version: 1.59.0
 
       - name: Install tools
-        # socat carries click's threads to the ship; tmux holds the running
-        # ships; rsync installs desks. fetch-deps.sh, here and
-        # %mcp's own, needs yq v4, which apt doesn't ship.
+        # The ship runs in a container, which has the tools click needs. The
+        # runner builds the desks, which needs rsync and yq v4 (fetch-deps.sh,
+        # here and %mcp's own; apt doesn't ship it), and sets Harness up on
+        # the ship, which needs jq.
         run: |
           sudo apt-get update
-          sudo apt-get install -y socat tmux rsync jq
+          sudo apt-get install -y rsync jq
           mkdir -p "$RUNNER_TEMP/bin"
           curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
           chmod +x "$RUNNER_TEMP/bin/yq"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: Cache vere and fetched deps
-        # setup-fake-dev.sh pins the vere version; desk-deps.yaml pins commits.
+      - name: Cache fetched deps
+        # desk-deps.yaml pins the commits fetched into it.
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: packages/harness/.deps-cache
-          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/desk-deps.yaml', 'packages/harness/scripts/setup-fake-dev.sh') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/desk-deps.yaml') }}
           restore-keys: deps-${{ runner.os }}-
 
       - name: Vendor desk deps
-        # setup-fake-dev.sh needs mcp/ before anything builds.
+        # Checks %mcp out into mcp/, whose desk-deps.yaml keys the cache below.
         run: just fetch
 
       - name: Cache mcp desk deps
@@ -152,14 +158,14 @@ jobs:
           key: mcp-deps-${{ runner.os }}-${{ hashFiles('packages/harness/mcp/desk-deps.yaml') }}
           restore-keys: mcp-deps-${{ runner.os }}-
 
-      - name: Cache boot pill
-        # get-pill.sh pins the pill version and skips the download if present.
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: packages/harness/scripts/groups-*.pill
-          key: pill-${{ hashFiles('packages/harness/scripts/get-pill.sh') }}
 
       - name: Run Hoon Tests
+        # docker is the runtime the other jobs use on these runners. The step
+        # stops short of the job's limit, so that a hang still leaves time for
+        # the summary and the upload of the logs.
+        timeout-minutes: 45
+        env:
+          CONTAINER_RUNTIME: docker
         run: just test-hoon
 
       - name: Summarize results
@@ -181,9 +187,10 @@ jobs:
           retention-days: 7
 
   # Offline Node tests, then live scripts against ~zod, ~lux and ~nec with
-  # local stand-in model providers. Needs no secrets. Each shard runs a part of
-  # the full run (scripts/test-js.sh says how they are dealt), so the job takes
-  # as long as the slowest part rather than all of them.
+  # local stand-in model providers, all in one container. Needs no secrets.
+  # Each shard runs a part of the full run (scripts/test-js.sh says how they
+  # are dealt), so the job takes as long as the slowest part rather than all
+  # of them.
   e2e-test:
     # Two ships run at once, plus Node and the local providers.
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -197,13 +204,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup Node.js environment
-        # acp-subscription-conformance needs navigator.locks (Node >= 24.5);
-        # pinned to the version the suite is run with locally.
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 26.3.0
+          # The parent of a pull request's merge commit is the upgrade base.
+          fetch-depth: 2
 
       - name: Setup just
         # The justfiles need quote() and the `/` operator (just >= 1.5).
@@ -212,27 +215,27 @@ jobs:
           just-version: 1.59.0
 
       - name: Install tools
-        # socat carries click's threads to the ship; tmux holds the running
-        # ships; rsync installs desks. fetch-deps.sh, here and
-        # %mcp's own, needs yq v4, which apt doesn't ship.
+        # The ships and Node run in the test image. The runner builds the
+        # desks, which needs rsync and yq v4 (fetch-deps.sh, here and %mcp's
+        # own; apt doesn't ship it).
         run: |
           sudo apt-get update
-          sudo apt-get install -y socat tmux rsync jq
+          sudo apt-get install -y rsync
           mkdir -p "$RUNNER_TEMP/bin"
           curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -o "$RUNNER_TEMP/bin/yq"
           chmod +x "$RUNNER_TEMP/bin/yq"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: Cache vere and fetched deps
-        # setup-fake-dev.sh pins the vere version; desk-deps.yaml pins commits.
+      - name: Cache fetched deps
+        # desk-deps.yaml pins the commits fetched into it.
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: packages/harness/.deps-cache
-          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/desk-deps.yaml', 'packages/harness/scripts/setup-fake-dev.sh') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('packages/harness/desk-deps.yaml') }}
           restore-keys: deps-${{ runner.os }}-
 
       - name: Vendor desk deps
-        # setup-fake-dev.sh needs mcp/ before anything builds.
+        # Checks %mcp out into mcp/, whose desk-deps.yaml keys the cache below.
         run: just fetch
 
       - name: Cache mcp desk deps
@@ -242,15 +245,33 @@ jobs:
           key: mcp-deps-${{ runner.os }}-${{ hashFiles('packages/harness/mcp/desk-deps.yaml') }}
           restore-keys: mcp-deps-${{ runner.os }}-
 
-      - name: Cache boot pill
-        # get-pill.sh pins the pill version and skips the download if present.
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: packages/harness/scripts/groups-*.pill
-          key: pill-${{ hashFiles('packages/harness/scripts/get-pill.sh') }}
+
+      - name: Name the upgrade base
+        # upgrade-conformance installs the base's desk on a seeded ship and
+        # this one over it: the branch a pull request merges into, the commit
+        # a push to develop replaced, or for a manual run the previous commit.
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          case $EVENT in
+            pull_request | workflow_dispatch) base=$(git rev-parse HEAD^1) ;;
+            push)
+              git fetch --depth=1 origin "$BEFORE"
+              base=$BEFORE ;;
+            *)
+              echo "No upgrade base for a $EVENT run" >&2
+              exit 1 ;;
+          esac
+          echo "UPGRADE_BASE=$base" >> "$GITHUB_ENV"
 
       - name: Run E2E Tests
+        # The tests run on the Node of scripts/test-js/Dockerfile, the
+        # version in .nvmrc; acp-subscription-conformance needs
+        # navigator.locks (Node >= 24.5). docker is the runtime the other jobs
+        # use on these runners.
         env:
+          CONTAINER_RUNTIME: docker
           TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
         run: just test-js
 

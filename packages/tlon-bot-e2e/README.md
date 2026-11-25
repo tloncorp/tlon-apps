@@ -183,7 +183,7 @@ TLON_E2E_HERMES_LCM_ENGINE=lcm \
 pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes:package
 ```
 
-The fake ship service preserves the current rube-\*-group-blob / `vere-v4.5` runtime pairing and deterministic fakezod access codes. Startup logs include artifact URLs, cache hit/miss state, byte sizes, and checksum results. The rube archive checks use the MD5 ETags exposed by `bootstrap.urbit.org`; the Vere archive uses a checked SHA-256.
+The fake ship service boots the current rube pier archives on the latest Vere release, with deterministic fakezod access codes. Startup logs include artifact URLs, cache hit/miss state, byte sizes, and checksum results. The rube archive checks use the MD5 ETags exposed by `bootstrap.urbit.org`.
 
 ## Unit Tests
 

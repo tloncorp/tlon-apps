@@ -37,6 +37,9 @@
     %'tlon_react'  'Adding a reaction'
     %'tlon_unreact'  'Removing a reaction'
     %'tlon_upload_image'  'Uploading an image'
+    %'tlon_workspace_plan'  'Proposing a workspace'
+    %'tlon_workspace_create'  'Creating a workspace'
+    %'tlon_workspace_link'  'Finding a workspace'
     %'cron_add'  'Scheduling a task'
     %'reminder_add'  'Setting a reminder'
     %'cron_list'  'Checking schedules'
@@ -54,7 +57,9 @@
   =/  blob=json
     %-  pairs:enjs:format
     :~  ['protocol' %s 'tlon.computing-status.v1']
-        ['thinking' %b =(~ tools)]
+        ::  Only active work reaches here; idle contexts get a %clear. Messenger
+        ::  hides a status whose thinking is false, so tools must not unset it.
+        ['thinking' %b &]
         :-  'toolCalls'
         :-  %a
         %+  turn  tool-names

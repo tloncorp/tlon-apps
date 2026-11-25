@@ -111,7 +111,10 @@ compaction, cancellation, fork ancestry, retry, and halt. `play` folds the log
 into a derived view; `decide` selects the next step; Gall emits effects and
 records their results. Earlier session events are never removed to manufacture
 a new state: cancellation appends what it abandoned, and a fork appends its
-parent and divergence count.
+parent and divergence count. A turn whose failure is marked as too large for
+the model is left out of later requests by a replay rule: at the next
+admission the view holds a note in its place, while the log keeps the original
+input.
 
 ```mermaid
 flowchart LR
@@ -149,7 +152,9 @@ that understand Harness nouns do not have to pass through ACP or React.
 The semantic transcript remains on ship; model requests use a selected context
 view. Budget checks and compaction reduce request size without deleting source
 events. Estimates are not exact tokenization, and an indivisible oversized
-exchange can fail locally. See [context and memory](context-and-memory.md).
+exchange can fail locally; when that exchange belongs to the unanswered turn,
+the turn is then left out of the view, never out of the log. See
+[context and memory](context-and-memory.md).
 
 `lib/harness-session.hoon` exposes pure `next`, `inspect`, `snapshot`, and `branch`
 gates. `inspect` returns the revision, replayed view, and next decision; it
@@ -192,6 +197,9 @@ are separate; device tokens renew on use on the ship. See
 [authentication](acp.md#provider-authentication).
 
 New conversations snapshot the durable agent defaults and may then diverge.
+Their system instructions are the default instructions' named layers,
+composed in a fixed order; see
+[Soul and shared skills](hosting-contract.md#soul-and-shared-skills).
 Each turn's system instructions begin with the operating ship's full @p (and
 parent planet, for a moon), read from the bowl at dispatch rather than stored in
 session configuration. Editing instructions or conversation content cannot
@@ -218,9 +226,13 @@ skills, subagents, peers, corpus, and ship-wide Tlon access; MCP needs named
 server grants. Destination-scoped Tlon tools come from live hands. New owner
 conversations inherit defaults; saved conversations keep their settings.
 
-**Known bug:** these grants don't limit owner conversations. An owner turn gets the
-live tool catalog whatever its saved grants say, and its subagents inherit that. Other
-conversations obey their grants. See [known bugs](../ISSUES.md#known-bugs).
+A turn the owner drives directly (their own DM with the bot, ACP, a local poke,
+or as a peer) gets the live tool catalog whatever its saved grants say, except
+`%code`, which it has only when the conversation saves it. The owner's peer
+conversations are the exception: their grants are the owner catalog, `%code`
+included, rewritten on every request. Saved grants limit
+channels, scheduled work and other ships. A subagent is capped by what its
+parent turn could use, so saved grants limit it only when they limit the parent.
 
 Remote, scheduled, delegated, and rehearsal sessions have additional restrictions.
 Dispatch rechecks each function's grant, and internal self-pokes must match a
@@ -261,7 +273,8 @@ acknowledgement is distinct from remote delivery. Old invocation IDs cannot sett
 new calls with a reused provider call ID. Optional hand authority is rechecked at
 dispatch and receipt admission, including scheduled sessions' source grants.
 
-`harness-cron` supplies UTC calendar logic; `harness-schedule` validates jobs.
+`harness-cron` supplies calendar logic in UTC or at a fixed offset;
+`harness-schedule` validates jobs.
 The head stores schedules, owns the Behn wake, and admits due runs as idempotent
 hand observations. Scheduled agents receive no parent transcript and cannot
 create schedules or local subagents. Executors retain tool receipts; hands

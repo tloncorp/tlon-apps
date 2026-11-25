@@ -28,12 +28,18 @@ Choose OpenRouter, OpenAI, Anthropic, or a compatible endpoint. Each conversatio
 has its own model, instructions, context limit, and tools. Defaults apply when
 you create a conversation; changing them leaves existing settings alone.
 
-**Known bug:** a conversation's tool settings don't limit owner conversations or their
-subagents, so a tool turned off there can still be used. See
-[known bugs](../ISSUES.md#known-bugs).
+When the owner drives a turn directly, in their own DM with the bot, through ACP,
+a local poke or as a peer, it gets every tool whatever the conversation's tool
+settings say, except Run JavaScript, which needs the `code` grant saved on the
+conversation. The owner's ship working as a peer always has Run JavaScript: a
+peer conversation has no tool settings to opt in with. Tool settings limit channels, scheduled work and other
+ships. A subagent never gets more than its parent turn could use, so a subagent
+of a direct owner turn is not limited by the settings either. The settings
+screen and `harness/session/config` show the saved list, not the tools an owner
+turn gets; `/status` reports the tools the turn can use.
 
 Long conversations are summarized automatically without deleting history.
-Relevant shared facts enter context automatically, and agents can search
+Relevant facts the conversation may see enter context automatically, and agents can search
 retained source material.
 You can choose separate models for summarization.
 
@@ -105,8 +111,8 @@ and [companion workflows](companion.md).
   Revocation cannot retract an external write.
 - Tlon hooks can continue after a conversation or grant ends. Public content
   can be copied or cached elsewhere.
-- Recurring schedules use UTC, not local-time/DST rules. Schedules and
-  operational records have capacity limits.
+- Recurring schedules use UTC or a fixed offset, not IANA zones or DST rules.
+  Schedules and operational records have capacity limits.
 - Local acknowledgement is not remote delivery or a read receipt. There is no
   cross-system exactly-once guarantee.
 

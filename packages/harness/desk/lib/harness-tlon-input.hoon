@@ -1,7 +1,7 @@
 ::  Native addressing syntax, not a second command interpreter. Only the head
 ::  decides which slash words are commands, after normal social admission.
-/-  d=story
-/+  story=harness-tlon-story
+/-  d=story, t=harness-tlon
+/+  story=harness-tlon-story, hp=harness-tlon-history-page
 |%
 ++  whitespace
   |=(c=@t |(=(c 32) =(c 9) =(c 10) =(c 13)))
@@ -33,4 +33,35 @@
   ?:  (whitespace i.chars)  $(chars t.chars)
   ?.  =(i.chars '/')  original
   (crip chars)
+::  +label: a ship as a turn shows it, with its display name when it has one
+::
+::    the name is not ours to trust, so the characters that could pass
+::    for the label's own punctuation or start a line are dropped.
+++  label
+  |=  [who=@p name=(unit @t)]
+  ^-  @t
+  =/  nick=@t
+    ?~  name  ''
+    %+  clip-text:hp
+      %-  crip
+      %+  skip  (trip u.name)
+      |=(c=@t |((lth c 32) =(c '(') =(c ')') =(c '[') =(c ']')))
+    name-limit
+  ?:  (levy (trip nick) whitespace)  (scot %p who)
+  (rap 3 (scot %p who) ' (' nick ')' ~)
+++  name-limit  50
+::  A channel's session is shared, so each message names its speaker. The
+::  caller leaves out a command, which the head must still read as one.
+::
+++  attribute
+  |=  [actor=@p name=(unit @t) to=destination:t text=@t]
+  ^-  @t
+  ?:  ?=(%dm -.to)  text
+  (rap 3 (label actor name) ': ' text ~)
+::  The longest prefix +attribute adds: a comet with the longest name in
+::  parentheses, a colon and a space.
+::
+++  attribution-limit
+  ^-  @ud
+  :(add 5 name-limit (met 3 (scot %p (dec (bex 128)))))
 --

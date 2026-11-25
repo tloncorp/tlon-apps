@@ -80,7 +80,7 @@
         [~lux now:fixture-bowl]
         ~
         %add
-        [[~[[%inline ~['Reply']]] ~lux now:fixture-bowl] ~]
+        [[~[[%inline ~['Reply']]] [~lux ~ ~] now:fixture-bowl] ~]
         `now:fixture-bowl
     ==
   ;:  weld
@@ -88,6 +88,20 @@
       (expect-eq !>(~) !>((mole |.((request args crew(team ~) post)))))
       (expect-eq !>(~) !>((mole |.((request args crew(net %invited) post)))))
   ==
+::
+++  test-group-dm-message-has-the-bot-author
+  =/  args  (with-field (arguments 'send_club') 'text' 'Hello')
+  =/  result  (request args crew post)
+  =/  expected=action:club:v7:c
+    :*  0v1
+        (sham [/fixture now:fixture-bowl])
+        %writ
+        [~lux now:fixture-bowl]
+        %add
+        [[~[[%inline ~['Hello']]] [~lux ~ ~] now:fixture-bowl] chat+/ ~ ~]
+        `now:fixture-bowl
+    ==
+  (expect-eq !>(`expected) !>(command.result))
 ::
 ++  test-deletion-requires-confirmation-authorship-and-membership
   =/  crew  crew

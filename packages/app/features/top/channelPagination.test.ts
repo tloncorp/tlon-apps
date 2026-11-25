@@ -17,6 +17,23 @@ describe('shouldAutoLoadOlderPosts', () => {
     expect(shouldAutoLoadOlderPosts(readyToFill)).toBe(true);
   });
 
+  it('loads another page when too few posts sit above the opening post', () => {
+    const full = {
+      ...readyToFill,
+      postCount: 30,
+      minimumPostsBeforeAnchor: 12,
+    };
+    expect(shouldAutoLoadOlderPosts({ ...full, postsBeforeAnchor: 3 })).toBe(
+      true
+    );
+    expect(shouldAutoLoadOlderPosts({ ...full, postsBeforeAnchor: 12 })).toBe(
+      false
+    );
+    expect(shouldAutoLoadOlderPosts({ ...full, postsBeforeAnchor: null })).toBe(
+      false
+    );
+  });
+
   it('does not restart automatic pagination after a query error', () => {
     expect(shouldAutoLoadOlderPosts({ ...readyToFill, isError: true })).toBe(
       false

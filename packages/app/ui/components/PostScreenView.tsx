@@ -5,9 +5,11 @@ import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
   configurationFromChannel,
+  createDevLogger,
   isChatChannel as getIsChatChannel,
   hasUnreadActivity,
   makePrettyDayAndTime,
+  readAttemptStamp,
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -64,6 +66,7 @@ import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
+import { useMarkReadInView } from './Channel/useMarkReadInView';
 import { useConversationInsets } from './conversationScrollChrome';
 import { DraftInputContext } from './draftInputs';
 import {
@@ -71,7 +74,10 @@ import {
   DraftInputHandle,
   type DraftSendOptions,
   GalleryDraftType,
+  scrollOnceEnqueued,
 } from './draftInputs/shared';
+
+const logger = createDevLogger('PostScreenView', false);
 
 const noop = async () => {};
 
@@ -577,46 +583,40 @@ function ConnectedHeader({
 function useMarkThreadAsReadEffect(
   opts: {
     shouldMarkRead: boolean;
+    inView: boolean;
     channel: db.Channel;
     parent: db.Post;
     mostRecentlyReceivedReply: db.Post;
-    hasThreadUnreadActivity: boolean;
+    threadUnread: db.ThreadUnreadState | null | undefined;
   } | null
 ) {
-  const shouldMarkRead = opts?.shouldMarkRead ?? false;
-  const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
-  const hasThreadUnreadActivity = opts?.hasThreadUnreadActivity ?? false;
-
-  // Ref captures the latest opts so the effect can read current values
-  // without depending on the unstable inline object identity.
+  // Ref captures the latest opts so the read sends the current reply without
+  // depending on the unstable inline object identity.
   const optsRef = useRef(opts);
-  optsRef.current = opts;
-
-  // Single effect with two trigger signals:
-  //   - hasThreadUnreadActivity: authoritative signal (SSE pushed unread/notify state).
-  //   - latestReplyId: secondary signal (thread sync delivered a new post,
-  //     allowing immediate mark-read if hasThreadUnreadActivity is already true).
-  //
-  // Guard: only acts when hasThreadUnreadActivity is true.
-  //   - false -> true: guard passes, marks read.
-  //   - true -> false (read state cleared): guard returns early, no poke sent.
-  // This directly mirrors Channel/index.tsx's unread-activity guard.
   useEffect(() => {
-    if (!shouldMarkRead || !hasThreadUnreadActivity) return;
+    optsRef.current = opts;
+  });
+  const markRead = useCallback(() => {
     const current = optsRef.current;
     if (current == null) return;
-    const { channel, parent, mostRecentlyReceivedReply } = current;
-    if (!channel || !parent || !mostRecentlyReceivedReply) return;
+    store.markThreadRead({
+      channel: current.channel,
+      parentPost: current.parent,
+      post: current.mostRecentlyReceivedReply,
+    });
+  }, []);
 
-    const timeoutId = setTimeout(() => {
-      store.markThreadRead({
-        channel,
-        parentPost: parent,
-        post: mostRecentlyReceivedReply,
-      });
-    }, 150);
-    return () => clearTimeout(timeoutId);
-  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId]);
+  // Marks read when the thread's unread activity (pushed unread/notify state)
+  // is set, and again when sync delivers a newer reply. A failed read rolls the
+  // unread back unchanged and is not retried until there is new activity.
+  const latestReplyId = opts?.mostRecentlyReceivedReply.id ?? null;
+  const unreadStamp = readAttemptStamp(opts?.threadUnread, null);
+  useMarkReadInView({
+    canMarkRead: !!opts?.shouldMarkRead && hasUnreadActivity(opts.threadUnread),
+    inView: opts?.inView ?? false,
+    stamp: `${latestReplyId}:${unreadStamp}`,
+    markRead,
+  });
 }
 
 function SinglePostView({
@@ -679,27 +679,54 @@ function SinglePostView({
   });
   const replyDraftInputRef = useRef<DraftInputHandle>(null);
 
-  // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  const [initialThreadUnread, setInitialThreadUnread] =
-    useState<db.ThreadUnreadState | null>(null);
+  // The unread state when the thread was entered: it places the unread
+  // divider and the reply the thread opens on, neither of which should move
+  // as the thread is marked read.
+  const [threadUnreadSnapshot, setThreadUnreadSnapshot] = useState<{
+    parentId: string;
+    unread: db.ThreadUnreadState | null;
+  } | null>(null);
   useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getThreadUnreadState({ parentId: parentPost.id });
-      setInitialThreadUnread(unread ?? null);
-    }
-    initializeChannelUnread();
+    let isCurrent = true;
+    db.getThreadUnreadState({ parentId: parentPost.id })
+      .catch((error) => {
+        logger.trackError('failed to initialize thread unread', error);
+        return null;
+      })
+      .then((unread) => {
+        if (isCurrent) {
+          setThreadUnreadSnapshot({
+            parentId: parentPost.id,
+            unread: unread ?? null,
+          });
+        }
+      });
+    return () => {
+      isCurrent = false;
+    };
   }, [parentPost.id]);
+  const hasThreadUnreadSnapshot =
+    threadUnreadSnapshot?.parentId === parentPost.id;
+  const initialThreadUnread = hasThreadUnreadSnapshot
+    ? threadUnreadSnapshot.unread
+    : null;
 
   const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
     parentPost.id
   );
-  const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
+  // A thread the cache can show is shown before it is fetched or marked
+  // read; both write enough to the database to hold up its first layout. See
+  // `handleThreadShown` below.
+  const [threadSyncReleasedFor, setThreadSyncReleasedFor] = useState<
+    string | null
+  >(null);
+  const [shownThreadId, setShownThreadId] = useState<string | null>(null);
   const threadQuery = store.useThreadPosts({
     postId: parentPost.id,
     authorId: parentPost.authorId,
     channelId: channel.id,
+    syncEnabled: threadSyncReleasedFor === parentPost.id,
   });
   const { data: threadPosts, isLoading: isLoadingThreadPosts } = threadQuery;
 
@@ -822,12 +849,76 @@ function SinglePostView({
   // Compute a ScrollAnchor from selectedPostId for chat threads.
   // This wires into Scroller's anchor initialization, giving us retry/recovery
   // for unmeasured items instead of a one-shot imperative scroll.
+  // Without a selected reply, a chat thread opens on its first unread reply,
+  // as a chat opens on its first unread post. A reply that has not loaded yet
+  // is waited for like any anchor, so the anchor never changes under a thread
+  // already on screen.
+  const firstUnreadReplyId =
+    (initialThreadUnread?.count ?? 0) > 0
+      ? (initialThreadUnread?.firstUnreadPostId ?? null)
+      : null;
+  // A first unread reply that was deleted is not shown, so the thread opens
+  // on the next reply that is. Otherwise it waited for an anchor the list
+  // never draws.
+  const openingUnreadReplyId = useMemo(() => {
+    const firstUnread = firstUnreadReplyId
+      ? threadPosts?.find((post) => post.id === firstUnreadReplyId)
+      : undefined;
+    if (!firstUnread?.isDeleted || includeDeletedPosts) {
+      return firstUnreadReplyId;
+    }
+    let next: db.Post | null = null;
+    for (const post of visibleThreadPosts ?? []) {
+      if (
+        post.sentAt > firstUnread.sentAt &&
+        (!next || post.sentAt < next.sentAt)
+      ) {
+        next = post;
+      }
+    }
+    return next?.id ?? null;
+  }, [
+    firstUnreadReplyId,
+    includeDeletedPosts,
+    threadPosts,
+    visibleThreadPosts,
+  ]);
   const threadAnchor: ScrollAnchor | null = useMemo(() => {
     if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       return { type: 'selected', postId: selectedPostId };
     }
+    if (isChatChannel && openingUnreadReplyId) {
+      return { type: 'unread', postId: openingUnreadReplyId };
+    }
     return null;
-  }, [isChatChannel, selectedPostId, selectedReplyIsHidden]);
+  }, [
+    isChatChannel,
+    openingUnreadReplyId,
+    selectedPostId,
+    selectedReplyIsHidden,
+  ]);
+
+  const handleThreadShown = useCallback(() => {
+    setShownThreadId(parentPost.id);
+    setThreadSyncReleasedFor(parentPost.id);
+  }, [parentPost.id]);
+  // The fetch waits for the list to show only when the cache can show it:
+  // the cached replies include the one the thread opens on, and are not
+  // fewer than the thread has. Otherwise the list is waiting on the fetch,
+  // or would show a stale thread with the rest landing under it, so it starts
+  // now.
+  const openingReplyId = threadAnchor?.postId;
+  const cacheCannotShowThread =
+    threadQuery.status === 'error' ||
+    (threadQuery.status === 'success' &&
+      hasThreadUnreadSnapshot &&
+      (!threadPosts?.length ||
+        threadPosts.length < (parentPost.replyCount ?? 0) ||
+        (!!openingReplyId &&
+          !threadPosts.some((post) => post.id === openingReplyId))));
+  if (cacheCannotShowThread && threadSyncReleasedFor !== parentPost.id) {
+    setThreadSyncReleasedFor(parentPost.id);
+  }
 
   // Trigger the 5s temporary highlight when selectedPostId changes.
   // Scrolling is handled by the anchor via useAnchorScrollLock.
@@ -863,8 +954,13 @@ function SinglePostView({
           channel,
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
-          shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
-          hasThreadUnreadActivity,
+          shouldMarkRead:
+            isFocusedPost &&
+            hasLoadedReplies &&
+            isUserActive &&
+            shownThreadId === parentPost.id,
+          inView: isFocusedPost,
+          threadUnread: liveThreadUnread,
         }
   );
 
@@ -877,10 +973,12 @@ function SinglePostView({
       }
 
       draft.replyToPostId = parentPost.id;
-      await store.finalizeAndSendPost(draft, options);
-      if (!options?.scrollHandled) {
-        scrollToNewReply();
-      }
+      await store.finalizeAndSendPost(
+        draft,
+        options?.scrollHandled
+          ? options
+          : scrollOnceEnqueued(options, scrollToNewReply)
+      );
     },
     [parentPost, scrollToNewReply, setEditingPost]
   );
@@ -976,7 +1074,9 @@ function SinglePostView({
             setEditingPost={setEditingPost}
             onPressRetry={onPressRetry}
             onPressDelete={onPressDelete}
-            posts={postsWithoutParent}
+            // Replies wait for the unread snapshot, so the thread is first
+            // laid out on the reply it opens on instead of rebuilt there.
+            posts={hasThreadUnreadSnapshot ? postsWithoutParent : undefined}
             goBack={goBack}
             activeMessage={activeMessage}
             setActiveMessage={setActiveMessage}
@@ -987,6 +1087,7 @@ function SinglePostView({
             onGoToBotRun={onGoToBotRun}
             contentInsets={contentInsets}
             isLoading={isLoadingThreadPosts}
+            onReadyToDisplay={handleThreadShown}
           />
         ) : null}
 

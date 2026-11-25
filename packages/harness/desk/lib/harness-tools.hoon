@@ -146,16 +146,18 @@
 ++  scheduled-tools
   |=  tools=(list tool-grant:h)
   ^-  (list tool-grant:h)
-  %+  skip  tools
+  %+  skip  (without-browser tools)
   |=  tool=tool-grant:h
   |(=(%cron tool) =(%subagents tool) =(%code tool) =(%admin tool))
-::  Only the owner may hold %tlon and %code, whatever another ship's grants say.
+::  Saved grants do not give another ship the owner's tools.
+++  owner-only-tool
+  |=  tool=tool-grant:h
+  ^-  ?
+  |(=(%tlon tool) =(%code tool) =(tool [%mcp 'kernel-browser']))
 ++  guest-tools
   |=  tools=(list tool-grant:h)
   ^-  (list tool-grant:h)
-  %+  skip  tools
-  |=  tool=tool-grant:h
-  |(=(%tlon tool) =(%code tool))
+  (skip tools owner-only-tool)
 ::  Rehearsals may inspect inherited source material, never dispatch effects
 ::  or publish instructions. An allowlist keeps future families out by default.
 ++  rehearsal-tools
@@ -221,6 +223,9 @@
   |=  [server=@t tools=(list tool-grant:h)]
   ^-  ?
   (lien tools |=(tool=tool-grant:h =(tool [%mcp server])))
+++  without-browser
+  |=  tools=(list tool-grant:h)
+  (skip tools |=(tool=tool-grant:h =(tool [%mcp 'kernel-browser'])))
 ::  Collapse server grants to one schema family, retaining catalog order and
 ::  avoiding duplicate MCP function definitions when several servers are granted.
 ++  tool-families
@@ -267,6 +272,13 @@
     %'list_mcp_tools'  `%mcp
     %'list_mcp_servers'  `%mcp
     %'call_mcp_tool'  `%mcp
+    %'browser_secure_entry'  `%mcp
+    %'browser_approve_login'  `%mcp
+    %'browser_request_payment'  `%mcp
+    %'browser_connect_wallet'  `%mcp
+    %'tlon_workspace_plan'  `%tlon
+    %'tlon_workspace_create'  `%tlon
+    %'tlon_workspace_link'  `%tlon
     %'tlon_read_history'  `%tlon-read
     %'tlon_history_page'  `%tlon-read
     %'tlon_search_history'  `%tlon-read
@@ -285,6 +297,7 @@
 ++  tool-hand
   |=  name=@t
   ^-  (unit term)
+  ?:  (browser-entry-tool name)  `%harness-tlon
   =/  family  (tool-family name)
   ?~  family  ~
   ?:  ?=(?(%cron %workspace) u.family)  `%harness
@@ -308,6 +321,7 @@
   |=  [call=tool-call:h tools=(list tool-grant:h)]
   ^-  ?
   ?.  (tool-granted name.call tools)  |
+  ?:  (browser-entry-tool name.call)  (mcp-granted 'kernel-browser' tools)
   ?:  |(=('read_desk_file' name.call) =('list_desk_files' name.call))
     =/  parsed  (de:json:html args.call)
     ?.  ?=([~ %o *] parsed)  |
@@ -321,7 +335,25 @@
   ?.  ?=([~ %o *] parsed)  |
   =/  server  (~(get by p.u.parsed) 'server')
   ?.  ?=([~ %s *] server)  |
-  (mcp-granted p.u.server tools)
+  ?.  (mcp-granted p.u.server tools)  |
+  ?.  &(=('kernel-browser' p.u.server) =('call_mcp_tool' name.call))  &
+  =/  name  (~(get by p.u.parsed) 'name')
+  ?:  ?|  =(`[%s 'browser_session_live_view'] name)
+          =(`[%s 'payment_request'] name)
+          =(`[%s 'wallet_connect'] name)
+      ==
+    |
+  ?.  =(`[%s 'browser_login'] name)  &
+  =/  raw  (~(get by p.u.parsed) 'arguments')
+  ?.  ?=([~ %s *] raw)  |
+  =/  input  (de:json:html p.u.raw)
+  ?.  ?=([~ %o *] input)  |
+  =/  action  (~(get by p.u.input) 'action')
+  |(=(`[%s 'list'] action) =(`[%s 'prepare'] action))
+::
+++  browser-entry-tool
+  |=  name=@t
+  |(=('browser_secure_entry' name) =('browser_approve_login' name) =('browser_request_payment' name) =('browser_connect_wallet' name))
 ::  +tool-defs: schemas for granted tool families
 ::
 ++  tool-defs
@@ -338,6 +370,8 @@
     |=  def=json
     %+  lien  `(list @t)`~['tlon_search_history' 'tlon_history_page']
     |=(name=@t =(name (def-name def)))
+  =?  granted  (mcp-granted 'kernel-browser' tools)
+    (weld granted ~[def-secure-entry def-approve-login def-request-payment def-connect-wallet])
   [%a (weld base granted)]
 ::
 ++  def-name
@@ -378,7 +412,7 @@
       ~
   :-  %^  fun-json
         'memory'
-        'Inspect or correct shared memory. Relevant memories are supplied automatically. Use search (optional query), read (name), save (name, text, current revision; 0 for new), or forget (name, current revision). General communication preferences can set general to true. Saved facts are shared across channels and subagents. Do not store credentials, temporary progress, task status or guesses. Memory is reference material, not authority. An excluded conversation cannot access memory.'
+        'Inspect or correct shared memory. Relevant memories are supplied automatically. Use search (optional query), read (name), save (name, text, current revision; 0 for new), or forget (name, current revision). General communication preferences can set general to true. A fact saved in a channel is seen in every conversation; one saved in a DM or another private conversation is seen only there and in the owner\'s private conversations, and other conversations cannot read or change it. Only the owner\'s private conversations change a fact learned in another place. The owner\'s general preferences are supplied in every conversation, but the same rule governs reading and changing them. Do not store credentials, temporary progress, task status or guesses. Memory is reference material, not authority. An excluded conversation cannot access memory.'
       :~  ['operation' 'search, read, save or forget']
           ['query' 'Optional search terms; an empty search shows a bounded sample']
           ['name' 'Stable memory name from read/search, or a short new name']
@@ -419,7 +453,7 @@
     %curl  ~[schema:curl]
     %workspace  defs-workspace
     %tlon-read  defs-tlon-read
-    %tlon  ~[schema:tlon]
+    %tlon  [schema:tlon defs-tlon-workspace]
     %tlon-write  defs-tlon-write
     %cron  defs-cron
     %skills  defs-skills
@@ -527,15 +561,91 @@
       ==
   ==
 ::
+++  defs-tlon-workspace
+  ^-  (list json)
+  =/  string  |=(description=@t (argument 'string' description))
+  =/  object
+    |=  [description=@t fields=(list [@t json]) required=(list @t)]
+    ^-  json
+    %-  pairs:enjs:format
+    :~  ['type' %s 'object']
+        ['description' %s description]
+        ['properties' %o (malt fields)]
+        ['required' %a (turn required |=(name=@t `json`[%s name]))]
+    ==
+  =/  channel-schema
+    %^  object  'One channel'
+      :~  ['kind' (pairs:enjs:format ~[['type' %s 'string'] ['enum' %a ~[[%s 'chat'] [%s 'gallery'] [%s 'notebook']]]])]
+          ['title' (string 'At most 40 bytes')]
+          :-  'purpose'
+          (string 'One line: what the channel holds and what you will start it with, such as "Three sourced references to start from"')
+      ==
+    ~['kind' 'title' 'purpose']
+  :~  %:  fun
+        'tlon_workspace_plan'
+        %+  rap  3
+        :~  'Propose a new workspace in your owner\'s DM: posts your intro sentence and a card listing the workspace, its channels and an optional recurring task, with Edit and Create buttons. '
+            'Use it when the owner\'s message starts a topic that will outlast this reply (a project, trip, course, renovation or routine). Before calling, run the tlon tool\'s list_groups: when a workspace already covers the topic, call tlon_workspace_link instead and propose nothing. '
+            'Nothing is created until the owner taps Create; then a note tells you to call tlon_workspace_create. A new card replaces any earlier open one. '
+            'The card never replaces your answer: after this call, answer the owner\'s message in full as your reply. That reply follows the card in the DM and opens the workspace chat on Create. '
+            'Nor does it replace a requested action: set up a requested reminder, digest or schedule change with the scheduling tools in this turn and leave it out of the card\'s task. '
+            'Owner DM only. No card for small talk, one-off questions, the owner introducing themselves, or a topic you already proposed or they declined.'
+        ==
+        :~  :-  'intro'
+            (string 'One sentence posted above the card, such as "I can keep all of that in one place. Here\'s a private workspace to start from."')
+            :-  'title'
+            (string 'Short, specific workspace title inferred from the conversation, such as "Bike Parts" or "Lisbon Trip"; never generic. At most 60 bytes')
+            ['description' (string 'One sentence on what the workspace is for')]
+            :-  'channels'
+            %-  pairs:enjs:format
+            :~  ['type' %s 'array']
+                ['description' %s 'The channels to create, 1 to 6, first one a chat. Each purpose is a promise: after Create you post that starter content.']
+                ['items' channel-schema]
+            ==
+            :-  'task'
+            %^  object  'Optional recurring task that posts in the workspace chat, such as a weekly price check. Not a reminder the owner asked for: schedule that yourself this turn.'
+              :~  ['title' (string 'At most 40 bytes')]
+                  ['description' (string 'One line with the time in the owner\'s zone, such as "Every Sunday at 9:00 AM: I look up prices and post changes"')]
+                  ['schedule' (string 'Five-field cron expression in UTC, such as "0 16 * * 0"; convert from the owner\'s timezone')]
+                  ['prompt' (string 'Self-contained instruction for each run')]
+              ==
+            ~['title' 'description' 'schedule' 'prompt']
+        ==
+        ~['intro' 'title' 'description' 'channels']
+      ==
+      %:  fun
+        'tlon_workspace_create'
+        %+  rap  3
+        :~  'Create the workspace from a card the owner tapped Create on. Call it only when a workspace-card note tells you to, first with proposal_id alone: it returns the exact steps. '
+            'After making the group and its channels, call it again with group; that settles the workspace and never repeats what is done. Refused unless the owner tapped Create.'
+        ==
+        :~  ['proposal_id' (string 'The proposal id from the workspace-card note')]
+            ['group' (string 'The group you made for this card, as ~host/name; omit on the first call')]
+        ==
+        ~['proposal_id']
+      ==
+      %:  fun
+        'tlon_workspace_link'
+        %+  rap  3
+        :~  'Point your owner to a workspace they already have, in their DM: posts your one line naming it and the workspace\'s card. '
+            'Use it instead of proposing a new workspace when one already covers the topic, once per conversation. Then answer the owner\'s message as usual; don\'t repeat the link or its path.'
+        ==
+        :~  ['group' (string 'The workspace\'s ID from list_groups, such as "~sampel-palnet/lisbon-trip"')]
+            ['line' (string 'One line naming the workspace, such as "This fits in your Lisbon Trip workspace:". At most 200 bytes')]
+        ==
+        ~['group' 'line']
+      ==
+  ==
+::
 ++  defs-cron
   ^-  (list json)
   :~  %^  fun-json
         'cron_add'
-        'Schedule a bounded recurring prompt through this conversation hand, delivered only to this exact destination. The shared Harness scheduler runs an isolated conversation with the current permission ceiling. UTC only; never guess a local timezone. Each run uses the durable input/publication ledger.'
-      :~  ['schedule' 'Five-field cron expression in UTC']
-          ['timezone' 'Must be UTC']
-          ['prompt' 'Instruction for each run, at most 4096 bytes']
-          ['runs' 'Maximum number of runs, decimal integer from 1 to 100']
+        'Schedule a recurring prompt through this conversation hand, delivered only to this exact destination. The shared Harness scheduler runs an isolated conversation with the current permission ceiling. The timezone is UTC or a fixed offset the user gave; a fixed offset does not follow daylight saving, and IANA zone names are rejected. Never guess a local timezone. Without runs it repeats until cancelled; give runs whenever the user asked for a number of times or an end. Each run uses the durable input/publication ledger.'
+      :~  ['schedule' 'Five-field cron expression, evaluated in timezone']
+          ['timezone' 'UTC, or a fixed offset +HH:MM or -HH:MM such as -06:00 or +05:30; never an IANA name, and no daylight saving']
+          ['prompt' 'Instruction for each run, at most 8192 bytes']
+          ['runs' 'Optional number of runs, a decimal integer string from 1 to 1000000. Leave it out only for work that repeats until cancelled']
       ==
       %-  fun
       :*  'reminder_add'
@@ -565,7 +675,7 @@
               :-  'prompt'
               %+  argument
                 'string'
-              'Self-contained work brief with internal coordination and human deliverable clearly separated, 1..4096 UTF-8 bytes'
+              'Self-contained work brief with internal coordination and human deliverable clearly separated, 1..8192 UTF-8 bytes'
           ==
           ~['at' 'prompt']
       ==
@@ -579,7 +689,7 @@
       ~[['id' 'Schedule ID returned by cron_add or cron_list']]
       %-  fun
       :*  'cron_update'
-          'Edit an authorized schedule after its work settles. Read cron_list first. args replaces future timing and content: recurring {schedule,timezone:"UTC",prompt,runs} (runs is a string, 1..100); one-shot {at,prompt}; reminder {at,destination,text}. at requires an explicit timezone offset. Keeps the destination, model configuration, tool grants and history; does not retry a failed run.'
+          'Edit an authorized schedule after its work settles. Read cron_list first. args replaces future timing and content: recurring {schedule,timezone,prompt,runs} (timezone is UTC or a fixed +HH:MM/-HH:MM offset) (runs is an optional integer string from 1 to 1000000; leaving it out makes the schedule repeat until cancelled, so pass it again to keep a limit); one-shot {at,prompt}; reminder {at,destination,text}. at requires an explicit timezone offset. Keeps the destination, model configuration, tool grants and history; does not retry a failed run.'
           :~  ['id' (argument 'string' 'Schedule ID')]
               ['revision' (argument 'string' 'Exact revision from cron_list')]
               :*  'args'
@@ -778,13 +888,73 @@
           ['offset' 'within-page offset from next, as a string; omit for the first page']
       ==
     ::
-      %^  fun-json
+      %:  fun
         'call_mcp_tool'
         'Call a tool on a configured MCP server. First retrieve its inputSchema with list_mcp_tools using name; do not guess arguments from the summary.'
-      :~  ['server' 'the configured MCP server id']
-          ['name' 'the MCP tool name']
-          ['arguments' 'tool arguments as a JSON object string; use {} when empty']
+        :~  ['server' (argument 'string' 'the configured MCP server id')]
+            ['name' (argument 'string' 'the MCP tool name')]
+            ['arguments' (argument 'string' 'tool arguments as a JSON object string; defaults to {}')]
+        ==
+        ~['server' 'name']
       ==
+  ==
+::
+++  def-secure-entry
+  ^-  json
+  %:  fun
+    'browser_secure_entry'
+    'Send the owner a Messenger secure-entry card for marked fields in this browser session. Use from the owner DM. Waits for the result before continuing.'
+    :~  ['session_id' (argument 'string' 'Opaque Kernel browser session ID')]
+        :-  'markers'
+        %-  pairs:enjs:format
+        :~  ['type' %s 'array']
+            ['items' (argument 'string' 'Exact data-tlon-input marker value')]
+            ['minItems' %n '1']
+            ['maxItems' %n '40']
+        ==
+    ==
+    ~['session_id' 'markers']
+  ==
+::
+++  def-approve-login
+  ^-  json
+  %:  fun
+    'browser_approve_login'
+    'Send the owner a Messenger approval card for the selected Vault login. Use the form ID returned by browser_login prepare and the record from browser_login list. Waits for the owner to approve and fill.'
+    :~  ['session_id' (argument 'string' 'Opaque Kernel browser session ID')]
+        ['form_id' (argument 'string' 'formId returned by browser_login prepare')]
+        :-  'record'
+        %-  pairs:enjs:format
+        :~  ['type' %s 'object']
+            ['required' %a ~[[%s 'id'] [%s 'revision']]]
+            ['properties' (pairs:enjs:format ~[['id' (argument 'string' 'Saved login ID')] ['revision' (argument 'integer' 'Saved login revision')]])]
+        ==
+        :-  'bindings'
+        %-  pairs:enjs:format
+        :~  ['type' %s 'array']  ['minItems' %n '1']  ['maxItems' %n '2']
+            :-  'items'
+            %-  pairs:enjs:format
+            :~  ['type' %s 'object']
+                ['required' %a ~[[%s 'sourceField'] [%s 'targetField']]]
+                ['properties' (pairs:enjs:format ~[['sourceField' (argument 'string' 'Vault field name')] ['targetField' (argument 'string' 'Prepared input ID')]])]
+            ==
+        ==
+    ==
+    ~['session_id' 'form_id' 'record' 'bindings']
+  ==
+::
+++  def-request-payment
+  %^  fun-json
+    'browser_request_payment'
+    'Send the owner a Messenger card to review the exact checkout. Discover the Kernel payment_request schema first. Waits for the result. Approval does not submit the order.'
+  ~[['arguments' 'The payment_request arguments as a JSON object string']]
+::
+++  def-connect-wallet
+  %:  fun
+    'browser_connect_wallet'
+    'Send a Connect Stripe Link card in the owner DM if Link is disconnected. Waits for the connection result. Request separate approval for each checkout.'
+    ~
+    ~
   ==
 ::
 ::  +fun-json: an openai function schema; first param is required

@@ -77,66 +77,13 @@ export async function discoverContacts(
     // because parseUx doesn't actually remove the dots
     const parsedLastSalt = storedLastSalt?.replaceAll('.', '') ?? '0x0';
     const lastSalt = BigInt(parsedLastSalt);
-    const nonce = Math.floor(Math.random() * 1000000);
-    const encodedNonce = render('uv', BigInt(nonce));
-    const payload = [
-      null,
-      [null, nonce],
+    return await queryWhose(pokeNounRequest(lanyard.query), [
       'whose-bulk',
       lastSalt,
       nums.last,
       nums.add,
       nums.del,
-    ];
-    const noun = dwim(payload);
-
-    const cancellation = new AbortController();
-    const deadline = createTimeoutSignal(60000);
-    let onTimeout!: () => void;
-    const timedOut = new Promise<never>((_resolve, reject) => {
-      onTimeout = () => {
-        cancellation.abort('timeout');
-        reject('timeout');
-      };
-    });
-    deadline.addEventListener('abort', onTimeout, { once: true });
-    try {
-      const queryResponseSub = subscribeOnceRequest(
-        lanyard.queryResult
-      )<ub.WhoseBulkResponseEvent>(
-        { nonce: encodedNonce },
-        undefined,
-        undefined,
-        {
-          tag: 'discoverContacts',
-          signal: cancellation.signal,
-        }
-      );
-      // Handle both rejections immediately: the watch can fail before the PUT
-      // settles, and a failed PUT cannot produce a result for this nonce.
-      const [queryResponse] = await Promise.race([
-        Promise.all([
-          queryResponseSub,
-          pokeNounRequest(lanyard.query)(noun, { signal: cancellation.signal }),
-        ]),
-        timedOut,
-      ]);
-      logger.log('discoverContacts: queryResponse', queryResponse);
-
-      if (queryResponse.query.nonce !== encodedNonce) {
-        throw new Error('Contact discovery nonce mismatch');
-      }
-      const { result } = queryResponse.query;
-      if (typeof result === 'string') throw new Error(result);
-      const matches = Object.entries(result.results).filter(
-        (entry): entry is [string, string] => Boolean(entry[1])
-      );
-      return { matches, nextSalt: result['next-salt'] };
-    } finally {
-      deadline.cleanup();
-      deadline.removeEventListener('abort', onTimeout);
-      cancellation.abort();
-    }
+    ]);
   } catch (error) {
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
       context: 'discoverContacts',
@@ -144,6 +91,89 @@ export async function discoverContacts(
       errorMessage: error instanceof Error ? error.message : String(error),
     });
     throw error;
+  }
+}
+
+// Looks up a whole address book through %lanyard, which keeps the cursor
+// the verifier checks and sends only the difference from the last book it
+// accepted. Needs a desk that keeps the cursor (deskKeepsDiscoveryCursor).
+export async function discoverContactsWithShipCursor(
+  phoneNums: string[]
+): Promise<[string, string][]> {
+  if (isLanyardMockEnabled()) {
+    return (await runLanyardMockDiscovery(phoneNums)).matches;
+  }
+
+  try {
+    const { matches } = await queryWhose(pokeNounRequest(lanyard.queryV2), [
+      'whose-set',
+      toPhoneIdentifierSet(phoneNums),
+    ]);
+    return matches;
+  } catch (error) {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      context: 'discoverContacts',
+      error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+async function queryWhose(
+  poke: ReturnType<typeof pokeNounRequest<typeof lanyard.query>>,
+  question: unknown[]
+): Promise<{ matches: [string, string][]; nextSalt: string }> {
+  const nonce = Math.floor(Math.random() * 1000000);
+  const encodedNonce = render('uv', BigInt(nonce));
+  const noun = dwim([null, [null, nonce], ...question]);
+
+  const cancellation = new AbortController();
+  const deadline = createTimeoutSignal(60000);
+  let onTimeout!: () => void;
+  const timedOut = new Promise<never>((_resolve, reject) => {
+    onTimeout = () => {
+      cancellation.abort('timeout');
+      reject('timeout');
+    };
+  });
+  deadline.addEventListener('abort', onTimeout, { once: true });
+  try {
+    const queryResponseSub = subscribeOnceRequest(
+      lanyard.queryResult
+    )<ub.WhoseBulkResponseEvent>(
+      { nonce: encodedNonce },
+      undefined,
+      undefined,
+      {
+        tag: 'discoverContacts',
+        signal: cancellation.signal,
+      }
+    );
+    // Handle both rejections immediately: the watch can fail before the PUT
+    // settles, and a failed PUT cannot produce a result for this nonce.
+    const [queryResponse] = await Promise.race([
+      Promise.all([
+        queryResponseSub,
+        poke(noun, { signal: cancellation.signal }),
+      ]),
+      timedOut,
+    ]);
+    logger.log('discoverContacts: queryResponse', queryResponse);
+
+    if (queryResponse.query.nonce !== encodedNonce) {
+      throw new Error('Contact discovery nonce mismatch');
+    }
+    const { result } = queryResponse.query;
+    if (typeof result === 'string') throw new Error(result);
+    const matches = Object.entries(result.results).filter(
+      (entry): entry is [string, string] => Boolean(entry[1])
+    );
+    return { matches, nextSalt: result['next-salt'] };
+  } finally {
+    deadline.cleanup();
+    deadline.removeEventListener('abort', onTimeout);
+    cancellation.abort();
   }
 }
 

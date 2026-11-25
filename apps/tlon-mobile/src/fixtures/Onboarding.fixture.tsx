@@ -13,7 +13,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
 import { SignupContext } from '../lib/signupContext';
-import { AllowNotificationsScreen } from '../screens/Onboarding/AllowNotificationsScreen';
 import { CheckOTPScreen } from '../screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from '../screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from '../screens/Onboarding/EULAScreen';
@@ -233,12 +232,6 @@ export default {
     <SingleScreenFixture
       routeName="SetNotifications"
       Component={SetNotificationsScreen}
-    />
-  ),
-  AllowNotifications: (
-    <SingleScreenFixture
-      routeName="AllowNotifications"
-      Component={AllowNotificationsScreen}
     />
   ),
   Welcome: (

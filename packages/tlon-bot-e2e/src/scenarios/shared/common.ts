@@ -77,7 +77,6 @@ const REACTION_PROVENANCE_BY_DRIVER: Partial<
 };
 // Scenarios that test behavior Harness does not have.
 const HARNESS_SKIPS = {
-  botInfo: 'Harness does not publish the bot-info contact field.',
   ownerListen:
     'Harness has no owner-listen mode; under response: mentions it admits only addressed channel posts.',
   ownerListenOff: 'Harness has no owner-listen setting to turn off.',
@@ -88,7 +87,6 @@ const HARNESS_SKIPS = {
   reaction: 'Harness does not start a turn on a reaction.',
   threadFollow:
     "Harness admits an unmentioned channel thread reply only in a thread rooted at the bot's post.",
-  botLoop: 'Harness has no consecutive bot-response cap.',
   sse: 'Harness runs on the bot ship and holds no SSE connection to it.',
   nudge: 'Harness sends no nudge or re-engagement messages.',
 };
@@ -122,7 +120,7 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario(
     'bot-info-publishes-and-replicates',
-    { driverSkips: { harness: HARNESS_SKIPS.botInfo } },
+    {},
     async ({ ctx, driver, actors }) => {
       await actors.bot.state.connect();
       await actors.owner.state.connect();
@@ -1564,7 +1562,6 @@ export const commonScenarios: readonly SharedScenario[] = [
   testScenario(
     'known-bot-loop-protection-resets-on-human-dispatch',
     {
-      driverSkips: { harness: HARNESS_SKIPS.botLoop },
       timeoutMs: knownBotLoopScenarioTimeoutMs,
     },
     async ({ ctx, driver, actors }) => {

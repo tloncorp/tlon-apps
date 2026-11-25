@@ -45,4 +45,10 @@
   ^-  path
   %+  weld  /(scot %p our)/groups/(scot %da now)/v2/groups/(scot %p -.flag)/[+.flag]
   /channels/can-read/noun
+::
+++  group-can-write
+  |=  [flag=[@p @tas] nest=[kind=@tas ship=@p name=@tas] who=@p]
+  ^-  path
+  %+  weld  /(scot %p our)/groups/(scot %da now)/v2/groups/(scot %p -.flag)/[+.flag]
+  /channels/[kind.nest]/(scot %p ship.nest)/[name.nest]/can-write/(scot %p who)/noun
 --

@@ -21,7 +21,9 @@
       prompt=@t
       tools=(list tool-grant:h)
       next=@da
-      remaining=@ud
+      ::  Runs left; ~ for a recurring job with no limit, which repeats
+      ::  until it is cancelled.
+      remaining=(unit @ud)
       state=?(%active %paused %cancelled %complete)
       reason=@t
       last=(unit @uv)
@@ -33,6 +35,9 @@
       fingerprint=@uvH
       job
   ==
+::  The full schedule set, as /v1/schedule-events gives it
+::
++$  schedules  (map @uv schedule)
 +$  action
   $%  [%add id=@uv binding=@t actor=@t kind=?(%prompt %reminder) args=json]
       [%list binding=(unit @t)]

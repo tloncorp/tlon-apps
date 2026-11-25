@@ -1,6 +1,6 @@
 ::  Native readiness updates the public badge; all effects stay in the fixture.
 /-  t=harness-tlon, ct=contacts, hh=harness-hand, ad=harness-adapter
-/+  *test-agent, policy=harness-tlon-policy
+/+  *test-agent, policy=harness-tlon-policy, profile=harness-tlon-profile
 /=  adapter  /app/harness-tlon
 |%
 ::  Gall's head subscription, acknowledged when .head. Loading leaves and
@@ -11,7 +11,7 @@
   %-  jab-bowl
   |=  b=bowl
   b(wex (~(put by wex.b) [/head ~zod %harness] [head /hand-events]))
-::  Badge patches among the emitted cards, in order.
+::  Profile claim patches among the emitted cards, in order.
 ::
 ++  badges
   |=  cards=(list card)
@@ -19,7 +19,7 @@
   %+  murn  cards
   |=  =card
   ^-  (unit contact:ct)
-  ?.  ?=([%pass [%liveness ~] %agent * %poke %contact-action-1 *] card)  ~
+  ?.  ?=([%pass [%claims ~] %agent * %poke %contact-action-1 *] card)  ~
   =/  [pass=* wire=* agent=* who=* poke=* mark=* data=vase]  card
   =/  action  !<(action:ct data)
   ?>  ?=(%self -.action)
@@ -32,11 +32,14 @@
   =/  m  (mare ,(list contact:ct))
   =/  n  (mare ,(list card))
   ^-  form:m
-  =/  saved=state-2:t  *state-2:t
+  =/  saved=state-5:t  *state-5:t
   =.  saved
     %=  saved  owner-initialized  1  policy  [enabled `~zod ~ %mentions ~ ~]  watching  &
       activity-through  ~2026.10.1
     ==
+  ::  A stored profile already carries the current bot-info claim unless the
+  ::  fixture gives it another.
+  =.  contact  (bind contact |=(con=contact:ct (~(uni by (bot-info:profile ~)) con)))
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.10.1..00.00.10))
   ;<  ~  bind:m  (head-sub head)
   ::  The Activity watch is acknowledged, except that recovery needs Gall's
@@ -50,6 +53,8 @@
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(?=(^ contact))
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %contacts @ %v1 %self %contact-1 ~] path)
       ?~(contact ~ `!>(u.contact))
@@ -64,7 +69,7 @@
       %load     (pure:n loaded)
       %kick     (do-agent /activity [~zod %activity] [%kick ~])
       %recover  (do-agent /activity [~zod %activity] [%watch-ack ~])
-      %nack     (do-agent /liveness [~zod %contacts] [%poke-ack `~])
+      %nack     (do-agent /claims [~zod %contacts] [%poke-ack `~])
         ?(%enable %disable)
       =/  params  (policy-json:policy policy.saved(enabled =(%enable event)))
       %+  do-poke  %noun
@@ -108,4 +113,12 @@
   ^-  form:m
   ;<  ~  bind:m  (expect-badges ~ (run & & ~ %load))
   (expect-badges ~ (run & & `offline %nack))
+++  test-stale-bot-info-is-republished-with-liveness-in-one-edit
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  stale=[@tas value:ct]  [%bot-info [%text '{"v":1,"harness":"harness","version":"0.0.0"}']]
+  =/  info  (bot-info:profile ~)
+  ;<  ~  bind:m  (expect-badges ~[info] (run & & `(~(put by `contact:ct`online) stale) %load))
+  (expect-badges ~[(~(uni by `contact:ct`online) info)] (run & & `(~(put by `contact:ct`offline) stale) %load))
 --

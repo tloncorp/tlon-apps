@@ -439,8 +439,32 @@ describe('messages', () => {
     // holds the post, so the message tool's react targets the current
     // conversation and passes core's exact-current gate.
     test('reacts via the message tool in the current channel', async () => {
-      requireFixtureGroup(fixtures);
-      const { target, parent } = await seedReactionTarget('it-react-inchannel');
+      // Reuse of the engagement tests' channel brings their test tags into
+      // model context. A bot-authored seed also avoids a separate owner-listen turn.
+      const { groupId, chatChannel: target } =
+        await fixtures.botState.createGroup('OpenClaw Reaction Test', [
+          fixtures.userShip,
+        ]);
+      await waitFor(
+        async () => {
+          if (await fixtures.userState.isMemberOfGroup(groupId)) return true;
+          await fixtures.userState.joinGroup(groupId);
+          return undefined;
+        },
+        30_000,
+        1_000,
+        'owner to join the reaction test group'
+      );
+      const parentText = 'Post to react to';
+      await fixtures.botState.sendPost({
+        channelId: target,
+        content: story(parentText),
+      });
+      const parent = await findChannelPost(
+        target,
+        fixtures.botShip,
+        parentText
+      );
 
       const emoji = '👀';
       const key = 'react-in-channel';

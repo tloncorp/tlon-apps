@@ -320,6 +320,15 @@ export const tlonPlugin = createChatChannelPlugin({
           observeActiveTlonTurnDelivery(() =>
             runForActiveAccount(['posts', 'send', target, text])
           ),
+        // The reply path, as tlon_workspace_create posts the answer in the
+        // workspace chat, so both render the same.
+        postAnswer: async (target, text) =>
+          (await loadTlonChannelRuntime()).tlonRuntimeOutbound.sendText!({
+            cfg: cfg ?? {},
+            to: target,
+            text,
+            accountId: getActiveTlonTurnAccountId() ?? undefined,
+          }),
         postCard: ({ target, fallbackText, blob }) =>
           postSurface(target, fallbackText, blob),
       });

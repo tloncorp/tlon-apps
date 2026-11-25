@@ -6,6 +6,7 @@
 ++  on-posting  ((on @ud @t) lte)
 ++  max-terms  8
 ++  max-visits  64
+++  max-walk  512
 ++  words
   |=  text=@t
   ^-  (set @t)
@@ -76,9 +77,17 @@
   (lth count.a count.b)
 ::  The visit budget counts nodes, including rejected candidates. Collection
 ::  never constructs a union of whole postings or visits historical segments.
+::  With .seen, no store-wide count is used: the query's terms are walked in
+::  set order, rows it rejects take no place in a term's 16 or the 64, at most
+::  512 rows are examined, a walked term's count is the seen rows it took,
+::  and a term the walk did not reach is left out of scoring.
 ++  candidates
-  |=  [index=(map @t bucket:m) query=@t]
+  |=  [index=(map @t bucket:m) query=@t seen=(unit $-(@t ?))]
   ^-  [names=(set @t) visited=@ud terms=(list [word=@t count=@ud])]
+  ?^  seen
+    %^  filtered  index
+      (skim (take-terms:corpus (words query) max-terms) |=(w=@t (~(has by index) w)))
+    u.seen
   =/  terms  (needles index query)
   =/  remaining  terms
   =/  found=[names=(set @t) left=@ud]  [~ max-visits]
@@ -92,6 +101,32 @@
         remaining  t.remaining
         found  [names.part (sub left.found (sub portion left.part))]
       ==
+++  filtered
+  |=  [index=(map @t bucket:m) remaining=(list @t) seen=$-(@t ?)]
+  ^-  [names=(set @t) visited=@ud terms=(list [word=@t count=@ud])]
+  =|  counted=(list [word=@t count=@ud])
+  =/  found=[names=(set @t) left=@ud walk=@ud]  [~ max-visits max-walk]
+  |-  ^-  [names=(set @t) visited=@ud terms=(list [word=@t count=@ud])]
+      ?:  |(?=(~ remaining) =(0 left.found) =(0 walk.found))
+        [names.found (sub max-walk walk.found) (flop counted)]
+      =/  bucket  (~(got by index) i.remaining)
+      =/  portion  (min 16 left.found)
+      =/  part  (take-seen rows.bucket seen [names.found portion walk.found])
+      =/  taken  (sub portion left.part)
+      %=  $
+        remaining  t.remaining
+        found  [names.part (sub left.found taken) walk.part]
+        counted  [[i.remaining taken] counted]
+      ==
+++  take-seen
+  |=  [tree=posting:m seen=$-(@t ?) found=[names=(set @t) left=@ud walk=@ud]]
+  ^+  found
+  ?:  |(?=(~ tree) =(0 left.found) =(0 walk.found))  found
+  =.  walk.found  (dec walk.found)
+  =?  found  (seen val.n.tree)
+    found(left (dec left.found), names (~(put in names.found) val.n.tree))
+  =.  found  (take-seen r.tree seen found)
+  (take-seen l.tree seen found)
 ++  take
   |=  [tree=posting:m found=[names=(set @t) left=@ud]]
   ^+  found

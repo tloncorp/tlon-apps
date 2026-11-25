@@ -10,7 +10,8 @@
 ::    latest api version is v1.
 ::    poke marks:
 ::    - %lanyard-command-1: $command:l:verifier
-::    - %lanyard-query-1: $query:l:verifier
+::    - %lanyard-query-1: $query:v1:l:verifier
+::    - %lanyard-query-2: $query:l:verifier
 ::    all subscription paths give facts with following mark:
 ::    - %lanyard-update-1: $update:l:verifier
 ::    subscription paths:
@@ -45,8 +46,25 @@
       records=(map key [=config why=@t =status])   ::  ours
       display=(map key ?(%full %half))             ::  on contacts profile
       ledgers=(map @p (unit @t))                   ::  services w/ base urls
-      queries=(map @uv (each [q=question:l a=result:l] question:l))  ::  asked
+      queries=(map @uv (each [q=question:v1:l a=result:l] question:v1:l))
   ==
++$  state-1
+  $:  %1
+      records=(map key [=config why=@t =status])   ::  ours
+      display=(map key ?(%full %half))             ::  on contacts profile
+      ledgers=(map @p (unit @t))                   ::  services w/ base urls
+      queries=(map @uv (each [q=question:v1:l a=result:l] question:v1:l))
+      discovery=(map @p cursor)                    ::  last accepted bulk set
+      pending=(map @uv [host=@p bulk=(set identifier)])  ::  bulk in flight
+  ==
+::  $cursor: the %whose-bulk set a service last accepted, with the salt
+::
+::    the service charges a lookup only for new identifiers when the request
+::    proves it continues from the last accepted set. keeping that proof here,
+::    rather than on a client, lets every client of this ship continue from it,
+::    and a result the client never saw still advances it.
+::
++$  cursor  [salt=@ux last=(set identifier)]
 +$  key      [h=@p id=identifier]  ::TODO  use more widely
 +$  card     card:agent:gall
 ::
@@ -223,7 +241,7 @@
   (turn p (lead v))
 --
 ::
-=|  state-0
+=|  state-1
 =*  state  -
 ::
 =+  log=lo
@@ -247,10 +265,20 @@
 ::
 ++  on-load
   |=  ole=vase
-  ^-  (quip card _this)
-  =.  state  !<(state-0 ole)
-  :_  this
-  (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
+  |^  ^-  (quip card _this)
+      =/  old=state-any  !<(state-any ole)
+      =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+      ?>  ?=(%1 -.old)
+      =.  state  old
+      :_  this
+      (drop (inflate-contacts-profile [our now]:bowl records display ledgers))
+  ::
+  +$  state-any  $%(state-0 state-1)
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    s(- %1, queries [queries.s ~ ~])
+  --
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -357,8 +385,25 @@
     =/  upd=update:l  [%status key 'starting' %wait ~]
     [%give %fact (vp %v1 ~[/ /records]) %lanyard-update-1 !>(upd)]~
   ::
-      %lanyard-query-1
+      %lanyard-query-2
+    ?>  =(our src):bowl
     =+  !<(qer=query:l vase)
+    ?.  ?=([%whose-set *] query.qer)
+      $(mark %lanyard-query-1, vase !>(`query:v1:l`qer))
+    =/  =cursor
+      (~(gut by discovery) ?~(host.qer default u.host.qer) *cursor)
+    =*  ids  ids.query.qer
+    =/  =question:v1:l
+      :*  %whose-bulk
+          salt.cursor
+          last.cursor
+          (~(dif in ids) last.cursor)
+          (~(dif in last.cursor) ids)
+      ==
+    $(mark %lanyard-query-1, vase !>(`query:v1:l`qer(query question)))
+  ::
+      %lanyard-query-1
+    =+  !<(qer=query:v1:l vase)
     =/  [host=@p nonce=@]
       :-  ?~(host.qer default u.host.qer)
       ?^  nonce.qer  u.nonce.qer
@@ -366,6 +411,10 @@
       |-(?:((~(has by queries) non) $(non +(non)) non))
     ?<  (~(has by queries) nonce)
     ?.  ?=(%valid-jam -.query.qer)
+      =?  pending  ?=(%whose-bulk -.query.qer)
+        =*  qes  query.qer
+        %+  ~(put by pending)  nonce
+        [host (~(dif in (~(uni in last.qes) add.qes)) del.qes)]
       :_  this(queries (~(put by queries) nonce [%| query.qer]))
       ::TODO  time out query responses?
       =/  =cage
@@ -403,6 +452,14 @@
       %verifier-result
     =+  !<(res=query-result vase)
     =/  qer  (~(got by queries) nonce.res)
+    ::  the service now continues from the set it accepted. only the service
+    ::  we asked may answer, or another ship could move our cursor.
+    ::
+    =/  pen  (~(get by pending) nonce.res)
+    ?>  |(?=(~ pen) =(src.bowl host.u.pen))
+    =.  pending  (~(del by pending) nonce.res)
+    =?  discovery  &(?=(^ pen) ?=([* %whose-bulk *] res))
+      (~(put by discovery) host.u.pen [next-salt.res bulk.u.pen])
     =/  qes
       ?-  -.qer
         %|  p.qer
@@ -622,7 +679,7 @@
     ::  we don't keep query results around in state right now,
     ::  instead relying purely on subscription updates to get the result out.
     ::
-    :_  this(queries (~(del by queries) nonce))
+    :_  this(queries (~(del by queries) nonce), pending (~(del by pending) nonce))
     =/  upd=update:l  [%query nonce %fail 'poke nacked']
     [%give %fact (vp %v1 ~[/ /query /query/[i.t.wire]]) %lanyard-update-1 !>(upd)]~
   ::

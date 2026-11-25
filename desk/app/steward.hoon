@@ -662,6 +662,22 @@
   |=  [eyre-id=@ta code=@ud message=@t]
   ^+  cor
   (give-http eyre-id code 'text/plain' message)
+::
+::  +json-request: whether a request declares a JSON body
+::
+::  every module refuses a POST without one. a cross-site form can only
+::  send text/plain, urlencoded or multipart, and eyre's session cookie
+::  has no SameSite, so without this a page the owner visits could forge
+::  an edit or a finalize; requiring application/json forces a CORS
+::  preflight
+::
+++  json-request
+  |=  =inbound-request:eyre
+  ^-  ?
+  =/  ct  (get-header:http 'content-type' header-list.request.inbound-request)
+  ?~  ct  |
+  =(`0 (find "application/json" (cass (trip u.ct))))
+::
 ++  watch-journey-chat
   ^-  card
   [%pass /journey/chat %agent [our.bowl %chat] %watch /v4]
@@ -2029,6 +2045,10 @@
     =*  site  site.request-line
     =*  ext   ext.request-line
     =/  method=@tas  method.request.inbound-request
+    ?:  ?&  =(%'POST' method)
+            !(json-request inbound-request)
+        ==
+      (au-http-error eyre-id 415 'content-type must be application/json')
     ?:  =(site ~[%steward %~.~ %v1 %automation])
       ?.  =(%'POST' method)  (au-http-error eyre-id 405 'method not allowed')
       (au-handle-http-edit eyre-id inbound-request)
@@ -2877,13 +2897,8 @@
     =*  site  site.request-line
     =*  ext   ext.request-line
     =/  method=@tas  method.request.inbound-request
-    ::  every POST must declare a JSON body. a cross-site form can only send
-    ::  text/plain, urlencoded or multipart, and eyre's session cookie has no
-    ::  SameSite, so without this a page the owner visits could forge an edit
-    ::  or a finalize; requiring application/json forces a CORS preflight
-    ::
     ?:  ?&  =(%'POST' method)
-            !(po-json-request inbound-request)
+            !(json-request inbound-request)
         ==
       (po-http-error eyre-id 415 'content-type must be application/json')
     ?:  =(site ~[%steward %~.~ %v1 %prompts])
@@ -2916,13 +2931,6 @@
         (rap 3 i.t.t.t.t.t.site '.' u.ext ~)
       (po-handle-http-get-request eyre-id rid-knot)
     (po-http-error eyre-id 404 'not found')
-  ::
-  ++  po-json-request
-    |=  =inbound-request:eyre
-    ^-  ?
-    =/  ct  (get-header:http 'content-type' header-list.request.inbound-request)
-    ?~  ct  |
-    =(`0 (find "application/json" (cass (trip u.ct))))
   ::
   ::  POST body: { requestId?, bot, action }. malformed input is a 400,
   ::  never a crash. a client-supplied id is honored when it parses;

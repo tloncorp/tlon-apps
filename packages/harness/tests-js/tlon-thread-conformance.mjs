@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { Client, cookie, base } from './lib/ship-client.mjs'
+import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
 assert.equal(process.env.THREAD_TEST_TRUST, '1')
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST, extra = '~bud'
@@ -31,7 +32,7 @@ async function scry(path, remote = false) {
 }
 const page = () => scry(surface === 'dm' ? `chat/v4/dm/${ship}/writs/newest/32/heavy` : `channels/v5/${nest}/posts/newest/32/post`, true)
 const posts = async () => { const p = await page(); return Object.entries(p.writs || p.posts) }
-const matches = (essay, suffix) => essay?.author === ship && JSON.stringify(essay.content).includes(`${marker}-${surface}-${suffix}`)
+const matches = (essay, suffix) => authorShip(essay?.author) === ship && JSON.stringify(essay.content).includes(`${marker}-${surface}-${suffix}`)
 async function target() {
   const post = (await posts()).find(([key, p]) => surface === 'dm' ? p.seal.id === parentId : key === parentId)?.[1]
   return Object.values(post?.seal?.replies || {}).find((r) => r['reply-essay']?.author === peer && JSON.stringify(r['reply-essay'].content).includes(`${marker}-${surface}-thread`))
@@ -91,12 +92,14 @@ try {
   for (surface of ['dm', 'channel']) {
     mode = 'root'; await send()
     const root = await until(`${surface} parent established`, async () => (await posts()).find(([, p]) => matches(p.essay, mode)))
+    assertBotAuthor(root[1].essay.author, ship)
     parentId = surface === 'dm' ? root[1].seal.id : root[0]
     mode = 'outside'; await send()
     const outside = await until(`${surface} unrelated message established`, async () => (await posts()).find(([, p]) => matches(p.essay, mode)))
     unrelatedId = surface === 'dm' ? outside[1].seal.id : outside[0]
     mode = 'thread'; await send(parentId)
-    await until(`${surface} thread history and scoped reactions complete`, async () => (await posts()).some(([, p]) => Object.values(p.seal?.replies || {}).some((r) => matches(r['reply-essay'], 'thread-done'))))
+    const done = await until(`${surface} thread history and scoped reactions complete`, async () => (await posts()).flatMap(([, p]) => Object.values(p.seal?.replies || {})).find((r) => matches(r['reply-essay'], 'thread-done')))
+    assertBotAuthor(done['reply-essay'].author, ship)
     const saved = (await client.call('harness/tlon')).sessions
     await client.call('harness/tlon/configure', policy)
     assert.deepEqual((await client.call('harness/tlon')).sessions, saved)

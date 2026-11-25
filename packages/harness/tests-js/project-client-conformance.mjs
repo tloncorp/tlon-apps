@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { AcpClient } from '../acp/browser-client.mjs'
 import { options, deadline } from './lib/reliability.mjs'
 
-const config = options(process.env)
+const config = options()
 const realFetch = globalThis.fetch, savedDocument = globalThis.document
 const host = await realFetch(`${config.base}/~/host`, { signal: AbortSignal.timeout(5000), redirect: 'error' })
 assert.ok(host.ok, 'Local ship unavailable')

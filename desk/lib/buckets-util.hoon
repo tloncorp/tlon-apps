@@ -136,6 +136,12 @@
   |=  ms=@ud
   ^-  @da
   (from-unix:chrono:userlib (div ms 1.000))
+::  +broker-ok: whether a broker answer's status is a success.
+::
+++  broker-ok
+  |=  code=@ud
+  ^-  ?
+  &((gte code 200) (lth code 300))
 ::  +broker-body: the JSON object a broker answer carries, if it carries one.
 ::
 ++  broker-body

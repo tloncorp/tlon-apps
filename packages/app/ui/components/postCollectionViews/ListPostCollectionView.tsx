@@ -200,6 +200,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         setEditingPost={ctx.setEditingPost}
         channel={ctx.channel}
         collectionLayoutType={collectionLayoutType}
+        onReadyToDisplay={ctx.onFirstScreenShown}
         firstUnreadId={
           (ctx.initialChannelUnread?.countWithoutThreads ?? 0 > 0)
             ? ctx.initialChannelUnread?.firstUnreadPostId

@@ -19,6 +19,8 @@ export interface PostCollectionContextValue {
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
   initialChannelUnread?: db.ChannelUnread | null;
+  /** Called once the list's first screen of posts is on display. */
+  onFirstScreenShown?: () => void;
   isLoadingPosts: boolean;
   loadPostsError?: Error | null;
   onPressDelete: (post: db.Post) => void;

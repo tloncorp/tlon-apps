@@ -1,6 +1,7 @@
 ::  Pure social boundary: authentic source nouns -> allowed, addressed input.
 ::  Nicknames are presentation, never identity or authority. Sessions separate
-::  sender, destination and grant epoch so privilege cannot bleed across chats.
+::  destination and grant epoch; a channel's speakers share its session, and
+::  each speaker's authority is decided per turn.
 /-  t=harness-tlon, h=harness, a=activity-ver,
     cr=harness-cron, hh=harness-hand, c=channels
 /+  ht=harness-tools, hj=harness-json,
@@ -11,7 +12,7 @@
   |=  [job=job:cr hands=state:hh admitting=?]
   ^-  ?
   ?:  admitting  |
-  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(0 remaining.job)))  |
+  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(`0 remaining.job)))  |
   ?:  %+  lien  ~(val by observations.hands)
       |=  observation=observation:hh
       ?&  =(run-sid.job binding.observation)
@@ -100,16 +101,24 @@
   ==
 ::
 ++  session-id
-  |=  [epoch=@ud actor=@p to=destination:t]
+  |=  [epoch=@ud to=destination:t]
   ^-  @t
-  =/  surface=@t
-    ?-  -.to
-      %dm  ?~(parent.to 'dm' 'dm-thread')
-      %channel  (cat 3 (end 3^24 name.nest.to) ?~(parent.to '' '-thread'))
-    ==
   ::  Human-readable identity with a 128-bit scope suffix. Stable for this
-  ::  sender/destination/epoch, so later messages continue the same session.
-  (rap 3 (rsh 3^1 (scot %p actor)) '-' surface '-' (scot %uv (end 7^1 (sham [epoch actor to]))) ~)
+  ::  destination and epoch, so later messages continue the same session. A
+  ::  DM's hash keeps its partner, as before, so its id is unchanged; a
+  ::  channel's omits any speaker, so it never equals an earlier per-speaker
+  ::  channel id.
+  ?-  -.to
+      %dm
+    =/  surface=@t  ?~(parent.to 'dm' 'dm-thread')
+    =/  scope  (scot %uv (end 7^1 (sham [epoch who.to to])))
+    (rap 3 (rsh 3^1 (scot %p who.to)) '-' surface '-' scope ~)
+  ::
+      %channel
+    =/  surface=@t  (cat 3 (end 3^24 name.nest.to) ?~(parent.to '' '-thread'))
+    =/  scope  (scot %uv (end 7^1 (sham [epoch to])))
+    (rap 3 (rsh 3^1 (scot %p ship.nest.to)) '-' surface '-' scope ~)
+  ==
 ::
 ++  normalize
   |=  [our=@p policy=policy:t event=incoming-event:v8:a]
@@ -151,9 +160,18 @@
     ~
   ::  A DM's partner must be its source author, not an asserted third party.
   ?:  &(?=(%dm -.to.u.item) !=(who.to.u.item actor.u.item))  ~
-  ?:  |(=('' text.u.item) (gth (met 3 text.u.item) 65.536))  ~
-  =/  id=@t  (scot %uv (sham [to.u.item key.u.item]))
-  `[actor.u.item id to.u.item text.u.item]
+  ::  A channel message is observed with its speaker's prefix, which must
+  ::  still fit the hand's limit.
+  =/  limit
+    ?:(?=(%dm -.to.u.item) 65.536 (sub 65.536 attribution-limit:input))
+  ?:  |(=('' text.u.item) (gth (met 3 text.u.item) limit))  ~
+  `[actor.u.item (event-id to.u.item key.u.item) to.u.item text.u.item]
+::  +event-id: the hand's name for one native message at one destination
+::
+++  event-id
+  |=  [to=destination:t key=message-key:a]
+  ^-  @t
+  (scot %uv (sham [to key]))
 ::
 ++  policy-json
   |=  policy=policy:t

@@ -2799,9 +2799,10 @@
       ::
           %add
         =*  reply-essay  reply-essay.delta
-        =?  unread-threads.remark.dm  !=(our.bowl author.reply-essay)
+        =/  author  (get-author-ship:utils author.reply-essay)
+        =?  unread-threads.remark.dm  !=(our.bowl author)
             (~(put in unread-threads.remark.dm) p.diff)
-        =?  last-read.remark.dm  =(author.reply-essay our.bowl)
+        =?  last-read.remark.dm  =(author our.bowl)
           (add now.bowl (div ~s1 100))
         =.  recency.remark.dm  now.bowl
         =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))

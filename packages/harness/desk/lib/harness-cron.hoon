@@ -1,4 +1,5 @@
-::  Strict five-field UTC cron. Pure calendar logic, no timers or inference.
+::  Strict five-field cron on the UTC calendar or at one fixed offset. Pure
+::  calendar logic, no timers, inference or daylight-saving rules.
 /-  c=harness-cron
 |%
 ::
@@ -112,6 +113,18 @@
     $(remaining t.remaining)
   ?^  found  found
   $(days-searched +(days-searched), day (add day ~d1))
+::
+++  next-at-offset
+  |=  [pattern=pattern:c offset=[east=? delta=@dr] after=@da]
+  ^-  (unit @da)
+  ::  A fixed offset is a constant shift, so the UTC search runs unchanged on
+  ::  local civil time and day, month and weekday match the local date. The
+  ::  match shifts back to the instant it names; order and horizon survive.
+  =/  shift
+    |=  [east=? at=@da]
+    ?:(east (add at delta.offset) (sub at delta.offset))
+  %+  bind  (next pattern (shift east.offset after))
+  |=(at=@da (shift !east.offset at))
 ::
 ++  event
   |=  [id=@uv at=@da]
