@@ -19,7 +19,7 @@ import { canonicalShip } from './people.mjs'
 // The head's largest run count.
 export const maxRuns = 1_000_000
 export const capacity = 64
-const maxPromptBytes = 4096
+const maxPromptBytes = 8192
 const day = 86_400_000
 const horizon = 3653 * day
 const soon = 30 * day

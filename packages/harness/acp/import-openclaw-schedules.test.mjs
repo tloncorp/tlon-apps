@@ -109,11 +109,11 @@ test('only enabled agent turns on a plain cron or one-time schedule are imported
   assert.match(planned({ trigger: { script: 'exit 0' } }).refuse, /trigger script/)
 })
 
-test('a prompt must be 1 to 4,096 bytes', () => {
+test('a prompt must be 1 to 8,192 bytes', () => {
   assert.equal(planned({ payload: { message: '  ' } }).refuse, 'empty prompt')
   assert.equal(planned({ payload: { message: undefined } }).refuse, 'empty prompt')
-  assert.ok(planned({ payload: { message: 'é'.repeat(2048) } }).import)
-  assert.match(planned({ payload: { message: `${'é'.repeat(2048)}x` } }).refuse, /prompt of 4097 bytes; Harness takes at most 4096/)
+  assert.ok(planned({ payload: { message: 'é'.repeat(4096) } }).import)
+  assert.match(planned({ payload: { message: `${'é'.repeat(4096)}x` } }).refuse, /prompt of 8193 bytes; Harness takes at most 8192/)
 })
 
 test('tool lists: none or every tool imports, OpenClaw\'s default list imports with its size, and any other list needs --widen-tools', () => {

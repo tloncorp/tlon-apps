@@ -644,7 +644,7 @@
         'Schedule a recurring prompt through this conversation hand, delivered only to this exact destination. The shared Harness scheduler runs an isolated conversation with the current permission ceiling. The timezone is UTC or a fixed offset the user gave; a fixed offset does not follow daylight saving, and IANA zone names are rejected. Never guess a local timezone. Without runs it repeats until cancelled; give runs whenever the user asked for a number of times or an end. Each run uses the durable input/publication ledger.'
       :~  ['schedule' 'Five-field cron expression, evaluated in timezone']
           ['timezone' 'UTC, or a fixed offset +HH:MM or -HH:MM such as -06:00 or +05:30; never an IANA name, and no daylight saving']
-          ['prompt' 'Instruction for each run, at most 4096 bytes']
+          ['prompt' 'Instruction for each run, at most 8192 bytes']
           ['runs' 'Optional number of runs, a decimal integer string from 1 to 1000000. Leave it out only for work that repeats until cancelled']
       ==
       %-  fun
@@ -675,7 +675,7 @@
               :-  'prompt'
               %+  argument
                 'string'
-              'Self-contained work brief with internal coordination and human deliverable clearly separated, 1..4096 UTF-8 bytes'
+              'Self-contained work brief with internal coordination and human deliverable clearly separated, 1..8192 UTF-8 bytes'
           ==
           ~['at' 'prompt']
       ==

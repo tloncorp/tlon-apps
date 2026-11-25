@@ -17,12 +17,12 @@ out of everyone else's.
 ## Tasks and literal reminders
 
 `schedule_once` takes a future RFC3339 `at` within 10 years, with `Z` or an
-explicit UTC offset, and a self-contained `prompt` (1–4,096 UTF-8 bytes).
+explicit UTC offset, and a self-contained `prompt` (1–8,192 UTF-8 bytes).
 It runs inference once at that exact time. Include the necessary brief and
 authorized sources: the isolated agent does not receive the source transcript.
 Use this for one-time work and `cron_add` for recurring work.
 
-`cron_add` requires `schedule`, `timezone` and `prompt` (1–4,096 UTF-8 bytes).
+`cron_add` requires `schedule`, `timezone` and `prompt` (1–8,192 UTF-8 bytes).
 `runs` is optional: a decimal string for a count from 1 to 1,000,000, after
 which the job completes. The ceiling only keeps the count exact in listings,
 which give it as a JSON number; it does not limit recurring work. Without
@@ -152,7 +152,7 @@ These are refused, with the reason:
   hook session (`session:hook:…`), one whose payload has an
   `externalContentSource`, and one that sets `allowUnsafeExternalContent`.
   Harness would run that text as the owner's own instruction;
-- an empty prompt or one over 4,096 bytes;
+- an empty prompt or one over 8,192 bytes;
 - a tool list that held the task to fewer tools than its conversation may
   give it, since a schedule runs with its conversation's tools. A task with
   no `toolsAllow`, or with `["*"]`, is imported; so is one with OpenClaw's

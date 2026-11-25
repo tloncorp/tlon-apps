@@ -45,11 +45,11 @@ function job({ name, schedule, delivery, payload, ...rest }) {
 }
 const cron = (minute, tz) => ({ kind: 'cron', expr: `${minute} 9 1 ${month} *`, tz })
 const jobs = {
-  dm: job({ name: 'dm', schedule: cron(0, 'America/New_York'), delivery: { to: `tlon:${owner}` } }),
+  dm: job({ name: 'dm', payload: { message: 'é'.repeat(4096) }, schedule: cron(0, 'America/New_York'), delivery: { to: `tlon:${owner}` } }),
   dmBare: job({ name: 'dm-bare', schedule: cron(5, 'Asia/Kolkata'), delivery: { to: owner } }),
   channel: job({ name: 'channel', schedule: cron(10, 'UTC'), delivery: { to: `tlon:${nest}` } }),
   channelBare: job({ name: 'channel-bare', schedule: cron(15, 'America/Los_Angeles'), delivery: { to: nest } }),
-  once: job({ name: 'once', schedule: { kind: 'at', at: once }, delivery: { to: `dm/${owner}` } }),
+  once: job({ name: 'once', payload: { message: 'x'.repeat(8192) }, schedule: { kind: 'at', at: once }, delivery: { to: `dm/${owner}` } }),
   missing: job({ name: 'missing', schedule: cron(20, 'America/Chicago'), delivery: { to: `tlon:chat/${owner}/no-such-channel` } }),
   tools: job({ name: 'tools', schedule: cron(25, 'America/Chicago'), delivery: { to: `tlon:${nest}` }, payload: { toolsAllow: ['web_search', 'web_fetch'] } }),
   silent: job({ name: 'silent', schedule: cron(30, 'UTC'), delivery: { mode: 'none' } }),
