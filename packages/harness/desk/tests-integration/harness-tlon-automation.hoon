@@ -3,7 +3,8 @@
 ::  Steward and the head are answered by the fixture's scries and facts;
 ::  their pokes stay in the fixture.
 /-  t=harness-tlon, c=harness-cron, hh=harness-hand, sa=steward-automation,
-    steward-gateway, ad=harness-adapter, h=harness
+    steward-gateway, ad=harness-adapter, h=harness, g=groups-ver,
+    d=channels-ver
 /+  *test-agent, schedule=harness-schedule, continuity=harness-tlon-continuity,
     hj=harness-json
 /=  adapter  /app/harness-tlon
@@ -854,6 +855,57 @@
   ;<  *  bind:m  (boot-from muted & &)
   %+  refused  'chat/~zod/general'
   "the bot's replies are off in chat/~zod/general; turn them on in its Tlon settings"
+::
+::  ~zod holds a seat, joined at .joined, in ~bus's group with
+::  chat/~bus/general, whose writers are empty; .write is what groups'
+::  can-write scry answers for the bot there.
+::
+++  member-of
+  |=  [joined=@da write=(unit [admin=? roles=(set @tas)])]
+  =/  base  (scries & &)
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)
+    =/  group=group:v9:g  *group:v9:g
+    =.  seats.group  (my ~[[~zod [~ joined]]])
+    =.  channels.group  (my ~[[[%chat ~bus %general] *channel:v9:g]])
+    `!>(`groups:v9:g`(my ~[[[~bus %club] group]]))
+  ?:  ?=([%gx @ %channels @ %chat %'~bus' %general %perm %channel-perm ~] path)
+    `!>(`perm:v9:d`[~ [~bus %club]])
+  ?:  ?=  $:  %gx  @  %groups  @  %v2  %groups  %'~bus'  %club
+              %channels  %chat  %'~bus'  %general  %can-write  %'~zod'  %noun  ~
+          ==
+      path
+    `!>(write)
+  (base path)
+::  The bot posts where groups says it may write. A ban keeps its seat, but
+::  groups answers nothing for a banned ship, so it cannot post there.
+::
+++  test-a-channel-the-bot-is-banned-from-is-invalid-and-opens-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  refused
+    "the bot cannot post in chat/~bus/general; add it to the channel with permission to write"
+  ;<  *  bind:m  (boot-from unopened & &)
+  ;<  ~  bind:m  (set-scry-gate (member-of ~2026.1.1 ~))
+  ;<  caz=(list card)  bind:m  (dispatch 0v9 (brief 'chat/~bus/general'))
+  ;<  ~  bind:m  (ex-equal !>((head-acts caz)) !>(`(list action:h)`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answers caz))
+    !>(`(list response:v1:sa)`~[[0v9 %error %invalid ~[leaf+refused]]])
+  ::  a seat not yet joined
+  ;<  ~  bind:m  (set-scry-gate (member-of `@da`0 `[& ~]))
+  ;<  caz=(list card)  bind:m  (dispatch 0va (brief 'chat/~bus/general'))
+  ;<  ~  bind:m  (ex-equal !>((head-acts caz)) !>(`(list action:h)`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answers caz))
+    !>(`(list response:v1:sa)`~[[0va %error %invalid ~[leaf+refused]]])
+  ;<  ~  bind:m  (set-scry-gate (member-of ~2026.1.1 `[| ~]))
+  ;<  caz=(list card)  bind:m  (dispatch 0vb (brief 'chat/~bus/general'))
+  =/  created  (head-acts caz)
+  ?>  ?=([[%new *] ~] created)
+  (ex-equal !>(sid.i.created) !>((sid-of [%channel [%chat ~bus %general] ~])))
 ::
 ++  test-a-failed-open-answers-the-waiting-create
   %-  eval-mare

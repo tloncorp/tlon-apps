@@ -1,7 +1,6 @@
 ::  One revision-checked conversation policy for native and hosted settings.
 /-  t=harness-tlon, g=groups-ver, c=channels, d=channels-ver
-/+  p=harness-tlon-policy, j=harness-workspace-json, paths=harness-tlon-paths,
-    group-policy=harness-tlon-group-policy
+/+  p=harness-tlon-policy, j=harness-workspace-json, paths=harness-tlon-paths
 |%
 ::
 ++  revision
@@ -186,21 +185,18 @@
 ++  error
   |=  [status=@ud message=@t]
   (envelope status (pairs:enjs:format ~[['error' %s message]]))
-::  +writable: whether .who may post in .nest of .group, hosted at .host,
-::  whose writers are .writers. This is the backend's rule, +can-write in
-::  channel-utils with the groups can-write scry it reads: the channel's
-::  host may; anyone else needs a joined seat, and to be an admin, or the
-::  writers to be empty, or a role among them.
+::  +writable: whether a ship may post in a channel whose writers are
+::  .writers, given groups' can-write answer for it: nothing for a ship
+::  without a seat or a banned one, else whether it is an admin and its
+::  roles. This is +can-write in channel-utils.
 ::
 ++  writable
-  |=  [who=@p host=@p nest=nest:g group=group:v9:g writers=(set @tas)]
+  |=  [writers=(set @tas) write=(unit [admin=? roles=(set @tas)])]
   ^-  ?
-  ?:  =(who p.q.nest)  &
-  ?~  seat=(~(get by seats.group) who)  |
-  ?:  =(0 joined.u.seat)  |
-  ?|  (admin:group-policy who host group)
+  ?~  write  |
+  ?|  admin.u.write
       =(~ writers)
-      !=(~ (~(int in writers) roles.u.seat))
+      !=(~ (~(int in writers) roles.u.write))
   ==
 ::
 ++  directory
@@ -241,7 +237,8 @@
       ==
     (native who nest)
   ::  +can-write: whether our ship may post in .nest. Writers come from our
-  ::  copy of the channel, which exists only once we have joined it.
+  ::  copy of the channel, which exists only once we have joined it, and
+  ::  groups answers for our seat, bans and roles from our copy of the group.
   ::
   ++  can-write
     |=  nest=nest:g
@@ -251,10 +248,18 @@
     %+  lien  ~(tap by groups)
     |=  [flag=flag:g group=group:v9:g]
     ?.  (~(has by channels.group) nest)  |
+    ?~  seat=(~(get by seats.group) our.bowl)  |
+    ?:  =(0 joined.u.seat)  |
     =/  perm=(unit perm:v9:d)
       %-  mole  |.
       .^(perm:v9:d %gx (channel-permissions:~(. paths [our now]:bowl) nest))
     ?~  perm  |
-    (writable our.bowl -.flag nest group writers.u.perm)
+    =/  write=(unit (unit [admin=? roles=(set @tas)]))
+      %-  mole  |.
+      .^  (unit [admin=? roles=(set @tas)])  %gx
+        (group-can-write:~(. paths [our now]:bowl) flag nest our.bowl)
+      ==
+    ?~  write  |
+    (writable writers.u.perm u.write)
   --
 --

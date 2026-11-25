@@ -146,33 +146,28 @@
   =/  result  (chat-apply:permissions policy (need (de:json:html body)))
   ?>  ?=(%| -.result)
   (expect-eq !>(400) !>(status.p.result))
-::  The bot is ~zod, in a channel of ~nec's group whose admins hold %admin.
+::  groups' can-write answer is nothing for a ship without a seat or a
+::  banned one, else whether it is an admin and its roles.
 ::
 ++  test-the-bot-can-write-only-where-it-is-a-member-with-a-writer-role-or-admin
-  =/  nest=nest:g  [%chat ~nec %general]
-  =/  group=group:v9:g  *group:v9:g
-  =.  admins.group  (silt ~[%admin])
-  =/  as
-    |=  [roles=(list @tas) joined=@da]
-    ^-  group:v9:g
-    group(seats (my ~[[~zod [(silt roles) joined]]]))
-  =/  writes
-    |=  [=group:v9:g writers=(list @tas)]
-    (writable:permissions ~zod ~nec nest group (silt writers))
+  =/  seat
+    |=  [admin=? roles=(list @tas)]
+    ^-  (unit [admin=? roles=(set @tas)])
+    `[admin (silt roles)]
   ;:  weld
-      ::  host
-      (expect !>((writable:permissions ~nec ~nec nest *group:v9:g (silt ~[%poster]))))
-      ::  not a member, or a seat not yet joined
-      (expect !>(!(writes group ~)))
-      (expect !>(!(writes (as ~ `@da`0) ~)))
       ::  member, empty writers
-      (expect !>((writes (as ~ ~2026.1.1) ~)))
+      (expect !>((writable:permissions ~ (seat | ~))))
       ::  member without, and with, a writer role
-      (expect !>(!(writes (as ~[%member] ~2026.1.1) ~[%poster])))
-      (expect !>((writes (as ~[%member %poster] ~2026.1.1) ~[%poster])))
-      ::  admin by role, and as the group's host
-      (expect !>((writes (as ~[%admin] ~2026.1.1) ~[%poster])))
-      %-  expect
-      !>((writable:permissions ~zod ~zod nest (as ~ ~2026.1.1) (silt ~[%poster])))
+      (expect !>(!(writable:permissions (silt ~[%poster]) (seat | ~[%member]))))
+      (expect !>((writable:permissions (silt ~[%poster]) (seat | ~[%member %poster]))))
+      ::  admin
+      (expect !>((writable:permissions (silt ~[%poster]) (seat & ~))))
+  ==
+::  A banned bot keeps its seat, but groups answers nothing for it.
+::
+++  test-a-banned-bot-cannot-write-even-where-anyone-may
+  ;:  weld
+      (expect !>(!(writable:permissions ~ ~)))
+      (expect !>(!(writable:permissions (silt ~[%poster]) ~)))
   ==
 --

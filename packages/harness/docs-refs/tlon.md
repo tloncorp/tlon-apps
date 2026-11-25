@@ -1055,8 +1055,9 @@ job's run binding, `schedule-` and its id, must fit the head's 128-byte limit.
   is created in that binding. The owner's DM can always be opened while the
   hand is on. A channel can be opened when the bot's replies there are not
   off and the bot can post in it: it hosts the channel, or it has joined the
-  channel's group and is an admin there, or the channel has no writer roles,
-  or one of its roles is a writer. Otherwise the create answers `invalid`
+  channel's group, is not banned there, and is an admin there, or the channel
+  has no writer roles, or one of its roles is a writer, as the group's
+  can-write scry answers. Otherwise the create answers `invalid`
   with the reason: `the bot cannot post in chat/~host/name; add it to the
   channel with permission to write`, `the bot's replies are off in
   chat/~host/name; turn them on in its Tlon settings`, or, with the hand off,
