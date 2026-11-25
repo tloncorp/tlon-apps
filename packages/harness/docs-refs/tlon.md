@@ -499,14 +499,28 @@ turn escapes this: the owner's in the owner's DM, or the operator's own local
 prompt. An operator can deliberately install reusable instructions outside a
 social conversation.
 
-For a channel thread, ordinary message admission captures the native parent
-and up to eight recent replies as attributed public reference material. The
-snapshot records destination, message IDs, ships, timestamps and clipped text
-separately from the current input. It never reads another actor's Harness log or
-notes, and it grants no execution authority. Its encoded message budget is 6 KB;
-each message has the history reader's 800-byte text limit. Snapshots may omit
-older replies. Commands do not retrieve or interpret this material. DMs and
-top-level channel conversations receive no automatic cross-message context.
+Ordinary message admission captures public reference material for the turn,
+separately from the current input. For a channel thread it is the native parent
+and up to eight recent replies. For a top-level channel conversation it is up
+to twenty recent top-level posts. The message being admitted is left out, and
+so is any other message still waiting to be admitted to the same conversation,
+queued behind a running turn included:
+each arrives as an input of its own. The snapshot records destination, message
+IDs, ships, timestamps and clipped text. It never reads another actor's Harness
+log or notes, and it grants no execution authority. Its encoded budget is 6 KB;
+each message has the history reader's 800-byte text limit. A snapshot over
+budget omits its oldest messages. Commands do not retrieve or interpret this
+material. DMs receive no automatic cross-message context.
+
+A ship that has a Contacts nickname is shown with it, as `~ship (Nickname)`:
+in the prefix that names a channel message's speaker, and as the author of each
+message in the reference. The nickname loses control characters, parentheses
+and square brackets, and is cut to 50 bytes. A DM message has no prefix, so a
+DM turn whose partner has a nickname gets a one-line contact reference with it.
+The nickname is the one the ship published in its own Contacts profile. A name
+set for it on this ship is private to the ship and is never shown, since a
+channel's other members would see it. It is a label, and the channel instructions and
+each reference say so; identity and authority stay with the ship.
 
 ## Thinking and tool activity
 
@@ -659,7 +673,8 @@ messaging the sender.
 - The exact destination determines the stable conversation: a DM, a channel
   and each thread in either have one conversation each. Every admitted speaker
   in a channel shares its conversation, and each message there reaches the
-  model prefixed with its speaker's ship and a colon. Text the head parses as
+  model prefixed with its speaker's ship, the ship's nickname in parentheses
+  when it has one, and a colon. Text the head parses as
   a command, such as `/stop`, stays as written so it is still a command; other
   text that starts with a slash, such as a path, is prefixed. A channel does not share the owner's
   private DM transcript, and a speaker never gets another speaker's grants.

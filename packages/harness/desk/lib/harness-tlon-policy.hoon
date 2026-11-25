@@ -165,8 +165,13 @@
   =/  limit
     ?:(?=(%dm -.to.u.item) 65.536 (sub 65.536 attribution-limit:input))
   ?:  |(=('' text.u.item) (gth (met 3 text.u.item) limit))  ~
-  =/  id=@t  (scot %uv (sham [to.u.item key.u.item]))
-  `[actor.u.item id to.u.item text.u.item]
+  `[actor.u.item (event-id to.u.item key.u.item) to.u.item text.u.item]
+::  +event-id: the hand's name for one native message at one destination
+::
+++  event-id
+  |=  [to=destination:t key=message-key:a]
+  ^-  @t
+  (scot %uv (sham [to key]))
 ::
 ++  policy-json
   |=  policy=policy:t
