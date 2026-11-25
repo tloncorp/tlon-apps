@@ -91,9 +91,14 @@
 ::
 ++  configure
   |=  [saved=state-5:t next=policy:t]
+  (configure-at ~2026.9.10 saved next)
+::  +configure, saving at .now.
+::
+++  configure-at
+  |=  [now=@da saved=state-5:t next=policy:t]
   =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
-  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
+  ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
   ;<  ~  bind:m  head-connected
   ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a))
   ;<  *  bind:m  (do-load adapter `!>(saved))
@@ -463,9 +468,29 @@
   %+  ex-equal
     !>((turn ~(val by jobs.w) |=(=job:t event.input.job)))
   !>(`(list @t)`~[(scot %uv (sham [bud-dm [[~bud later] later]]))])
+::  ~dev holds the room, and its room cutoff is later than its ship-wide
+::  one. A room mention from between the two stays unanswered.
+::
+++  test-a-place-cutoff-later-than-the-ship-cutoff-holds-back-earlier-messages
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  cuts.saved  (my ~[[~dev ~2026.9.7]])
+  =.  place-cuts.saved  (my ~[[[~dev `room-nest] ~2026.9.9..18.00.00]])
+  ;<  [* s=state-5:t]  bind:m
+    %+  admit  saved
+    :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
+        [~2026.9.9..20.00.00 (mention ~dev room-nest ~2026.9.9..20.00.00)]
+    ==
+  =/  later  ~2026.9.9..20.00.00
+  %+  ex-equal
+    !>((turn ~(val by jobs.s) |=(=job:t event.input.job)))
+  !>(`(list @t)`~[(scot %uv (sham [room [[~dev later] later]]))])
 ::  ~dev is allowed and holds the room. Taking it off the allowed list moves
-::  its ship-wide cutoff past its room cutoff; a later unrelated save keeps
-::  that cutoff, so a room mention from between the two stays unanswered.
+::  its ship-wide cutoff past its room cutoff; an unrelated save hours later
+::  keeps that cutoff, so a room mention from before the first save stays
+::  unanswered and one from between the saves is answered.
 ::
 ++  test-a-ships-ship-wide-cutoff-survives-later-saves-while-it-holds-a-place-grant
   %-  eval-mare
@@ -480,14 +505,14 @@
   ;<  [* s=state-5:t]  bind:m  (configure saved first)
   =/  second  first
   =.  allowed.second  (silt ~[~bud ~nus])
-  ;<  [* w=state-5:t]  bind:m  (configure s second)
+  ;<  [* w=state-5:t]  bind:m  (configure-at ~2026.9.10..06.00.00 s second)
   ;<  ~  bind:m  (ex-equal !>((~(get by cuts.w) ~dev)) !>(`(unit @da)``~2026.9.10))
   ;<  [* u=state-5:t]  bind:m
     %+  admit  w
     :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
-        [~2026.9.10..00.00.01 (mention ~dev room-nest ~2026.9.10..00.00.01)]
+        [~2026.9.10..03.00.00 (mention ~dev room-nest ~2026.9.10..03.00.00)]
     ==
-  =/  later  ~2026.9.10..00.00.01
+  =/  later  ~2026.9.10..03.00.00
   %+  ex-equal
     !>((turn ~(val by jobs.u) |=(=job:t event.input.job)))
   !>(`(list @t)`~[(scot %uv (sham [room [[~dev later] later]]))])
