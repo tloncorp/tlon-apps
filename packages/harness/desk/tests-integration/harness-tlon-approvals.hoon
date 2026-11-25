@@ -1010,6 +1010,19 @@
   ;<  granted=vase  bind:m  get-save
   ;<  ~  bind:m  (ex-equal !>((open !<(state-6:t granted))) !>(`(set [@p place:t])`~))
   (ex-equal !>((weld (rsvps loaded) (rsvps woken))) !>(`(list [@p ?])`~[[~dev &] [~dev &]]))
+::  Before expiry, only the tool's own cleanup can close the request.
+::
+++  test-accepting-an-invitation-before-its-request-expires-closes-it-and-declines-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'd1' [~dev ~ start])
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (call-tool saved (add start ~h1) '{"action":"accept_dm","ship":"~dev"}')
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>(`(set [@p place:t])`~))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-expired')) !>(0))
+  (ex-equal !>((dm-effects caz)) !>(`(list [@tas @p])`~[[%accept ~dev]]))
 ::  A message into a pending DM accepts its invitation in %chat, so a decline
 ::  after it would delete the DM.
 ::
