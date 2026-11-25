@@ -503,7 +503,8 @@ Ordinary message admission captures public reference material for the turn,
 separately from the current input. For a channel thread it is the native parent
 and up to eight recent replies. For a top-level channel conversation it is up
 to twenty recent top-level posts. The message being admitted is left out, and
-so is any other message still waiting to be admitted to the same conversation:
+so is any other message still waiting to be admitted to the same conversation,
+queued behind a running turn included:
 each arrives as an input of its own. The snapshot records destination, message
 IDs, ships, timestamps and clipped text. It never reads another actor's Harness
 log or notes, and it grants no execution authority. Its encoded budget is 6 KB;
@@ -516,8 +517,9 @@ in the prefix that names a channel message's speaker, and as the author of each
 message in the reference. The nickname loses control characters, parentheses
 and square brackets, and is cut to 50 bytes. A DM message has no prefix, so a
 DM turn whose partner has a nickname gets a one-line contact reference with it.
-The nickname is the one Contacts shows for the ship: its own, or the one set
-for it on this ship. It is a label, and the channel instructions and
+The nickname is the one the ship published in its own Contacts profile. A name
+set for it on this ship is private to the ship and is never shown, since a
+channel's other members would see it. It is a label, and the channel instructions and
 each reference say so; identity and authority stay with the ship.
 
 ## Thinking and tool activity

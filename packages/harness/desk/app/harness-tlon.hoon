@@ -2338,12 +2338,24 @@
       ==
     ~
   =/  to  to.u.lane
-  ::  Inputs still waiting on this conversation: their messages are not
-  ::  repeated as history.
+  ::  Inputs still waiting on this conversation, here or queued in the head
+  ::  behind a running turn: their messages are not repeated as history.
   =/  waiting=(list input:t)
     %+  murn  ~(val by jobs)
     |=(=job:t ?.(=(sid sid.job) ~ `input.job))
-  =/  events  (~(gas in *(set @t)) (turn waiting |=(=input:t event.input)))
+  =/  hands  ledger
+  =/  events
+    %-  ~(gas in *(set @t))
+    %+  weld  (turn waiting |=(=input:t event.input))
+    %+  murn  ~(tap in open:hand-index)
+    |=  id=@uv
+    =/  seen  (~(get by observations.hands) id)
+    ?~  seen  ~
+    ?.  ?&  =(binding binding.u.seen)
+            ?=(?(%queued %running) phase.u.seen)
+        ==
+      ~
+    `event.u.seen
   =/  render
     |=  [parent=(unit message:history-page) rows=(list row:history-page)]
     (render:public-context to parent rows events nickname:messenger)
