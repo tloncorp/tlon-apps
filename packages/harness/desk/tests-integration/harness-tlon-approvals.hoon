@@ -493,7 +493,7 @@
   %+  ex-equal
     !>(approvals.s)
   !>(`approvals:t`[(my ~[[id [~dev `room-nest start]]]) (my ~[[[~dev `room-nest] id]])])
-++  test-the-cards-buttons-send-allow-reject-and-ban-with-the-requests-id
+++  test-the-cards-buttons-send-allow-reject-and-ban-with-the-requests-id-and-ship
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -506,9 +506,9 @@
   %+  ex-equal
     !>((buttons blob.i.cards))
   !>  ^-  (list [@t @t])
-      :~  ['Allow' (cat 3 '/allow ' id)]
-          ['Reject' (cat 3 '/reject ' id)]
-          ['Block' (cat 3 '/ban ' id)]
+      :~  ['Allow' (rap 3 '/allow ' id ' ~dev' ~)]
+          ['Reject' (rap 3 '/reject ' id ' ~dev' ~)]
+          ['Block' (rap 3 '/ban ' id ' ~dev' ~)]
       ==
 ++  test-a-message-from-a-ship-without-access-is-never-admitted-as-a-turn
   %-  eval-mare
@@ -1434,6 +1434,36 @@
   ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
   ;<  ~  bind:m  (ex-equal !>((lent (answered caz))) !>(1))
   (ex-equal !>((turned caz)) !>(|))
+::  A stale card's button: its request closed and ~wes's later request got
+::  its id, or its id begins a longer open id. Neither acts.
+::
+++  test-a-button-acts-only-on-its-own-ships-request-with-that-exact-id
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  recycled  asked
+  =.  approvals.recycled
+    (open:ask (close:ask approvals.recycled 'c0001') 'c0001' [~wes `all-nest start])
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit recycled later ~[[told (said ~nec '/allow c0001 ~dev' told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.recycled))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #c0001']])
+  =/  extended  asked
+  =.  approvals.extended
+    (open:ask (close:ask approvals.extended 'c0001') 'c00011234' [~dev `room-nest start])
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit extended later ~[[told (said ~nec '/ban c0001 ~dev' told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.extended))
+  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #c0001']])
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit extended later ~[[told (said ~nec '/reject c0001' told)]])
+  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['d0001' 'c0002'])))
 ::  With several open, unlike OpenClaw, a bare command acts on none and
 ::  lists them; with one, it acts on that one; with none, it says so.
 ::

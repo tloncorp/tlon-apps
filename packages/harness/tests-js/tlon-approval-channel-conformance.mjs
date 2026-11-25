@@ -153,8 +153,8 @@ try {
   assert.equal(parts.get('context2').text, `Group: ${slug}`)
   assert.ok(parts.get('copy').text.includes(sentText('mention')))
   const buttons = ['allow', 'reject', 'ban'].map((id) => [parts.get(parts.get(id).child).text, parts.get(id).action.event.context.text])
-  assert.deepEqual(buttons, [['Allow', `/allow ${request.id}`], ['Reject', `/reject ${request.id}`], ['Block', `/ban ${request.id}`]])
-  console.log('PASS the card names the peer, the channel and its message, and its buttons carry the request id')
+  assert.deepEqual(buttons, [['Allow', `/allow ${request.id} ${peer}`], ['Reject', `/reject ${request.id} ${peer}`], ['Block', `/ban ${request.id} ${peer}`]])
+  console.log('PASS the card names the peer, the channel and its message, and its buttons carry the request id and ship')
 
   const [parent] = await posted('mention')()
   await reply(parent, 'thread')

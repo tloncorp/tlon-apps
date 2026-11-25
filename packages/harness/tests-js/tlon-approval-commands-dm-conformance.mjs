@@ -36,7 +36,7 @@ try {
   const entry = JSON.parse(card.essay.blob)[0]
   const parts = new Map(entry.messages.find((message) => message.updateComponents).updateComponents.components.map((c) => [c.id, c]))
   const allow = parts.get('allow').action.event.context.text
-  assert.equal(allow, `/allow ${request.id}`)
+  assert.equal(allow, `/allow ${request.id} ${guest.ship}`)
 
   // The app sends a tapped button's text with a selection receipt in the blob.
   const tapped = t.da(Date.now())

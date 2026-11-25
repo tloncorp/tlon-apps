@@ -618,9 +618,10 @@ by every author.
 - When a request opens, the bot sends the owner, in the owner's DM with the
   bot, the approval card the OpenClaw plugin sends: who wrote and where, the
   first 100 characters of the message when the bot can read it, and Allow,
-  Reject and Block buttons. A tap sends the owner's DM post `/allow <id>`,
-  `/reject <id>` or `/ban <id>`, the approval commands below, so a tap and
-  the same text typed have the same effect. The id is `d` for a DM or `c` for
+  Reject and Block buttons. A tap sends the owner's DM post `/allow <id>
+  ~ship`, `/reject <id> ~ship` or `/ban <id> ~ship`, the approval commands
+  below with the request's ship, so a tap and the same text typed have the
+  same effect. The id is `d` for a DM or `c` for
   a channel and four hex digits, or eight hex digits when ten tries at four
   collide with open requests; it is unique among open requests. The card is
   sent once, not again for later messages.
@@ -746,6 +747,12 @@ hand handles no message from its own ship.
   gets `No pending approval found for ID: #<id>`, or `No pending approval
   found.` with no id; ids are unique only among open requests and are not
   remembered once closed.
+- When a ship follows the id after one space, as the card's buttons send it,
+  the id must be exact, with no prefix match, and the request must be that
+  ship's; otherwise the command gets the unknown-id reply. A stale card's
+  button therefore never acts on a later request that reused its id, or on
+  one whose longer id begins with it. A command typed without a ship keeps
+  the prefix match. OpenClaw's buttons send the id alone.
 - `/allow` gives the ship access in the request's place only, as a settings
   save that adds a per-place grant does, with the same cutoffs and
   cancellation: a DM request adds a DM grant, and the ship's pending DM
@@ -1216,7 +1223,7 @@ removes its fixture group. Pure membership tests live in
 tool with automatic replies disabled; `tests-js/tlon-denial-conformance.mjs`
 checks approval requests from a DM on two real ships: a disabled hand opens
 none; a DM from a ship without access opens one request and sends the owner one
-card, whose buttons carry the request's id; a later message and a fresh
+card, whose buttons carry the request's id and ship; a later message and a fresh
 invitation in the same DM, within the denial limit, record no second denial and
 open nothing more; nothing the peer sends starts a model turn or gets an
 answer; and giving the peer access closes the request, accepts its pending
@@ -1247,7 +1254,8 @@ nothing and gets no reply; and no DM command text is in a model request. The two
 apart, since the denial limit lets a ship ask once per five minutes.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM
 and channel requests, `/ban`'s block and its refusal, unknown, closed and
-expired ids, a command with no id among one or several requests, a command in a DM thread, a
+expired ids, a button whose id was reused or extended, a command with no id
+among one or several requests, a command in a DM thread, a
 command from a trusted ship that is not the owner, and a command in a channel,
 the owner's included, handled as an ordinary message.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between

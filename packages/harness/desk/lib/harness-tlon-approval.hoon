@@ -7,7 +7,10 @@
 |%
 ::  $order: the owner's answer to a request, typed or sent by a card's button
 ::
-+$  order  [action=?(%allow %reject %ban) id=(unit @t)]
+::    A button also names the request's ship, so that a stale card's id,
+::    reused by a later request, acts on nothing.
+::
++$  order  [action=?(%allow %reject %ban) id=(unit @t) ship=(unit @p)]
 ::  +find: the id of the request open for a ship in a place
 ::
 ++  find
@@ -40,32 +43,44 @@
 ::  +read-order: the approval command .text is, if it is one
 ::
 ::    As OpenClaw reads it: the id is the rest of the text, trimmed, and
-::    none when nothing follows the command.
+::    none when nothing follows the command; but a ship after the id and one
+::    space, as the card's buttons send, is the request's ship.
 ::
 ++  read-order
   |=  text=@t
   ^-  (unit order)
   =/  parsed  (parse:command text)
   ?~  parsed  ~
-  =/  id=(unit @t)  ?:(=('' arg.u.parsed) ~ `arg.u.parsed)
+  =/  arg  (trip arg.u.parsed)
+  =/  gap  (^find " " arg)
+  =/  ship=(unit @p)  ?~(gap ~ (slaw %p (crip (slag +(u.gap) arg))))
+  =/  id=(unit @t)
+    ?:  =('' arg.u.parsed)  ~
+    ?~  gap  `arg.u.parsed
+    ?~  ship  `arg.u.parsed
+    `(crip (scag u.gap arg))
   ?+  name.u.parsed  ~
-    %allow  `[%allow id]
-    %reject  `[%reject id]
-    %ban  `[%ban id]
+    %allow  `[%allow id ship]
+    %reject  `[%reject id ship]
+    %ban  `[%ban id ship]
   ==
 ::  +pick: the request an order names
 ::
 ::    As OpenClaw finds it, the exact id, else the one id it begins. With no
-::    id, the only open request; unlike OpenClaw, never one of several.
+::    id, the only open request; unlike OpenClaw, never one of several. With
+::    a ship, only the exact id, and only if the request is that ship's.
 ::
 ++  pick
-  |=  [=approvals:t id=(unit @t)]
+  |=  [=approvals:t id=(unit @t) ship=(unit @p)]
   ^-  (unit [id=@t =approval:t])
   =/  all  ~(tap by by-id.approvals)
   ?~  id
     ?.  ?=([* ~] all)  ~
     `i.all
   =/  exact  (~(get by by-id.approvals) u.id)
+  ?^  ship
+    ?.  &(?=(^ exact) =(u.ship who.u.exact))  ~
+    `[u.id u.exact]
   ?^  exact  `[u.id u.exact]
   =/  begun
     (skim all |=([key=@t *] =(u.id (end [3 (met 3 u.id)] key))))
@@ -272,9 +287,9 @@
           `'caption'
           (column 'actions' 'Row' ~['allow' 'reject' 'ban'])
       ==
-      (button 'allow' 'Allow' `'primary' (cat 3 '/allow ' id))
-      (button 'reject' 'Reject' ~ (cat 3 '/reject ' id))
-      (button 'ban' 'Block' `'borderless' (cat 3 '/ban ' id))
+      (button 'allow' 'Allow' `'primary' (rap 3 '/allow ' id ' ' ship ~))
+      (button 'reject' 'Reject' ~ (rap 3 '/reject ' id ' ' ship ~))
+      (button 'ban' 'Block' `'borderless' (rap 3 '/ban ' id ' ' ship ~))
     ==
   :_  (surface:work-card (cat 3 'approval-' id) components |)
   ?~  where  (cat 3 'DM request from ' ship)
