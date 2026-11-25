@@ -248,8 +248,10 @@ opt-outs apply to both capture paths.
   saves and forgets only in a turn that answers the owner: a Tlon speaker
   who may change the conversation, a peer call from the owner's ship, the
   owner's local ACP or poke prompt or a timer, a run of the owner's
-  schedule, or a subagent of one of these. Any other turn, a webhook's
-  included, gets `error: Only the owner can change shared memory.` Both
+  schedule, or a subagent of one of these. Every input the turn's model
+  request saw must be the owner's; one that arrives while the request is
+  out does not count until a later request sees it. Any other turn, a
+  webhook's included, gets `error: Only the owner can change shared memory.` Both
   refusals change nothing. A save or forget the place rule below refuses
   gets that refusal instead.
 

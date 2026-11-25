@@ -1021,6 +1021,50 @@
     %+  ex-equal  !>(`(map @t @t)`(malt results))
     !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]]))
   (ex-equal !>(records.knowledge.after) !>(records.knowledge.saved))
+::  A turn in the unbound session 'hook' starts from .first, the webhook's
+::  text or the owner's poke; the other arrives while its model request is
+::  out, and that request's answer saves a fact. The save's result, and the
+::  state after.
+::
+++  interleaved-save
+  |=  first=?(%webhook %owner)
+  =/  m  (mare ,[result=@t after=state-0])
+  ^-  form:m
+  =/  saved  owned
+  =.  sessions.saved  (~(put by sessions.saved) 'hook' (idle saved))
+  =/  hook  (do-poke %handle-http-request !>([`@ta`%hook-1 (webhook 'Note this.')]))
+  =/  owner  (do-poke %harness-action !>(`action:h`[%send 'hook' 'Owner here.']))
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  asked=(list card)  bind:m  ?:(?=(%webhook first) hook owner)
+  ;<  *  bind:m  ?:(?=(%webhook first) owner hook)
+  ;<  *  bind:m
+    %+  do-arvo  wire:(snag 0 (model-requests asked))
+    %+  answer  ''
+    ~[['save-1' 'memory' '{"operation":"save","name":"fresh-note","text":"Noted.","revision":"0"}']]
+  ;<  after=state-0  bind:m  get-state
+  (pure:m [(tool-result log:(~(got by sessions.after) 'hook')) after])
+::  The webhook's turn answers the webhook, though the owner spoke while
+::  its model request was out: its save changes nothing.
+::
+++  test-a-webhook-turn-cannot-save-after-the-owner-speaks-mid-turn
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [result=@t after=state-0]  bind:m  (interleaved-save %webhook)
+  =/  start=state-0  owned
+  ;<  ~  bind:m  (ex-equal !>(result) !>((cat 3 'error: ' refused-memory:command)))
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.start))
+::  The owner's turn answers the owner, though a webhook arrived while its
+::  model request was out: its save still lands.
+::
+++  test-the-owners-turn-still-saves-after-a-webhook-arrives-mid-turn
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [result=@t after=state-0]  bind:m  (interleaved-save %owner)
+  ;<  ~  bind:m  (ex-equal !>(=('error: ' (end [3 7] result))) !>(|))
+  %+  ex-equal  !>(body.value:(~(got by records.knowledge.after) 'fresh-note'))
+  !>(`'Noted.')
 ::  A subagent's reach comes from the head's own walk to its root: one
 ::  started from the owner's DM sees what the DM sees, one from a channel
 ::  does not.

@@ -4285,7 +4285,8 @@
 ::  shared memory: a hand's speaker who may change the conversation, a peer
 ::  call from the owner's ship, or the owner's own local input. A subagent's
 ::  turn answers for its root parent's, and a scheduled run for its
-::  schedule's actor. Webhook, work and any other input may not.
+::  schedule's actor. Webhook, work and any other input may not. Every
+::  input the turn answers must pass, not whatever arrived last.
 ::
 ++  turn-configures
   |=  sid=session-id:h
@@ -4300,12 +4301,36 @@
     $(sid parent.u.parent, left (dec left))
   =/  job  (for-session:schedule-lib schedules sid)
   ?^  job  (fall (bind (slaw %p actor.u.job) is-owner) |)
-  =/  input  (current-input:admin log.u.session)
-  ?~  input  |
-  ?+  -.source.u.input  (owner-input u.input)
-    %hand  (speaker-configures sid source.u.input |)
-    %peer  (peer-owner ship.source.u.input)
+  =/  inputs  (turn-inputs log.u.session)
+  ?~  inputs  |
+  %+  levy  `(list admitted-input:h)`inputs
+  |=  input=admitted-input:h
+  ?+  -.source.input  (owner-input input)
+    %hand  (speaker-configures sid source.input |)
+    %peer  (peer-owner ship.source.input)
   ==
+::  +turn-inputs: the inputs the running turn answers: those its newest
+::  model request saw, back to the last reply, command or cancellation.
+::  An input that arrived after that request waits for a later one. With no
+::  model request, as for a peer's direct call, every input since then.
+::
+++  turn-inputs
+  |=  log=(list event:h)
+  ^-  (list admitted-input:h)
+  =/  seen=(list event:h)
+    =/  rest  log
+    |-  ^-  (list event:h)
+    ?~  rest  log
+    ?:  ?=([%llm-requested * %turn] i.rest)  t.rest
+    $(rest t.rest)
+  |-  ^-  (list admitted-input:h)
+  ?~  seen  ~
+  ?:  ?|  ?=(?(%cancelled %command-completed) -.i.seen)
+          &(?=(%llm-completed -.i.seen) ?=([%assistant * ~] item.i.seen))
+      ==
+    ~
+  ?.  ?=(%input-received -.i.seen)  $(seen t.seen)
+  [input.i.seen $(seen t.seen)]
 ::  A stop is out of band, not another queued request. Idle sessions need no
 ::  synthetic cancellation; their command acknowledgement is sufficient.
 ::  With .who, a hand speaker other than the owner stops only their own work.
