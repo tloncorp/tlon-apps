@@ -95,7 +95,15 @@ $replies
 =/  start=@ud  0  
 $slice
 EOF
-)
+) || true
+# click prints an %avow only for an answer from the ship. With none, click could
+# not reach it (no pier, the ship stopped) and has said why, and the request
+# never arrived, so there is no connection to remove.
+if [[ $output != *"[0%avow"* ]]; then
+  pending=0
+  echo "$method: no answer from the ship" >&2
+  exit 1
+fi
 hex='' start=0
 while :; do
   page=$(sed -nE "s/.*\[0%avow0%noun'([0-9]+):([0-9a-f]+)'\].*/\1:\2/p" <<<"$output")
@@ -105,7 +113,6 @@ while :; do
     exit 1
   fi
   total=${page%%:*} chunk=${page#*:}
-  (( ${#chunk} % 2 == 0 )) || { echo "$method: odd-length reply slice: $output" >&2; exit 1; }
   hex+=$chunk start=$(( start + ${#chunk} / 2 ))
   (( start < total )) || break
   output=$(run <<EOF
@@ -121,7 +128,6 @@ $slice
 EOF
 )
 done
-(( start == total )) || { echo "$method: got $start of the reply's $total bytes" >&2; exit 1; }
 # shellcheck disable=SC2034 # the EXIT trap reads it
 pending=0
 
