@@ -265,14 +265,15 @@
   ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(64))
   (ex-equal !>(activity-through.saved.got) !>(~2026.10.1))
-::  ~bud may read the channel, so its post opens a request. The request
-::  checks that the bot is in the channel; no post is read.
+::  ~bud may read the channel, so its post opens a request. Only then is the
+::  post read, to tell whether its author is a known bot, which is not told
+::  that the bot waits for its owner.
 ::
-++  test-no-read-for-a-denied-post
+++  test-a-denied-post-is-read-when-it-opens-a-request
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  present=native  [& & parent-at ~ ~]
+  =/  present=native  [& & message-at ~[(post message-at ~bud)] ~]
   ;<  got=outcome  bind:m
     (run-in (my ~[[[~nec %home] (group ~bud)]]) fixture (post-event ~bud) `present)
   ;<  ~  bind:m

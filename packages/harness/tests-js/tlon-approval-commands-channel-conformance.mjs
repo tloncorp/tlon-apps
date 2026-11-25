@@ -1,8 +1,8 @@
 // The owner answers channel approval requests, on three real ships: the bot and two
 // others that take turns as its owner and as a ship on no list, in a channel on the
 // peer that the bot and the guest have joined. With the peer as owner, the guest
-// mentions the bot and the owner types /allow in its DM with the bot: the guest's
-// waiting mention is then answered in that channel without its writing again, its next
+// mentions the bot, is told once that the bot waits for its owner, and the owner types
+// /allow in its DM with the bot: the guest's waiting mention is then answered in that channel without its writing again, its next
 // mention is answered there too, and it is still not answered in a DM. With the guest as owner, the peer
 // mentions the bot and the owner posts /allow in the channel: that is an ordinary
 // message, answered as any slash text the head does not know, and grants nothing. The owner then types /reject in its
@@ -21,6 +21,12 @@ const { bot, peer, guest, nest, until, status } = t
 const sentText = (label) => `${marker}-${label}`
 const requests = (s, who) => s.requests.filter((request) => request.ship === who.ship)
 const answered = (posts) => posts.some((post) => t.words(post).includes(`${marker}-answer`))
+// The bot's posts since .start other than its replies that it waits for its owner,
+// which the waiting test checks.
+const waits = (post) => t.words(post).includes(': I need approval from my owner, ')
+const fromBot = async (start) => (await t.channelFromBot(start)).filter((post) => !waits(post))
+const told = async (start) => (await t.channelFromBot(start)).filter(waits).map(t.words)
+const waiting = (who, owner) => `${who.ship}: I need approval from my owner, ${owner.ship}, before I can respond in this channel — I've sent them the request.`
 const grants = (s) => s.policy.channelGrants.find((grant) => grant.channel === nest)?.ships ?? []
 async function asks(who) {
   await t.post(who, sentText(`${who.ship.slice(1)}-first`))
@@ -42,6 +48,8 @@ try {
   const request = await asks(guest)
   await until('the owner is sent a card', async () => (await t.dmFromBot(peer, start))
     .some((post) => t.words(post).includes(`Channel mention request from ${guest.ship}`)))
+  await until('the guest is told the bot waits for its owner', async () => (await told(start)).length)
+  assert.deepEqual(await told(start), [waiting(guest, peer)])
   const typed = `/allow ${request.id}`
   await t.dm(peer, bot, typed)
   const reply = await until('the owner is told the guest may talk in the channel', async () => (await t.dmFromBot(peer, start))
@@ -54,14 +62,15 @@ try {
   assert.deepEqual(allowed.policy.dmGrants, [], 'allow of a channel request gave DM access')
   console.log('PASS the owner\'s /allow gives the guest this channel only')
 
-  await until('the guest\'s waiting mention is answered without its writing again', async () => answered(await t.channelFromBot(start)))
+  await until('the guest\'s waiting mention is answered without its writing again', async () => answered(await fromBot(start)))
   assert.ok(t.seen(sentText(`${guest.ship.slice(1)}-first`)), 'the mention the guest asked with did not reach the model')
   await sleep(3000)
-  assert.equal((await t.channelFromBot(start)).length, 1, 'the guest\'s waiting mention was answered more than once')
+  assert.equal((await fromBot(start)).length, 1, 'the guest\'s waiting mention was answered more than once')
+  assert.deepEqual(await told(start), [waiting(guest, peer)], 'the guest was told more than once that the bot waits')
   console.log('PASS the mention the guest asked with is answered once, without its writing again')
 
   await t.post(guest, sentText('after'))
-  await until('the guest\'s next mention is answered in the channel', async () => (await t.channelFromBot(start)).length === 2)
+  await until('the guest\'s next mention is answered in the channel', async () => (await fromBot(start)).length === 2)
   assert.ok(t.seen(sentText('after')))
   const direct = t.da(Date.now())
   await t.dm(guest, bot, sentText('direct'))
@@ -91,7 +100,7 @@ try {
   await t.post(guest, posted)
   // The head answers it as it answers any slash text it does not know.
   const [plain] = await until('the owner\'s channel /allow is answered as an ordinary message', async () => {
-    const found = await t.channelFromBot(swapped)
+    const found = await fromBot(swapped)
     return found.length && found
   })
   assert.equal(t.words(plain), 'Unknown command. Send /help for the available commands.')
@@ -99,7 +108,9 @@ try {
   assert.deepEqual(requests(unchanged, peer), [second], 'a channel /allow closed the request')
   assert.deepEqual(grants(unchanged), [], 'a channel /allow gave access')
   assert.ok(!unchanged.events.some((notice) => notice.kind === 'approval-allowed' && notice.actor === peer.ship), 'a channel /allow was recorded as allowed')
-  const replies = [...await t.channelFromBot(swapped), ...await t.dmFromBot(guest, swapped)]
+  await until('the peer is told the bot waits for its new owner', async () => (await told(swapped)).length)
+  assert.deepEqual(await told(swapped), [waiting(peer, guest)], 'the peer was not told once that the bot waits')
+  const replies = [...await fromBot(swapped), ...await t.dmFromBot(guest, swapped)]
   assert.ok(!replies.some((post) => t.words(post).includes(`Approved ${peer.ship}`)), 'a channel /allow was answered as a command')
   console.log('PASS the owner\'s /allow in the channel grants nothing and is an ordinary message')
 

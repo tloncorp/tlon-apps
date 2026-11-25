@@ -118,6 +118,9 @@
   ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>((silt ~[~bel]))
   ?:  ?=([%gx @ %chat @ %v4 %dm %'~dev' %writs %newest *] path)  `!>(invited)
   ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(events)
+  ::  Local %channels holds none of the posts, so none is a known bot's.
+  ?:  ?=([%gx @ %channels @ %v4 @ @ @ %posts *] path)
+    `!>(*paged-posts:v9:dv)
   ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
   ?:  ?=([%gx @ %harness @ %defaults %json ~] path)
@@ -219,7 +222,7 @@
   ^-  (list [to=@p text=@t blob=@t])
   %+  murn  caz
   |=  c=card
-  ?.  ?=([%pass [%approval @ @ ~] %agent [@ %chat] %poke *] c)  ~
+  ?.  ?=([%pass [%approval @ @ *] %agent [@ %chat] %poke *] c)  ~
   =/  act  !<(action:dm:v7:cv q.cage.task.q.c)
   ?>  ?=(%add -.q.q.act)
   `[p.act (story-to-text:story content.essay.q.q.act) (need blob.essay.q.q.act)]
@@ -1901,4 +1904,146 @@
     (admit fixture later ~[[told (said ~nec '/reject' told)]])
   %+  ex-equal  !>((answered caz))
   !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found.']])
+::
+::  The bot tells a ship whose channel mention opened a request that it waits
+::  for its owner, once the owner's card is acknowledged.
+::
+++  waits-sent
+  '~dev: I need approval from my owner, ~nec, before I can respond in this channel — I\'ve sent them the request.'
+++  waits-unsent
+  '~dev: I need approval from my owner, ~nec, before I can respond in this channel. I couldn\'t reach them just now — please mention me again later.'
+::  The replies that tell a ship the bot waits: where they go and their text.
+::
+++  waiting
+  |=  caz=(list card)
+  ^-  (list [to=@t text=@t])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass [%approval-waiting @ ~] %agent [@ %channels] %poke %channel-action-2 *] c)  ~
+  =/  act=*  q.q.cage.task.q.c
+  ?:  ?=([%channel * %post %reply *] act)
+    =/  in  ;;([%channel =nest:dv %post %reply parent=@da %add [=memo:v9:dv *]] act)
+    :-  ~
+    :-  (address:policy-lib [%channel nest.in `parent.in])
+    (story-to-text:story content.memo.in)
+  =/  in  ;;([%channel =nest:dv %post %add [=memo:v9:dv *]] act)
+  `[(address:policy-lib [%channel nest.in ~]) (story-to-text:story content.memo.in)]
+::  %chat's acknowledgement of the one card in .caz, with .ack, to the
+::  running adapter
+::
+++  ack-card
+  |=  [caz=(list card) ack=(unit tang)]
+  =/  m  (mare ,[(list card) state-6:t])
+  ^-  form:m
+  =/  wires
+    %+  murn  caz
+    |=(c=card ?.(?=([%pass [%approval @ @ *] %agent [@ %chat] *] c) ~ `p.c))
+  ?>  ?=([* ~] wires)
+  ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ack])
+  ;<  =vase  bind:m  get-save
+  (pure:m out !<(state-6:t vase))
+::
+++  test-a-first-channel-mention-without-access-is-told-the-bot-waits-for-its-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>((waiting caz)) !>(`(list [@t @t])`~))
+  ;<  [out=(list card) w=state-6:t]  bind:m  (ack-card caz ~)
+  ;<  ~  bind:m
+    (ex-equal !>((waiting out)) !>(`(list [@t @t])`~[['chat/~lux/test' waits-sent]]))
+  (ex-equal !>(approvals.w) !>(approvals.s))
+::  After the denial limit, so only the open request keeps it from being
+::  told again.
+::
+++  test-a-second-mention-while-the-request-is-open-is-told-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  [* s=state-6:t]  bind:m  (ack-card caz ~)
+  ;<  [caz=(list card) w=state-6:t]  bind:m
+    (admit s later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'permission-denied')) !>(2))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  (ex-equal !>((waiting caz)) !>(`(list [@t @t])`~))
+++  test-a-mention-in-a-thread-is-told-in-that-thread
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (reply ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
+  %+  ex-equal  !>((waiting out))
+  =/  thread  (address:policy-lib [%channel room-nest `~2026.9.9..10.00.00])
+  !>(`(list [@t @t])`~[[thread waits-sent]])
+++  test-a-blocked-ship-is-told-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~bel room-nest ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  (ex-equal !>((waiting caz)) !>(`(list [@t @t])`~))
+::  A known bot's request opens and its owner is sent the card; the bot is
+::  told nothing, so two bots without access to each other cannot trade
+::  replies.
+::
+++  test-a-known-bot-is-told-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  at  ~2026.9.9..12.00.00
+  =/  events  (stream ~[[at (mention ~dev room-nest at)]])
+  ;<  ~  bind:m  (boot fixture start events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?.  ?=([%gx @ %channels @ %v4 %chat %'~lux' %test %posts *] path)
+      ((scries events) path)
+    =/  blank  *post:v9:dv
+    =/  post=post:v9:dv  blank(id at, author [~dev ~ ~])
+    `!>(`paged-posts:v9:dv`[(gas:on-posts:v9:dv ~ ~[[at %& post]]) ~ ~ 0 0])
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  ~  bind:m  (ex-equal !>((lent (sent caz))) !>(1))
+  ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
+  (ex-equal !>((waiting out)) !>(`(list [@t @t])`~))
+++  test-a-dm-is-told-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>((lent (sent caz))) !>(1))
+  ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
+  (ex-equal !>((waiting out)) !>(`(list [@t @t])`~))
+::  The rejected card closes the request, so the next mention opens it again.
+::
+++  test-a-mention-whose-card-is-rejected-is-told-to-mention-the-bot-again
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  [out=(list card) w=state-6:t]  bind:m  (ack-card caz `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  (ex-equal !>((waiting out)) !>(`(list [@t @t])`~[['chat/~lux/test' waits-unsent]]))
+++  test-a-refused-waiting-reply-leaves-the-request-open
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
+  =/  wires
+    %+  murn  out
+    |=(c=card ?.(?=([%pass [%approval-waiting @ ~] *] c) ~ `p.c))
+  ?>  ?=([* ~] wires)
+  ;<  *  bind:m  (do-agent i.wires [~zod %channels] [%poke-ack `~[leaf+"no"]])
+  ;<  =vase  bind:m  get-save
+  =/  w  !<(state-6:t vase)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.s))
+  (ex-equal !>(=('' error.w)) !>(|))
 --
