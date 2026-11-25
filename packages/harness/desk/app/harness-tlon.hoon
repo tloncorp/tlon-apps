@@ -46,12 +46,16 @@
   +*  this  .
       def  ~(. (default-agent this %.n) bowl)
       cor  ~(. +> [bowl ~])
+      ::  An event first expires what is due, so a DM decline reaches %chat
+      ::  before anything the event sends there: a decline after an accept,
+      ::  or after a message that accepts implicitly, deletes the DM.
+      due  expire-approvals:cor
   ++  on-init
     ::  Listen from installation; owner/trust policy still gates every sender.
     ::  Saved enable/disable choices are preserved by on-load.
     =.  state  state(policy [& ~ ~ %mentions ~ ~ ~ ~], watching |, activity-through now.bowl)
     =.  state  initialize-owner:cor
-    =^  cards  state  abet:boot:refresh-peers:cor
+    =^  cards  state  abet:boot:refresh-peers:due
     [cards this]
   ++  on-save  !>(state)
   ++  on-load
@@ -63,24 +67,24 @@
     =^  cards  state
       ::  A saved timestamp is not evidence of a surviving Behn subscription.
       ::  Maintenance gets fresh actual deadlines.
-      abet-load:boot:refresh-peers:retire-uploads:reset-wake:engine
+      abet:boot:refresh-peers:retire-uploads:reset-wake:engine
     [cards this]
   ++  on-poke
     |=  [=mark =vase]
     ?>  =(our.bowl src.bowl)
     ?:  =(%harness-hosted mark)
       =/  request  !<(request:hosted vase)
-      =/  result  (permission-request:cor action.request args.request)
+      =/  result  (permission-request:due action.request args.request)
       =/  response  -.result
       =/  engine  +.result
       =^  cards  state
         abet:(emit:engine [%give %fact ~[/hosted/[id.request]] %json !>(response)])
       [cards this]
     ?:  =(%harness-tool mark)
-      =^  cards  state  abet:(tool:cor !<(tool-request:ad vase))
+      =^  cards  state  abet:(tool:due !<(tool-request:ad vase))
       [cards this]
     ?>  =(%noun mark)
-    =^  cards  state  abet:(request:cor !<(request:ad vase))
+    =^  cards  state  abet:(request:due !<(request:ad vase))
     [cards this]
   ::
   ++  on-watch
@@ -133,18 +137,18 @@
         %-  (slog 'harness-tlon: steward lease refused' u.error)
         `this
       `this
-    =^  cards  state  abet:(agent:cor wire sign)
+    =^  cards  state  abet:(agent:due wire sign)
     [cards this]
   ::
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
     ?:  &(?=([%media @ @ ~] wire) ?=([%iris %http-response *] sign))
       =^  cards  state
-        abet:(receive-upload:cor (slav %uv i.t.wire) i.t.t.wire client-response.sign)
+        abet:(receive-upload:due (slav %uv i.t.wire) i.t.t.wire client-response.sign)
       [cards this]
     ?.  &(?=([%poll ~] wire) ?=([%behn %wake *] sign))  `this
     =.  wake  ~
-    =^  cards  state  abet:maintain:cor
+    =^  cards  state  abet:maintain:due
     [cards this]
   ::
   ++  on-fail
@@ -155,7 +159,6 @@
     ==
   --
 ::  Effect-building core: each arm carries state and cards in reverse order.
-::  +abet schedules maintenance and returns the cards in dispatch order.
 ::
 |_  [=bowl:gall cards=(list card)]
 +*  messenger  ~(. io bowl)
@@ -172,16 +175,9 @@
   =.  policy  policy(owner explicit.seeded)
   ?~  owner.policy  state
   state(cuts (~(put by cuts) u.owner.policy now.bowl))
+::  +abet: schedule maintenance and return the cards in dispatch order
 ::
-::  Every poke, timer and most agent responses expire what is due, not only
-::  the wake: under steady traffic each would move an overdue wake a second
-::  later.
-::
-++  abet  abet-load:expire-approvals
-::  +abet-load: +abet without expiry, whose DM declines read %chat; the wake
-::  after a load meets what fell due while the adapter was not running
-::
-++  abet-load
+++  abet
   =/  engine  schedule:sync-liveness
   [(flop cards.engine) state.engine]
 ::
@@ -291,10 +287,7 @@
   =.  cor  (note 'dm-invite' who (scot %p who) '')
   (emit (accept-invitation:messenger who))
 ::  +accepted: close .who's DM request, as the bot accepts its invitation
-::
-::    The request is moot, and its expiry, which sees the invitation still
-::    pending in this event, would decline it: %chat takes that as leaving
-::    the accepted DM and deletes its history.
+::  or writes into the DM, which accepts it; there is nothing left to approve
 ::
 ++  accepted
   |=  who=@p
@@ -780,8 +773,9 @@
   ?~  effect.u.built  (finish-tool id (clip:ht body.u.built 24.000))
   =/  receipt  (~(got by tool-receipts) id)
   =.  tool-receipts  (~(put by tool-receipts) id receipt(body body.u.built))
-  =?  cor  =(`[%s 'accept_dm'] action)
-    (accepted (ship:tlon-spec (required:tlon-spec u.parsed 'ship' 128)))
+  =?  cor  (lien `(list @t)`~['accept_dm' 'send_dm' 'react' 'unreact'] |=(name=@t =(`[%s name] action)))
+    =/  to  (destination:tlon-spec u.parsed)
+    ?.(?=(%dm -.to) cor (accepted who.to))
   (emit u.effect.u.built)
 ::
 ++  tool-conversation
@@ -2655,8 +2649,9 @@
 ::
 ::    %chat reports a pending invitation once and no later messages, so a DM
 ::    request's invitation is declined; left pending, it would keep the ship
-::    from reaching the bot by DM. +abet runs this, so it does nothing until
-::    the earliest expiry is due, and nothing while the hand is disabled.
+::    from reaching the bot by DM. Each poke, timer and agent response the
+::    agent's arms pass on runs this first, so it does nothing until the
+::    earliest expiry is due, and nothing while the hand is disabled.
 ::
 ++  expire-approvals
   ^+  cor
