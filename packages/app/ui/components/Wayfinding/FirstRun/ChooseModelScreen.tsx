@@ -79,6 +79,7 @@ export function ChooseModelScreen({
           title: row.name,
           meta: row.meta,
           detail: row.detail,
+          badge: row.row?.recommended ? copy.recommended : undefined,
           testID: `first-run-model-${row.id}`,
         }))}
         selectedId={pickedId}

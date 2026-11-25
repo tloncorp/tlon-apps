@@ -10,18 +10,20 @@ export type LineChoice = {
   meta?: string;
   /** A third line, under the meta. */
   detail?: string;
+  /** A small tag after the title, such as Recommended. */
+  badge?: string;
   testID?: string;
 };
 
-const RADIO = 20;
-const RADIO_DOT = 10;
+const RADIO = 22;
+const RADIO_DOT = 12;
 /** The box's corners, as on the rest of onboarding's larger shapes. */
 export const LINE_LIST_RADIUS = 16;
 /** Row heights by how many lines of text a row has. */
-const ROW_HEIGHT = [56, 68, 88];
+const ROW_HEIGHT = [56, 72, 92];
 
 /**
- * A box of choices, one picked, with a ring on the right of each row that
+ * A box of choices, one picked, with a ring at the start of each row that
  * fills with a dot when it's the pick: the models on You choose the model,
  * the levels on Notifications.
  */
@@ -85,49 +87,19 @@ function LineChoiceRow({
       <XStack
         minHeight={ROW_HEIGHT[(choice.meta ? 1 : 0) + (choice.detail ? 1 : 0)]}
         paddingVertical="$m"
-        paddingHorizontal={14}
+        paddingHorizontal={16}
         alignItems="center"
-        gap={12}
+        gap={14}
       >
         {first ? null : <LineRule />}
-        <YStack flex={1}>
-          <Text
-            fontSize={16}
-            lineHeight={22}
-            letterSpacing={-0.2}
-            color="$primaryText"
-          >
-            {choice.title}
-          </Text>
-          {choice.meta ? (
-            <Text
-              fontSize={14}
-              lineHeight={20}
-              letterSpacing={-0.1}
-              color="$secondaryText"
-              numberOfLines={1}
-            >
-              {choice.meta}
-            </Text>
-          ) : null}
-          {choice.detail ? (
-            <Text
-              fontSize={14}
-              lineHeight={20}
-              letterSpacing={-0.1}
-              color="$secondaryText"
-              numberOfLines={1}
-            >
-              {choice.detail}
-            </Text>
-          ) : null}
-        </YStack>
         <View
           width={RADIO}
           height={RADIO}
           flexShrink={0}
           alignItems="center"
           justifyContent="center"
+          alignSelf={choice.meta ? 'flex-start' : 'center'}
+          marginTop={choice.meta ? 1 : 0}
         >
           {selected ? (
             <View
@@ -137,8 +109,52 @@ function LineChoiceRow({
               backgroundColor="$primaryText"
             />
           ) : null}
-          <LineOutline radius={RADIO / 2} />
+          <LineOutline
+            radius={RADIO / 2}
+            color={selected ? '$primaryText' : '$tertiaryText'}
+          />
         </View>
+        <YStack flex={1}>
+          <XStack alignItems="center" gap={8}>
+            <Text
+              flexShrink={1}
+              fontSize={17}
+              lineHeight={23}
+              letterSpacing={-0.2}
+              color="$primaryText"
+            >
+              {choice.title}
+            </Text>
+            {choice.badge ? (
+              <View paddingHorizontal={6} paddingVertical={1}>
+                <Text fontSize={12} lineHeight={16} color="$secondaryText">
+                  {choice.badge}
+                </Text>
+                <LineOutline radius={4} color="$tertiaryText" />
+              </View>
+            ) : null}
+          </XStack>
+          {choice.meta ? (
+            <Text
+              fontSize={15}
+              lineHeight={20}
+              letterSpacing={-0.1}
+              color="$secondaryText"
+            >
+              {choice.meta}
+            </Text>
+          ) : null}
+          {choice.detail ? (
+            <Text
+              fontSize={15}
+              lineHeight={20}
+              letterSpacing={-0.1}
+              color="$secondaryText"
+            >
+              {choice.detail}
+            </Text>
+          ) : null}
+        </YStack>
       </XStack>
     </Pressable>
   );

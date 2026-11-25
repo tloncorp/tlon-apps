@@ -10,14 +10,11 @@ type OnboardingButtonProps = Omit<
   label: string;
 };
 
-/**
- * The big solid button. Only the welcome screen's buttons cast a shadow;
- * the onboarding steps pass `shadow={false}`.
- */
+/** The big solid button: 56 pt tall with 12 pt corners, and flat. */
 export function OnboardingButton({
   secondary,
   label,
-  shadow = true,
+  shadow = false,
   ...props
 }: OnboardingButtonProps) {
   const color = secondary ? '$secondaryText' : '$primaryText';
@@ -28,6 +25,8 @@ export function OnboardingButton({
       shadow={shadow}
       label={label}
       width="100%"
+      height={56}
+      borderRadius={12}
       // A disabled button keeps the hero preset's own light gray.
       {...(props.disabled
         ? {}

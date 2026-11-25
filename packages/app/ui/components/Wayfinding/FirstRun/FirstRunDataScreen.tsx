@@ -3,6 +3,7 @@ import { Linking } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import {
+  LineIconTile,
   LineStepFrame,
   LineTextLink,
 } from '../../Onboarding/line/LineStepFrame';
@@ -10,14 +11,7 @@ import { LineIcon } from '../../Onboarding/line/lineIcons';
 import { firstRunCopy } from './firstRunCopy';
 
 const copy = firstRunCopy.dataKept;
-/**
- * The FAQ link reads as a subtitle: its tap area reaches this far up into
- * the title's line.
- */
-const FAQ_LINK_OVERLAP = 2;
-/** The list starts this far under the link's tap area. */
-const FAQ_LINK_TO_LIST_GAP = 23;
-const ITEM_GAP = 18;
+const ITEM_GAP = 26;
 
 /**
  * How your data is kept, opened from Yours to keep: where the Tlonbot runs
@@ -29,7 +23,7 @@ export function FirstRunDataScreen({ onBack }: { onBack: () => void }) {
     <LineStepFrame
       onBack={onBack}
       title={copy.title}
-      contentGap={-FAQ_LINK_OVERLAP}
+      contentGap={36}
       primary={{
         label: copy.primary,
         onPress: onBack,
@@ -37,41 +31,30 @@ export function FirstRunDataScreen({ onBack }: { onBack: () => void }) {
       }}
       testID="first-run-data"
     >
-      <LineTextLink
-        label={copy.faqLink}
-        onPress={() => {
-          Linking.openURL(copy.faqUrl).catch(() => {});
-        }}
-        testID="first-run-data-faqs"
-      />
-      <YStack
-        marginTop={FAQ_LINK_TO_LIST_GAP}
-        marginHorizontal={28}
-        gap={ITEM_GAP}
-      >
+      <YStack marginHorizontal={32} gap={ITEM_GAP}>
         {copy.items.map((item) => (
           <XStack
             key={item.title}
-            gap={14}
+            gap={16}
             alignItems="flex-start"
             accessible
             accessibilityLabel={`${item.title}. ${item.text}`}
           >
-            <View marginTop={1}>
-              <LineIcon name={item.icon} />
-            </View>
-            <YStack flex={1} gap={2}>
+            <LineIconTile>
+              <LineIcon name={item.icon} size={24} />
+            </LineIconTile>
+            <YStack flex={1} gap={3}>
               <Text
-                fontSize={16}
-                lineHeight={22}
+                fontSize={17}
+                lineHeight={23}
                 letterSpacing={-0.2}
                 color="$primaryText"
               >
                 {item.title}
               </Text>
               <Text
-                fontSize={14}
-                lineHeight={20}
+                fontSize={15}
+                lineHeight={21}
                 letterSpacing={-0.1}
                 color="$secondaryText"
               >
@@ -81,6 +64,15 @@ export function FirstRunDataScreen({ onBack }: { onBack: () => void }) {
           </XStack>
         ))}
       </YStack>
+      <View marginTop={10}>
+        <LineTextLink
+          label={copy.faqLink}
+          onPress={() => {
+            Linking.openURL(copy.faqUrl).catch(() => {});
+          }}
+          testID="first-run-data-faqs"
+        />
+      </View>
     </LineStepFrame>
   );
 }

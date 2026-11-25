@@ -87,11 +87,11 @@ export const WelcomeScreen = ({ navigation }: Props) => {
         <TlonText.Text size="$label/xl">It’s yours.</TlonText.Text>
       </View>
       <View
-        paddingBottom={bottom + 16}
+        paddingBottom={bottom + 6}
         justifyContent={'flex-end'}
         alignItems={'center'}
       >
-        <YStack gap="$4xl" paddingHorizontal="$2xl" width={'100%'}>
+        <YStack gap={4} paddingHorizontal="$2xl" width={'100%'}>
           <YStack gap="$2xl">
             {lureMeta ? (
               <Pressable
@@ -125,7 +125,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               />
             )}
           </YStack>
-          <XStack justifyContent="center">
+          <XStack justifyContent="center" height={44} alignItems="center">
             <Pressable
               pressStyle={{
                 backgroundColor: '$transparent',
@@ -139,11 +139,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </XStack>
         </YStack>
       </View>
-      <ActionSheet open={signupOpen} onOpenChange={setSignupOpen}>
+      <ActionSheet open={signupOpen} onOpenChange={setSignupOpen} compact>
         <ActionSheet.Content>
           <ActionSheet.ContentBlock gap="$l">
             <OnboardingButton
-              shadow={false}
               onPress={() => handlePressSignup('email')}
               label="Use email"
               testID="signup-with-email"
@@ -152,6 +151,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               preset="hero"
               fill="outline"
               width="100%"
+              height={56}
+              borderRadius={12}
+              borderWidth={1}
+              borderColor="$border"
               onPress={() => handlePressSignup('phone')}
               label="Use phone number"
               testID="signup-with-phone"
