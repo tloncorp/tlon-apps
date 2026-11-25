@@ -234,12 +234,27 @@ function update_desk
   $in_ship cp -R "$2/." "${pier_dir:-$pier}/$1/" && commit_desk "$1"
 }
 
+# Have the runtime read the mounted desk $1. Nothing in the mount differs from
+# Clay, so this makes no revision.
+function scan_desk
+{
+  $run_click $pier > /dev/null <<EOF
+=/  m  (strand ,vase)  
+;<  our=ship  bind:m  get-our  
+;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%$1 |]))  
+;<  ~  bind:m  (sleep ~s0)  
+(pure:m !>(%ok))  
+EOF
+}
+
 # Replace the mounted desk $1 with the build output $2, a path where the ship
 # runs, deleting the files it does not contain, as `just install` does, and
-# commit it.
+# commit it. The runtime reports a file as deleted only if it has read it since
+# it started, and a restarted ship has read none, so the mount is read first.
 function replace_desk
 {
-  $in_ship find "${pier_dir:-$pier}/$1" -mindepth 1 -delete &&
+  scan_desk "$1" &&
+    $in_ship find "${pier_dir:-$pier}/$1" -mindepth 1 -delete &&
     $in_ship cp -R "$2/." "${pier_dir:-$pier}/$1/" && commit_desk "$1"
 }
 

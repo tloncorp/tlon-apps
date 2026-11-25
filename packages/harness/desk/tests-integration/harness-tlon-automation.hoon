@@ -91,7 +91,9 @@
   ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
   ?:  (lien path |=(part=@ta =(%hand-index part)))  `!>(*index:hh)
   ?:  (lien path |=(part=@ta =(%activity part)))  `!>(~)
-  ::  The bot is in no group, so it can post only in channels it hosts.
+  ::  The bot hosts general and has joined no remote channels.
+  ?:  ?=([%gu @ %channels @ %v0 %chat @ @ ~] path)
+    `!>(?=([%gu @ %channels @ %v0 %chat %'~zod' %general ~] path))
   ?:  ?=([%gx @ %groups @ %v2 %groups %noun ~] path)  `!>(~)
   ::  A new conversation has no saved session; the owner's Defaults.
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])

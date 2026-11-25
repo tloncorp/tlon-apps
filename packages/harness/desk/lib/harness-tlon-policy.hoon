@@ -198,9 +198,14 @@
   ::  the head reads it as the speaker's words.
   =/  text
     ?:  plain.u.item  text.u.item
-    (attribute:input actor.u.item to.u.item text.u.item)
-  =/  id=@t  (scot %uv (sham [to.u.item key.u.item]))
-  `[[actor.u.item id to.u.item text] unaddressed]
+    (attribute:input actor.u.item ~ to.u.item text.u.item)
+  `[[actor.u.item (event-id to.u.item key.u.item) to.u.item text] unaddressed]
+::  +event-id: the hand's name for one native message at one destination
+::
+++  event-id
+  |=  [to=destination:t key=message-key:a]
+  ^-  @t
+  (scot %uv (sham [to key]))
 ::
 ++  policy-json
   |=  policy=policy:t

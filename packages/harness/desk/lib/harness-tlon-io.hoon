@@ -294,6 +294,25 @@
   ^-  card
   [%pass wire %agent [our.bowl %contacts] %poke %contact-action-1 !>(`action:ct`[%self fields])]
 ::
+::  +nickname: the display name a ship published in Contacts, if any
+::
+::    a name set for the ship on this one is private, and a channel's other
+::    members would see it, so only the ship's own profile is read.
+::    the existence checks come first: a scry for a ship Contacts does not
+::    know fails, and nothing catches a failed scry.
+++  nickname
+  |=  who=@p
+  ^-  (unit @t)
+  =/  base=path  /(scot %p our.bowl)/contacts/(scot %da now.bowl)
+  ?.  .^(? %gu (snoc base %$))  ~
+  =/  known=path  (weld base /v1/peer/(scot %p who))
+  ?.  .^(? %gu known)  ~
+  =/  far  .^(foreign:ct %gx (snoc known %contact-foreign-0))
+  ?~  for.far  ~
+  =/  nick  (~(get by con.for.far) %nickname)
+  ?.  ?=([~ %text *] nick)  ~
+  ?:  =('' p.u.nick)  ~
+  `p.u.nick
 ++  contacts
   ^-  json
   =/  =directory:ct

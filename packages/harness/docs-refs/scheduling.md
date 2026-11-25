@@ -17,12 +17,12 @@ out of everyone else's.
 ## Tasks and literal reminders
 
 `schedule_once` takes a future RFC3339 `at` within 10 years, with `Z` or an
-explicit UTC offset, and a self-contained `prompt` (1–4,096 UTF-8 bytes).
+explicit UTC offset, and a self-contained `prompt` (1–8,192 UTF-8 bytes).
 It runs inference once at that exact time. Include the necessary brief and
 authorized sources: the isolated agent does not receive the source transcript.
 Use this for one-time work and `cron_add` for recurring work.
 
-`cron_add` requires `schedule`, `timezone` and `prompt` (1–4,096 UTF-8 bytes).
+`cron_add` requires `schedule`, `timezone` and `prompt` (1–8,192 UTF-8 bytes).
 `runs` is optional: a decimal string for a count from 1 to 1,000,000, after
 which the job completes. The ceiling only keeps the count exact in listings,
 which give it as a JSON number; it does not limit recurring work. Without
@@ -118,11 +118,9 @@ On a moon, in this order:
 
 1. Save the export while OpenClaw still runs.
 2. Stop OpenClaw, so that the two runtimes never both run a task.
-3. Start Harness with the owner set. Each task becomes a schedule of an
-   existing Tlon conversation, so the owner sends the bot a message in every
-   DM, channel and thread a task posts to. In a channel or thread the message
-   mentions the bot: by default the bot answers only mentions there, and a
-   message it does not answer starts no conversation.
+3. Start Harness with the owner set. The importer can open the owner's DM
+   and channels the bot may post in, even before the first message. A task
+   targeting a thread needs an existing conversation in that thread.
 4. Run with `--dry-run`, which creates nothing, and read what it prints.
 5. Run again without it.
 
@@ -140,8 +138,7 @@ Each task is mapped this way:
 - A delivery `to` naming the owner's ship (`~ship`, `dm/~ship`, `dm:~ship`,
   with or without `tlon:`) posts to the owner's DM; a nest such as
   `chat/~host/name`, `heap/…` or `diary/…`, with or without `tlon:`, `group:`
-  or `room:`, posts to that channel. The task is refused when the ship has no
-  conversation there yet.
+  or `room:`, posts to that channel. Before opening a channel, the hand checks that it exists on the bot’s ship and that the bot is allowed to post there.
 - A task with a `threadId` posts to the existing conversation in that thread.
   With none, it is refused, unless `--threads-to-parent` sends it to the DM
   or channel instead.
@@ -155,7 +152,7 @@ These are refused, with the reason:
   hook session (`session:hook:…`), one whose payload has an
   `externalContentSource`, and one that sets `allowUnsafeExternalContent`.
   Harness would run that text as the owner's own instruction;
-- an empty prompt or one over 4,096 bytes;
+- an empty prompt or one over 8,192 bytes;
 - a tool list that held the task to fewer tools than its conversation may
   give it, since a schedule runs with its conversation's tools. A task with
   no `toolsAllow`, or with `["*"]`, is imported; so is one with OpenClaw's

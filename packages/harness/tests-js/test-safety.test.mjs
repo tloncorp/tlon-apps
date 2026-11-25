@@ -60,21 +60,23 @@ test('test transport acknowledges new queue positions only, never idle polls', a
 })
 
 // A stand-in ship whose queue poll answers after .hold milliseconds, or never,
-// and which answers every call but `unanswered`.
-async function standIn(t, hold) {
+// and which answers every call but `unanswered`; with .holdAck it leaves its
+// first acknowledgement unanswered.
+async function standIn(t, hold, { holdAck = false } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'harness-client-unit-'))
   const cookiePath = join(directory, 'cookie')
   const previousCookie = process.env.SHIP_COOKIE
   await writeFile(cookiePath, 'localhost\tFALSE\t/\tFALSE\t0\turbauth-~zod\tUNIT_FIXTURE\n', { mode: 0o600 })
   process.env.SHIP_COOKIE = cookiePath
-  const results = [], polls = [], requests = []
+  const results = [], polls = [], requests = [], acks = []
   const server = createServer((req, res) => {
     requests.push(req.method)
     let raw = ''
     req.on('data', (chunk) => { raw += chunk })
     req.on('end', () => {
       if (req.method === 'PUT') {
-        const send = JSON.parse(raw)[0].json.send
+        const { send, ack } = JSON.parse(raw)[0].json
+        if (ack && acks.push(ack.through) === 1 && holdAck) return
         if (send && JSON.parse(send.payload).method !== 'unanswered') results.push({ sequence: results.length + 1, payload: JSON.stringify({ jsonrpc: '2.0', id: JSON.parse(send.payload).id, result: { ok: true } }) })
         return res.end()
       }
@@ -93,7 +95,7 @@ async function standIn(t, hold) {
     await rm(directory, { recursive: true })
   })
   const { Client } = await import('./lib/ship-client.mjs')
-  return { url: `http://127.0.0.1:${server.address().port}`, Client, polls, requests }
+  return { url: `http://127.0.0.1:${server.address().port}`, Client, polls, requests, acks }
 }
 
 test('test transport asks again when a queue poll outlasts its request limit', { timeout: 10000 }, async (t) => {
@@ -120,6 +122,18 @@ test('test transport fails at the call deadline, naming the silent poll, and sto
   const sent = requests.length
   await assert.rejects(client.call('harness/tlon'), (error) => error === failure)
   assert.equal(requests.length, sent, 'a call after the failure sends nothing')
+})
+
+test('test transport sends an acknowledgement that times out again, without failing the client', { timeout: 5000 }, async (t) => {
+  const { url, Client, acks } = await standIn(t, 0, { holdAck: true })
+  const client = new Client({ url, auth: 'urbauth-~zod=UNIT_FIXTURE', limit: 200, deadline: 5000 })
+  await client.start()
+  while (!client.acknowledged && !client.failure) await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.equal(client.failure, undefined)
+  assert.deepEqual(acks, [1, 1])
+  assert.equal(client.running, true)
+  assert.deepEqual(await client.call('initialize'), { ok: true })
+  client.running = false; await client.polling
 })
 
 test('test transport fails one call, not the client, when the ship answers polls', { timeout: 5000 }, async (t) => {
