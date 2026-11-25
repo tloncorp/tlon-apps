@@ -58,7 +58,8 @@ async function command(text, expected) {
   if (!dm.sid) dm.sid = await until('the DM session', async () => (await client.call('harness/tlon')).sessions.find((sid) => !sessions.has(sid)))
   return (await memorySets()) - before
 }
-const owner = (who) => client.call('harness/tlon/configure', { enabled: true, owner: who, trusted: who === peer ? [] : [{ ship: peer, tools: [] }], response: 'mentions', allowed: [], channels: [] })
+// With another owner, the peer holds only a grant for its DM.
+const owner = (who) => client.call('harness/tlon/configure', { enabled: true, owner: who, trusted: [], dmGrants: who === peer ? [] : [peer], channelGrants: [], response: 'mentions', allowed: [], channels: [] })
 try {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)); await client.start()
   originals = { defaults: await client.call('harness/defaults'), policy: (await client.call('harness/tlon')).policy }

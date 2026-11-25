@@ -3,7 +3,8 @@
 /-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, c=harness-cron,
     ac=acp, renew=harness-oauth, *harness-store
 /+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness,
-    command=harness-command, schedule=harness-schedule, mem=harness-memory
+    command=harness-command, schedule=harness-schedule, mem=harness-memory,
+    work-help=harness-work-help
 /=  head  /app/harness
 |%
 ++  t0  ~2026.10.1
@@ -427,10 +428,10 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  start  conversations
-  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/work projects')
-  ;<  ~  bind:m  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/work')
+  ;<  ~  bind:m  (ex-equal !>((reply log)) !>(`overview:work-help))
   ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/memory')
-  ;<  ~  bind:m  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((reply log)) !>(`'No matching shared memories.'))
   ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/model')
   (ex-equal !>((reply log)) !>(`(cat 3 'Model: ' (model-label:command defaults.start))))
 ::
@@ -988,6 +989,38 @@
         ['forget-1' 'error: That memory name is not available.']
     ==
   (ex-equal !>(`(map @t @t)`(malt results)) !>(expected))
+::  A webhook turn answers no one, so though the place rule would let it
+::  change what its own conversation learned, it saves and forgets nothing.
+::
+++  test-a-webhook-turns-memory-tool-cannot-save-or-forget
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'hook-note' 'The hook fires hourly.' 'hook' '~zod' |)
+  =.  sessions.saved  (~(put by sessions.saved) 'hook' (idle saved))
+  =/  revision  (scot %ud revision:(~(got by records.knowledge.saved) 'hook-note'))
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  asked=(list card)  bind:m
+    (do-poke %handle-http-request !>([`@ta`%hook-1 (webhook 'Note this.')]))
+  ;<  *  bind:m
+    %+  do-arvo  wire:(snag 0 (model-requests asked))
+    %+  answer  ''
+    :~  ['save-1' 'memory' '{"operation":"save","name":"fresh-note","text":"Noted.","revision":"0"}']
+        :+  'forget-1'  'memory'
+        (rap 3 '{"operation":"forget","name":"hook-note","revision":"' revision '"}' ~)
+    ==
+  ;<  after=state-0  bind:m  get-state
+  =/  results
+    %+  murn  log:(~(got by sessions.after) 'hook')
+    |=  =event:h
+    ^-  (unit [@t @t])
+    ?.  ?=(%tool-completed -.event)  ~
+    `[call-id.event body.event]
+  =/  refusal  (cat 3 'error: ' refused-memory:command)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(`(map @t @t)`(malt results))
+    !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]]))
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.saved))
 ::  A subagent's reach comes from the head's own walk to its root: one
 ::  started from the owner's DM sees what the DM sees, one from a channel
 ::  does not.
@@ -1151,21 +1184,22 @@
     !>(`'The falcon codeword is vexillum.')
   ;<  ~  bind:m  (ex-equal !>(body.value:(~(got by records.knowledge.forgotten) 'falcon')) !>(~))
   (ex-equal !>((model log:(~(got by sessions.changed) 'owner'))) !>('other-model'))
-::  A run of the owner's schedule answers for the owner, though the hand
-::  answers that no speaker changes a run's settings.
+::  A run of .actor's schedule in their DM, .sid, which already learned
+::  .name; the hand answers that no speaker changes a run's settings. The
+::  run's memory writes.
 ::
-++  test-the-owners-scheduled-run-still-saves-and-forgets
-  %-  eval-mare
-  =/  m  (mare ,~)
+++  scheduled-writes
+  |=  [actor=@t sid=@t name=@t]
+  =/  m  (mare ,[results=(map @t @t) after=state-0])
   ^-  form:m
-  =/  saved  (seed owned 'owner-note' 'Owner likes tea.' 'owner' '~nec' |)
-  =/  source=binding:hh  ['tlon' 'dm/~nec' 'owner' ~['~nec'] &]
+  =/  saved  (seed owned name 'A fact the DM learned.' sid actor |)
+  =/  source=binding:hh  ['tlon' (cat 3 'dm/' actor) sid ~[actor] &]
   =/  args
     %-  pairs:enjs:format
     :~  ['schedule' %s '* * * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Check status']
         ['runs' %s '2']
     ==
-  =/  job  (create:schedule [%add 0v1 'owner' '~nec' %prompt args] source ~ t0)
+  =/  job  (create:schedule [%add 0v1 sid actor %prompt args] source ~ t0)
   =/  run  run-sid.job
   =.  schedules.saved  (my ~[[0v1 job]])
   =.  sessions.saved  (~(put by sessions.saved) run (idle saved))
@@ -1175,9 +1209,30 @@
     ^-  (unit vase)
     ?:  ?=([%gx @ %harness-tlon @ %settings @ @ %noun ~] path)  `!>(|)
     (lane-scry path)
+  (memory-writes-with scry saved run actor name)
+::  A run of the owner's schedule answers for the owner.
+::
+++  test-the-owners-scheduled-run-still-saves-and-forgets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
   ;<  [results=(map @t @t) after=state-0]  bind:m
-    (memory-writes-with scry saved run '~nec' 'owner-note')
+    (scheduled-writes '~nec' 'owner' 'owner-note')
   (ex-memory-writes-saved results after 'owner-note')
+::  A run of anyone else's schedule answers for them, so it saves and
+::  forgets nothing.
+::
+++  test-another-ships-scheduled-run-cannot-save-or-forget
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  before  (seed owned 'dm-note' 'A fact the DM learned.' 'dm' '~bus' |)
+  ;<  [results=(map @t @t) after=state-0]  bind:m
+    (scheduled-writes '~bus' 'dm' 'dm-note')
+  =/  refusal  (cat 3 'error: ' refused-memory:command)
+  ;<  ~  bind:m
+    (ex-equal !>(results) !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]])))
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.before))
 ::  The channel facts a multi-term search ranks: five fillers' worth of
 ::  common terms, and two facts that tie when no private count is used.
 ::  .private adds an owner fact that shares one of the terms.

@@ -2803,7 +2803,12 @@
   %+  levy  log
   |=  =event:h
   ?.  ?=(%input-received -.event)  &
-  =/  in=admitted-input:h  input.event
+  (owner-input input.event)
+::  +owner-input: one input is the owner's own on this ship.
+::
+++  owner-input
+  |=  in=admitted-input:h
+  ^-  ?
   ?+  -.source.in  |
     %acp    &(?=(~ (decode:admin client.source.in)) =(`our.bowl actor.in))
     %poke   &(=(our.bowl ship.source.in) =(`our.bowl actor.in))
@@ -4276,9 +4281,11 @@
       /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/[question]/[sid]/[actor.source]/noun
     ==
   =(`& found)
-::  Whether the turn running in .sid may change shared memory, as its
-::  speaker may change the conversation. A subagent's turn answers for its
-::  root parent's, and a scheduled run for its schedule's actor.
+::  Whether the turn running in .sid answers the owner, so it may change
+::  shared memory: a hand's speaker who may change the conversation, a peer
+::  call from the owner's ship, or the owner's own local input. A subagent's
+::  turn answers for its root parent's, and a scheduled run for its
+::  schedule's actor. Webhook, work and any other input may not.
 ::
 ++  turn-configures
   |=  sid=session-id:h
@@ -4295,7 +4302,10 @@
   ?^  job  (fall (bind (slaw %p actor.u.job) is-owner) |)
   =/  input  (current-input:admin log.u.session)
   ?~  input  |
-  (speaker-configures sid source.u.input |)
+  ?+  -.source.u.input  (owner-input u.input)
+    %hand  (speaker-configures sid source.u.input |)
+    %peer  (peer-owner ship.source.u.input)
+  ==
 ::  A stop is out of band, not another queued request. Idle sessions need no
 ::  synthetic cancellation; their command acknowledgement is sufficient.
 ::  With .who, a hand speaker other than the owner stops only their own work.

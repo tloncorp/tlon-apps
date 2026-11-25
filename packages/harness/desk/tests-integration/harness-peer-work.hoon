@@ -5,7 +5,8 @@
 /-  h=harness, w=harness-workspace, adapter=harness-adapter, t=harness-tlon, *harness-store,
     renew=harness-oauth
 /+  *test, *test-agent, rpc=harness-peer-rpc, defaults=harness-defaults, work=harness-workspace,
-    hl=harness, effects=harness-effects, failure=harness-failure, j=harness-workspace-json
+    hl=harness, effects=harness-effects, failure=harness-failure, j=harness-workspace-json,
+    mem=harness-memory, command=harness-command
 /=  head  /app/harness
 |%
 ++  t0  ~2026.9.14
@@ -959,4 +960,51 @@
   %-  eval-mare
   ;<  ~  bind:(mare ,~)  (ex-reported ~lux)
   (ex-reported ~zod)
+::  ~nec's direct calls of the memory tool, with ~nec's direct-call
+::  conversation already holding a fact it learned there: a save of a new
+::  fact, then a forget of that one. The results, and the state after.
+::
+++  peer-memory-writes
+  |=  owner=@p
+  =/  m  (mare ,[save=(unit (each @t @t)) forget=(unit (each @t @t)) after=state-0])
+  ^-  form:m
+  =/  sid  (cat 3 'peer-tool--' (scot %p ~nec))
+  =/  saved=state-0  guest-fixture
+  =/  seeded
+    %:  save:mem
+      everything:mem  knowledge.saved  'peer-note'  0
+      [`'Noted before.' ~ | & [sid 0v1 1 t0 '~nec']]
+    ==
+  ?>  ?=(%& -.seeded)
+  =.  knowledge.saved  p.seeded
+  =/  revision  (scot %ud revision:(~(got by records.p.seeded) 'peer-note'))
+  =/  save  '{"operation":"save","name":"fresh-note","text":"Noted.","revision":"0"}'
+  =/  forget  (rap 3 '{"operation":"forget","name":"peer-note","revision":"' revision '"}' ~)
+  ;<  [saving=(unit (each @t @t)) next=state-0]  bind:m
+    (rpc-poke saved ~nec owner [%invoke 0v1 t0 'memory' save])
+  ;<  [forgetting=(unit (each @t @t)) after=state-0]  bind:m
+    (rpc-poke next ~nec owner [%invoke 0v2 t0 'memory' forget])
+  (pure:m [saving forgetting after])
+::
+++  test-a-non-owner-peers-memory-calls-cannot-save-or-forget
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [save=(unit (each @t @t)) forget=(unit (each @t @t)) after=state-0]  bind:m
+    (peer-memory-writes ~lux)
+  =/  refusal  `(unit (each @t @t))``[%& (cat 3 'error: ' refused-memory:command)]
+  ;<  ~  bind:m  (ex-equal !>([save forget]) !>([refusal refusal]))
+  ;<  ~  bind:m  (ex-equal !>((~(has by records.knowledge.after) 'fresh-note')) !>(|))
+  %+  ex-equal  !>(body.value:(~(got by records.knowledge.after) 'peer-note'))
+  !>(`'Noted before.')
+::
+++  test-the-owners-peer-memory-calls-still-save-and-forget
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* * after=state-0]  bind:m  (peer-memory-writes ~nec)
+  ;<  ~  bind:m
+    %+  ex-equal  !>(body.value:(~(got by records.knowledge.after) 'fresh-note'))
+    !>(`'Noted.')
+  (ex-equal !>(body.value:(~(got by records.knowledge.after) 'peer-note')) !>(~))
 --
