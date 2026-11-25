@@ -684,7 +684,16 @@ messaging the sender.
   Lens retry are always answered, whatever the text. The owner sees nothing
   in the channel; the run is finished, and Context Lens shows its delivery as
   abandoned, and the owner inbox shows the model's answer as its body. The
-  message's event id starts with `unaddressed/`.
+  message's event id starts with `unaddressed/`. A failure on such a message
+  is not posted either, whatever the error: the hand abandons the failure
+  notice with the reason "The run failed on a message that did not mention
+  the bot." The owner still sees the failure in Context Lens, which can
+  retry it, in the run report, which keeps status `error` and its text with
+  delivery `abandoned`, and in the owner inbox, where the run is blocked with
+  the text. Failure notices for DMs and mentions are still posted, and so is
+  a cancellation notice. The cost: in a channel with only the owner and the
+  bot, a lasting authentication, billing or model misconfiguration makes
+  every unmentioned question fail with no post.
 - The exact destination determines the stable conversation: a DM, a channel
   and each thread in either have one conversation each. Every admitted speaker
   in a channel shares its conversation, and each message there reaches the
@@ -1273,6 +1282,8 @@ does not stop a running turn and reaches the model as the owner's words, that a
 burst of unmentioned owner lines does not delay a DM from the guest and lines that
 found no room are never answered, that an unmentioned remark answered `NO_REPLY` is
 abandoned with no post while the same answer to a mention is posted, and only the
-unmentioned turn is told it may stay quiet, and that `harness/tlon/channel/configure` with a
+unmentioned turn is told it may stay quiet, that a provider error on an unmentioned
+remark is abandoned with no post and kept in the run report while the same error on
+a mention is posted, and that `harness/tlon/channel/configure` with a
 `mentions` rule changes only that channel, after which the owner needs a mention
 and the guest is still answered. It restores defaults and policy; messages remain.

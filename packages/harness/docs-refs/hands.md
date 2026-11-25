@@ -208,7 +208,7 @@ not pursuing delivery, not proof that an external message never appeared. It
 is terminal, disappears from the work outbox, and remains in the export audit.
 The Tlon hand also resolves its own claim to `abandoned`, at the claimed
 attempt and before sending anything, for a channel reply the bot chose not
-to give; [tlon.md](tlon.md) says when.
+to give or a failure notice it need not post; [tlon.md](tlon.md) says when.
 
 `health` flags claims or uncertain outcomes older than five minutes for
 inspection. It never expires or resends them. A generation fence protects

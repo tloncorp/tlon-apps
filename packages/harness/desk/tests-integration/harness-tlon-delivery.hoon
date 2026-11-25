@@ -1,5 +1,5 @@
 ::  Full adapter acknowledgement handling; emitted Messenger cards never run.
-/-  t=harness-tlon, hh=harness-hand, g=groups-ver, cr=harness-cron
+/-  h=harness, t=harness-tlon, hh=harness-hand, g=groups-ver, cr=harness-cron, steward-lens
 /+  *test-agent, tp=harness-tlon-policy, hd=harness-hand
 /=  adapter  /app/harness-tlon
 |%
@@ -249,13 +249,17 @@
     !>(`(list card)`~)
   (ex-equal !>(notices.s) !>(`(list notice:t)`~))
 ::  Silence. The owner (~nec) said something the bot (~zod) answers with
-::  .body; the bot holds the claim on that reply at attempt 1. Only a reply
-::  to a channel message heard without a mention, outside a schedule, whose
-::  text is empty or exactly NO_REPLY, is left unsent, by abandoning the
-::  claim. A later reply to the room, 0v2, waits behind it.
+::  .body; the bot holds the claim on that reply at attempt 1. Only for a
+::  channel message heard without a mention, outside a schedule, a failure
+::  notice, or a reply whose text is empty or exactly NO_REPLY, is left
+::  unsent, by abandoning the claim. A later reply to the room, 0v2, waits
+::  behind it.
 ::
 ++  heard  'unaddressed/0v1'
 ++  quiet-reason  'The bot chose not to reply.'
+++  failed-reason  'The run failed on a message that did not mention the bot.'
+++  provider-error
+  'The model provider rejected the request format or options. The owner can inspect the session details and check model compatibility.'
 ++  thread  `destination:t`[%channel [%chat ~lux %test] `~2026.9.30]
 ++  room  `destination:t`[%channel [%chat ~lux %test] ~]
 +$  said  [to=destination:t event=@t kind=?(%reply %failure %cancelled) body=@t]
@@ -274,6 +278,12 @@
   =/  [binding=@t sid=@t]  ?:(scheduled ['run' 'run'] ['binding' 'room'])
   =/  address  (address:tp to.said)
   =/  later  (address:tp room)
+  =/  =phase:hh
+    ?-  kind.said
+      %reply  %completed
+      %failure  %failed
+      %cancelled  %cancelled
+    ==
   =/  db  *state:hh
   %=  db
       bindings
@@ -283,7 +293,7 @@
     ==
       observations
     %-  my
-    :~  [0v1 [binding event.said '~nec' 'hello' ~2026.10.1 %completed]]
+    :~  [0v1 [binding event.said '~nec' 'hello' ~2026.10.1 phase]]
         [0v2 ['binding' '0v2' '~nec' 'again' ~2026.10.1..00.00.30 %completed]]
     ==
       outbox
@@ -315,6 +325,10 @@
   ?:  ?=([%gx @ %harness @ %cron-authority @ %noun ~] path)  `!>(&)
   ?:  ?=([%gx @ %harness @ %work-card @ %noun ~] path)  `!>(`(unit @t)`~)
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
+  ::  Context Lens reads these when it is on.
+  ?:  ?=([%gx @ %harness @ %head @ %noun ~] path)
+    `!>(`[revision=@ud view=view:h next=(unit step:h)]`[0 *view:h ~])
+  ?:  ?=([%gx @ %harness @ %run @ @ %noun ~] path)  `!>(`(unit json)`[~ [%o ~]])
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([reader=@p *] =(~nec reader)))
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] (room-group ~nec)]]))
   ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
@@ -370,16 +384,21 @@
   ;<  caz=(list card)  bind:m  (hand-result /hand/claim/0v1 claim)
   ;<  s=state-5:t  bind:m  saved
   (pure:m db [(published caz) (receipts caz) s])
-++  abandonment
-  `action:hh`[%resolve 'tlon' 0v1 1 %abandoned '' quiet-reason]
+++  abandoned-as
+  |=  reason=@t
+  `action:hh`[%resolve 'tlon' 0v1 1 %abandoned '' reason]
+++  abandonment  (abandoned-as quiet-reason)
 ::  The reply was left unsent: the claim is being abandoned at its attempt.
 ::
 ++  ex-silent
   |=  out=claimed
+  (ex-left out quiet-reason)
+++  ex-left
+  |=  [out=claimed reason=@t]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (ex-equal !>(sent.out) !>(|))
-  ;<  ~  bind:m  (ex-equal !>(acts.out) !>(`(list action:hh)`~[abandonment]))
+  ;<  ~  bind:m  (ex-equal !>(acts.out) !>(`(list action:hh)`~[(abandoned-as reason)]))
   %+  ex-equal  !>(deliveries.saved.out)
   !>(`(map @uv delivery:t)`(my ~[[0v1 [1 %claim %uncertain 'no-reply']]]))
 ++  ex-sent
@@ -454,14 +473,82 @@
   ;<  ~  bind:m  (sent [room 'cron/0v1/~2026.10.1' %reply ''] `(run-of %reminder))
   ;<  ~  bind:m  (sent [room 'work-reply/0v1' %reply 'NO_REPLY'] ~)
   (sent [room 'lens-retry/0v1' %reply 'NO_REPLY'] ~)
-++  test-failure-and-cancellation-notices-are-published
+::  A failure notice for a channel message heard without a mention is left
+::  unsent whatever its text, with its own reason.
+::
+++  test-an-unaddressed-channel-failure-is-left-unsent-and-a-later-reply-is-delivered
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* failure=claimed]  bind:m  (claim-said [room heard %failure 'NO_REPLY'] ~)
-  ;<  ~  bind:m  (ex-sent failure)
-  ;<  [* cancelled=claimed]  bind:m  (claim-said [room heard %cancelled ''] ~)
-  (ex-sent cancelled)
+  ;<  [* threaded=claimed]  bind:m  (claim-said [thread heard %failure provider-error] ~)
+  ;<  ~  bind:m  (ex-left threaded failed-reason)
+  ;<  [db=state:hh out=claimed]  bind:m  (claim-said [room heard %failure provider-error] ~)
+  ;<  ~  bind:m  (ex-left out failed-reason)
+  =/  [abandoned=state:hh result=(each json @t)]  (applied db (abandoned-as failed-reason))
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate abandoned ~))
+  ;<  caz=(list card)  bind:m  (hand-result /hand/resolve/0v1 result)
+  (later-delivered caz abandoned)
+::  Recovery picks the reason from the publication again.
+::
+++  test-a-reload-before-a-failure-abandonment-commits-sends-it-again-with-its-reason
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh out=claimed]  bind:m  (claim-said [room heard %failure provider-error] ~)
+  ;<  caz=(list card)  bind:m  (reload saved.out db)
+  ;<  ~  bind:m
+    (ex-equal !>((receipts caz)) !>(`(list action:hh)`~[(abandoned-as failed-reason)]))
+  (ex-equal !>((published caz)) !>(|))
+::  A failure for a mention, a DM, a scheduled run and a Lens retry is
+::  posted; so is a cancellation, even for a message heard without a mention.
+::
+++  test-addressed-dm-scheduled-and-retried-failures-and-cancellations-are-published
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  sent
+    |=  [=said scheduled=(unit schedule:cr)]
+    =/  n  (mare ,~)
+    ^-  form:n
+    ;<  [* out=claimed]  bind:n  (claim-said said scheduled)
+    (ex-sent out)
+  ;<  ~  bind:m  (sent [room '0v1' %failure provider-error] ~)
+  ;<  ~  bind:m  (sent [[%dm ~nec ~] heard %failure provider-error] ~)
+  ;<  ~  bind:m  (sent [room heard %failure provider-error] `(run-of %prompt))
+  ;<  ~  bind:m  (sent [room 'lens-retry/0v1' %failure provider-error] ~)
+  (sent [room heard %cancelled 'Work was cancelled.'] ~)
+::  The owner can retry an abandoned failure from Context Lens: the retry is
+::  a fresh event, admitted again, and its reply is posted.
+::
+++  test-a-lens-retry-of-an-abandoned-failure-is-admitted-and-its-reply-delivered
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [db=state:hh out=claimed]  bind:m  (claim-said [room heard %failure provider-error] ~)
+  ::  Without the later reply, the retry's answer is the next for the room.
+  =/  abandoned  db:(applied db (abandoned-as failed-reason))
+  =.  outbox.abandoned  (~(del by outbox.abandoned) 0v2)
+  =/  s  saved.out
+  ;<  *  bind:m  (reload s(lens [& `~nec `@da`0 ~ '']) abandoned)
+  ;<  ~  bind:m  connected
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  /lens/events  [~zod %steward]
+    [%fact %steward-lens-update-1 !>(`update:v1:steward-lens`[%retry-requested '0v1' ~nec])]
+  =/  retry  `action:hh`[%observe 'binding' 'lens-retry/0v1' '~nec' 'hello']
+  ;<  ~  bind:m  (ex-equal !>((receipts caz)) !>(`(list action:hh)`~[retry]))
+  =/  id  (input-id:hd 'binding' 'lens-retry/0v1')
+  =/  answered
+    %^  finish:hd  (start:hd db:(applied abandoned retry) 'room' id)  'room'
+    [%reply 'Retried answer']
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate answered ~))
+  ;<  claims=(list card)  bind:m  head-fact
+  ;<  ~  bind:m
+    %+  ex-equal  !>((receipts claims))
+    !>(`(list action:hh)`~[[%claim 'tlon' id 'harness-tlon']])
+  =/  [taken=state:hh claim=(each json @t)]  (applied answered [%claim 'tlon' id 'harness-tlon'])
+  ;<  ~  bind:m  (set-scry-gate (quiet-gate taken ~))
+  ;<  sent=(list card)  bind:m  (hand-result /hand/claim/(scot %uv id) claim)
+  (ex-equal !>((published sent)) !>(&))
 ::  Every head fact reconciles; only recovery sends an abandonment again.
 ::
 ++  test-head-facts-before-the-abandonment-result-send-it-once

@@ -3521,7 +3521,7 @@
     ?:  =(%claim stage.delivery)
       ?.  =(%claimed status.u.publication)  engine
       ?:  &(=(no-reply external.delivery) =(attempt attempt.delivery))
-        (abandon:engine id attempt)
+        (abandon:engine id attempt kind.u.publication)
       =?  deliveries.engine  =(no-reply external.delivery)
         (~(put by deliveries.engine) id delivery(external ''))
       ::  The persisted adapter stage proves dispatch never happened. A
@@ -3804,12 +3804,12 @@
       ==
     =.  deliveries  (~(put by deliveries) id [attempt %receipt %failed ''])
     (hand %receipt id [%receipt-at 'tlon' id 'harness-tlon' attempt %failed ''])
-  ::  Nothing has been sent, so a reply the bot chose not to give is
-  ::  abandoned at this attempt. The entry lets recovery find it until the
-  ::  ledger has it.
+  ::  Nothing has been sent, so a reply the bot chose not to give, or a
+  ::  failure notice it need not give, is abandoned at this attempt. The
+  ::  entry lets recovery find it until the ledger has it.
   ?:  (silent hands publication u.lane)
     =.  deliveries  (~(put by deliveries) id [attempt %claim %uncertain no-reply])
-    (abandon id attempt)
+    (abandon id attempt kind.publication)
   =.  last-sent  (next-message-stamp:p now.bowl last-sent)
   =/  external=@t  (rap 3 (scot %p our.bowl) '/' (scot %da last-sent) ~)
   ::  Persist the attempt and external identity before emitting Messenger work.
@@ -3839,26 +3839,33 @@
 ::  ordinary claim's is empty.
 ::
 ++  no-reply  'no-reply'
-::  A reply the bot may leave unsent: to a channel message heard without a
-::  mention, outside a schedule, with no text or exactly NO_REPLY.
+::  A publication the bot may leave unsent, for a channel message heard
+::  without a mention, outside a schedule: a failure notice, or a reply with
+::  no text or exactly NO_REPLY.
 ::
 ++  silent
   |=  [hands=state:hh publication=publication:hh lane=lane:t]
   ^-  ?
   =/  observation  (~(get by observations.hands) input.publication)
-  ?&  =(%reply kind.publication)
-      ?=(%channel -.to.lane)
+  ?&  ?=(%channel -.to.lane)
       ?=(~ (scheduled sid.publication))
       ?=(^ observation)
       (unaddressed:p event.u.observation)
-      =/  body  (trim:command (trip body.publication))
-      |(=(~ body) =("NO_REPLY" body))
+      ?|  =(%failure kind.publication)
+          ?&  =(%reply kind.publication)
+              =/  body  (trim:command (trip body.publication))
+              |(=(~ body) =("NO_REPLY" body))
+          ==
+      ==
   ==
 ::
 ++  abandon
-  |=  [id=@uv attempt=@ud]
+  |=  [id=@uv attempt=@ud kind=?(%reply %failure %cancelled)]
   ^+  cor
-  (hand %resolve id [%resolve 'tlon' id attempt %abandoned '' 'The bot chose not to reply.'])
+  =/  reason=@t
+    ?:  =(%failure kind)  'The run failed on a message that did not mention the bot.'
+    'The bot chose not to reply.'
+  (hand %resolve id [%resolve 'tlon' id attempt %abandoned '' reason])
 ::  The ledger's answer to +abandon. A refused request changes nothing in
 ::  the ledger, so no head fact follows to retry it.
 ::
