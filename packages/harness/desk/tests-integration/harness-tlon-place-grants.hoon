@@ -16,8 +16,8 @@
 ::  and ~bud is allowed everywhere. Both channels need mentions.
 ::
 ++  fixture
-  ^-  state-4:t
-  =/  s=state-4:t  *state-4:t
+  ^-  state-5:t
+  =/  s=state-5:t  *state-5:t
   =.  owner-initialized.s  1
   =.  activity-through.s  ~2026.9.9
   =.  policy.s
@@ -58,6 +58,8 @@
   |=  =path
   ^-  (unit vase)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
+  ::  harness-tlon-steward covers the Steward lease.
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ::  Every ship here may read both channels natively.
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
@@ -74,8 +76,8 @@
 ::  Load .saved, then deliver .events through Activity catch-up.
 ::
 ++  admit
-  |=  [saved=state-4:t events=(list [@da incoming-event:v8:a])]
-  =/  m  (mare ,[(list card) state-4:t])
+  |=  [saved=state-5:t events=(list [@da incoming-event:v8:a])]
+  =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m  head-connected
@@ -84,12 +86,12 @@
   ;<  ~  bind:m  head-connected
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-4:t vase))
+  (pure:m caz !<(state-5:t vase))
 ::  Load .saved, then save .next through the policy endpoint.
 ::
 ++  configure
-  |=  [saved=state-4:t next=policy:t]
-  =/  m  (mare ,[(list card) state-4:t])
+  |=  [saved=state-5:t next=policy:t]
+  =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m  head-connected
@@ -101,12 +103,12 @@
     %+  do-poke  %noun
     !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `params])
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-4:t vase))
+  (pure:m caz !<(state-5:t vase))
 ::  Load .saved, then hear from %channels that the bot left .nest.
 ::
 ++  leave
-  |=  [saved=state-4:t nest=nest:dv]
-  =/  m  (mare ,[(list card) state-4:t])
+  |=  [saved=state-5:t nest=nest:dv]
+  =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m  head-connected
@@ -117,12 +119,12 @@
     %^  do-agent  /publications  [~zod %channels]
     [%fact %channel-response-4 !>(`r-channels:v9:dv`[nest %leave ~])]
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-4:t vase))
+  (pure:m caz !<(state-5:t vase))
 ::  The same, with the %harness head not running.
 ::
 ++  leave-headless
-  |=  [saved=state-4:t nest=nest:dv]
-  =/  m  (mare ,[(list card) state-4:t])
+  |=  [saved=state-5:t nest=nest:dv]
+  =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m
@@ -137,10 +139,10 @@
     %^  do-agent  /publications  [~zod %channels]
     [%fact %channel-response-4 !>(`r-channels:v9:dv`[nest %leave ~])]
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-4:t vase))
+  (pure:m caz !<(state-5:t vase))
 ::
 ++  admitted
-  |=  s=state-4:t
+  |=  s=state-5:t
   ^-  (set [@p destination:t])
   (silt (turn ~(val by jobs.s) |=(=job:t [actor to]:input.job)))
 ++  pokes
@@ -156,7 +158,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-4:t]  bind:m
+  ;<  [* s=state-5:t]  bind:m
     %+  admit  fixture
     :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 (mention ~dev other-nest ~2026.9.9..12.00.01)]
@@ -167,7 +169,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-4:t]  bind:m
+  ;<  [* s=state-5:t]  bind:m
     %+  admit  fixture
     :~  [~2026.9.9..12.00.00 (dm ~bus ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 (mention ~bus room-nest ~2026.9.9..12.00.01)]
@@ -211,13 +213,13 @@
   =.  place-cuts.saved  (my ~[[[~bus ~] ~2026.9.9]])
   =/  next  policy.saved
   =.  channel-grants.next  (~(put by channel-grants.next) room-nest (silt ~[~dev ~bus]))
-  ;<  [* granted=state-4:t]  bind:m  (configure saved next)
+  ;<  [* granted=state-5:t]  bind:m  (configure saved next)
   ;<  ~  bind:m  (ex-equal !>(cuts.granted) !>(cuts.saved))
   ;<  ~  bind:m
     %+  ex-equal
       !>(place-cuts.granted)
     !>((my ~[[[~bus ~] ~2026.9.9] [[~bus `room-nest] ~2026.9.10]]))
-  ;<  [* s=state-4:t]  bind:m
+  ;<  [* s=state-5:t]  bind:m
     %+  admit  granted
     :~  [~2026.9.9..12.00.00 (dm ~bus ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 (mention ~bus room-nest ~2026.9.9..12.00.01)]
@@ -234,12 +236,12 @@
   =.  place-cuts.saved  (my ~[[[~dev `room-nest] ~2026.9.9]])
   =/  next  policy.saved
   =.  dm-grants.next  (~(put in dm-grants.next) ~dev)
-  ;<  [* granted=state-4:t]  bind:m  (configure saved next)
+  ;<  [* granted=state-5:t]  bind:m  (configure saved next)
   ;<  ~  bind:m
     %+  ex-equal
       !>(`(unit @da)`(~(get by place-cuts.granted) [~dev `room-nest]))
     !>(`(unit @da)``~2026.9.9)
-  ;<  [* s=state-4:t]  bind:m
+  ;<  [* s=state-5:t]  bind:m
     %+  admit  granted
     :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
         [~2026.9.9..12.00.01 (dm ~dev ~2026.9.9..12.00.01)]
@@ -284,7 +286,7 @@
     ==
   =/  next  policy.saved
   =.  channel-grants.next  (my ~[[other-nest (silt ~[~dev])]])
-  ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved next)
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure saved next)
   =/  acts  (pokes caz %harness-action)
   ;<  ~  bind:m
     %+  ex-equal
@@ -317,7 +319,7 @@
     ==
   =/  granted  policy.saved
   =.  channel-grants.granted  (my ~[[room-nest (silt ~[~dev ~nus ~bud])]])
-  ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved granted)
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure saved granted)
   =/  fences
     |=  caz=(list card)
     (skim (pokes caz %harness-action) |=(act=* ?=([%fence-actor *] act)))
@@ -325,14 +327,14 @@
   ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v1 0v2])))
   ;<  ~  bind:m  (ex-equal !>(place-cuts.s) !>(place-cuts.saved))
   ::  The removal mirror.
-  ;<  [caz=(list card) t=state-4:t]  bind:m  (configure s policy.saved)
+  ;<  [caz=(list card) t=state-5:t]  bind:m  (configure s policy.saved)
   ;<  ~  bind:m  (ex-equal !>((fences caz)) !>(`(list *)`~))
   ;<  ~  bind:m  (ex-equal !>(~(key by jobs.t)) !>((silt ~[0v1 0v2])))
   (ex-equal !>(place-cuts.t) !>(place-cuts.saved))
 ::  Load .saved and read .speaker's authority in session .sid.
 ::
 ++  authority
-  |=  [saved=state-4:t sid=@t speaker=@p]
+  |=  [saved=state-5:t sid=@t speaker=@p]
   =/  m  (mare ,*)
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
@@ -384,27 +386,27 @@
   =/  saved  fixture
   =.  channel-grants.policy.saved
     (~(put by channel-grants.policy.saved) other-nest (silt ~[~bus]))
-  ;<  [* s=state-4:t]  bind:m  (leave saved room-nest)
+  ;<  [* s=state-5:t]  bind:m  (leave saved room-nest)
   ;<  ~  bind:m
     %+  ex-equal
       !>(channel-grants.policy.s)
     !>((my ~[[other-nest (silt ~[~bus])]]))
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>(dm-grants.policy.saved))
   ::  Joining again finds no grant there: ~dev is ignored in the room.
-  ;<  [* again=state-4:t]  bind:m
+  ;<  [* again=state-5:t]  bind:m
     (admit s ~[[~2026.9.10..12.00.00 (mention ~dev room-nest ~2026.9.10..12.00.00)]])
   (ex-equal !>((admitted again)) !>(`(set [@p destination:t])`~))
 ++  test-leaving-a-channel-without-grants-changes-no-policy
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-4:t]  bind:m  (leave fixture other-nest)
+  ;<  [* s=state-5:t]  bind:m  (leave fixture other-nest)
   (ex-equal !>(policy.s) !>(policy:fixture))
 ++  test-grants-are-removed-on-leave-even-when-the-head-is-not-running
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-4:t]  bind:m  (leave-headless fixture room-nest)
+  ;<  [* s=state-5:t]  bind:m  (leave-headless fixture room-nest)
   (ex-equal !>(channel-grants.policy.s) !>(`(map nest:dv (set @p))`~))
 ::  ~bud is allowed and has a DM turn queued. A save that takes it off the
 ::  allowed list retires its DM route, drops the work and moves its cutoff,
@@ -412,8 +414,8 @@
 ::
 ++  bud-dm  `destination:t`[%dm ~bud ~]
 ++  with-bud-dm
-  |=  saved=state-4:t
-  ^-  state-4:t
+  |=  saved=state-5:t
+  ^-  state-5:t
   %=  saved
     cuts  (my ~[[~bud ~2026.9.8]])
     identities  (my ~[[bud-dm 'dm-bud']])
@@ -434,7 +436,7 @@
     |=  next=policy:t
     =/  m  (mare ,~)
     ^-  form:m
-    ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved next)
+    ;<  [caz=(list card) s=state-5:t]  bind:m  (configure saved next)
     =/  acts  (pokes caz %harness-action)
     ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* =(act [%fence 'dm-bud'])))) !>(&))
     ;<  ~  bind:m  (ex-equal !>(~(key by lanes.s)) !>(`(set @t)`~))
@@ -450,9 +452,9 @@
   =.  place-cuts.granted  (my ~[[[~bud ~] ~2026.9.8]])
   =/  next  policy.granted
   =.  allowed.next  ~
-  ;<  [* s=state-4:t]  bind:m  (configure granted next)
+  ;<  [* s=state-5:t]  bind:m  (configure granted next)
   ;<  ~  bind:m  (ex-equal !>((~(got by place-cuts.s) [~bud ~])) !>(~2026.9.8))
-  ;<  [* w=state-4:t]  bind:m
+  ;<  [* w=state-5:t]  bind:m
     %+  admit  s
     :~  [~2026.9.9..12.00.00 (dm ~bud ~2026.9.9..12.00.00)]
         [~2026.9.10..00.00.01 (dm ~bud ~2026.9.10..00.00.01)]
@@ -475,12 +477,12 @@
   =.  place-cuts.saved  (my ~[[[~dev `room-nest] ~2026.9.8]])
   =/  first  policy.saved
   =.  allowed.first  (silt ~[~bud])
-  ;<  [* s=state-4:t]  bind:m  (configure saved first)
+  ;<  [* s=state-5:t]  bind:m  (configure saved first)
   =/  second  first
   =.  allowed.second  (silt ~[~bud ~nus])
-  ;<  [* w=state-4:t]  bind:m  (configure s second)
+  ;<  [* w=state-5:t]  bind:m  (configure s second)
   ;<  ~  bind:m  (ex-equal !>((~(get by cuts.w) ~dev)) !>(`(unit @da)``~2026.9.10))
-  ;<  [* u=state-4:t]  bind:m
+  ;<  [* u=state-5:t]  bind:m
     %+  admit  w
     :~  [~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]
         [~2026.9.10..00.00.01 (mention ~dev room-nest ~2026.9.10..00.00.01)]
@@ -511,7 +513,7 @@
     ==
   =/  next  policy.saved
   =.  trusted.next  (my ~[[~nus ~[%skills %web]]])
-  ;<  [caz=(list card) s=state-4:t]  bind:m  (configure saved next)
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure saved next)
   =/  acts  (pokes caz %harness-action)
   ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* ?=([?(%fence %fence-actor) *] act)))) !>(|))
   ;<  ~  bind:m  (ex-equal !>(~(key by lanes.s)) !>((silt ~['dm-nus'])))

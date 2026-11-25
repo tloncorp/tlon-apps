@@ -87,7 +87,6 @@ const HARNESS_SKIPS = {
   reaction: 'Harness does not start a turn on a reaction.',
   threadFollow:
     "Harness admits an unmentioned channel thread reply only in a thread rooted at the bot's post.",
-  botLoop: 'Harness has no consecutive bot-response cap.',
   sse: 'Harness runs on the bot ship and holds no SSE connection to it.',
   nudge: 'Harness sends no nudge or re-engagement messages.',
 };
@@ -1563,7 +1562,6 @@ export const commonScenarios: readonly SharedScenario[] = [
   testScenario(
     'known-bot-loop-protection-resets-on-human-dispatch',
     {
-      driverSkips: { harness: HARNESS_SKIPS.botLoop },
       timeoutMs: knownBotLoopScenarioTimeoutMs,
     },
     async ({ ctx, driver, actors }) => {

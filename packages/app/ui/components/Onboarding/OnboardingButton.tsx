@@ -10,9 +10,14 @@ type OnboardingButtonProps = Omit<
   label: string;
 };
 
+/**
+ * The big solid button. Only the welcome screen's buttons cast a shadow;
+ * the onboarding steps pass `shadow={false}`.
+ */
 export function OnboardingButton({
   secondary,
   label,
+  shadow = true,
   ...props
 }: OnboardingButtonProps) {
   const color = secondary ? '$secondaryText' : '$primaryText';
@@ -20,15 +25,17 @@ export function OnboardingButton({
     <Button
       {...props}
       preset="hero"
-      shadow
+      shadow={shadow}
       label={label}
       width="100%"
-      backgroundColor={color}
-      borderColor={color}
-      pressStyle={{
-        backgroundColor: color,
-        opacity: 0.9,
-      }}
+      // A disabled button keeps the hero preset's own light gray.
+      {...(props.disabled
+        ? {}
+        : {
+            backgroundColor: color,
+            borderColor: color,
+            pressStyle: { backgroundColor: color, opacity: 0.9 },
+          })}
     />
   );
 }

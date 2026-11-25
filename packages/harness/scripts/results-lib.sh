@@ -6,6 +6,13 @@ function result
   printf '%-48s %s\n' "$1" "$2" | tee -a "$results"
 }
 
+# Print the refusals a log holds, as setup-lib.sh's `refused` wrote them: why
+# Clay would not take a desk, with the compiler's error.
+function refusals
+{
+  grep '^refused: ' "$1"
+}
+
 function matches
 {
   [ -z "$pattern" ] || [[ $1 =~ $pattern ]]

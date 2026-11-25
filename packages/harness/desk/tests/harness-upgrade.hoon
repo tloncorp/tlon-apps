@@ -77,12 +77,11 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
-++  populated-4
-  ^-  state-4:t
-  =/  p  populated-2
-  :*  %4  lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
-      activity-through.p  catching-up.p
-      (my ~[[[%dm ~nec `[~nec ~2026.10.5]] 'alpha']])
+++  populated-5
+  ^-  state-5:t
+  =/  p  populated-4
+  :*  %5  browser-entries.p  lens.p  owner-initialized.p  sibling-moon-owners.p
+      sibling-owner-after.p  activity-through.p  catching-up.p  identities.p
       routes.p  cuts.p
       (my ~[[[~dev `[%chat ~bus %general]] ~2026.10.16]])
       channel-after.p  channel-cuts.p  uploads.p  last-sent.p
@@ -91,11 +90,27 @@
           allowed.policy.p  channels.policy.p  (sy ~[~dev])
           (my ~[[[%chat ~bus %general] (sy ~[~dev])]])
       ==
-      epoch.p  after.p
+      epoch.p  after.p  lanes.p
+      jobs.p  deliveries.p  notices.p  next-notice.p  listeners.p  watching.p  wake.p  error.p
+  ==
+::  The hand's last shape without per-place grants.
+++  populated-4
+  ^-  state-4:mt
+  =/  p  populated-3
+  [%4 (my ~[[0v8g [~2026.11.16 [%wait [%form 'https://browser.example/result']]]]]) +.p]
+::  The hand's last shape without browser handoffs.
+++  populated-3
+  ^-  state-3:mt
+  =/  p  populated-2
+  :*  %3  lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
+      activity-through.p  catching-up.p
+      (my ~[[[%dm ~nec `[~nec ~2026.10.5]] 'alpha']])
+      routes.p  cuts.p  channel-after.p  channel-cuts.p  uploads.p  last-sent.p
+      tool-receipts.p  computing.p  policy.p  epoch.p  after.p
       (my ~[['alpha' [[%dm ~nec `[~nec ~2026.10.5]] 1 ~[%tlon]]]])
       jobs.p  deliveries.p  notices.p  next-notice.p  listeners.p  watching.p  wake.p  error.p
   ==
-::  The hand's last per-speaker shape: everything in +populated-4 but its per-place grants, plus a
+::  The hand's last per-speaker shape: everything in +populated-3, plus a
 ::  channel conversation the upgrade to shared sessions drops.
 ++  populated-2
   ^-  state-2:mt
@@ -134,6 +149,7 @@
           [0v8d (upload-receipt 'hosted')]
           [0v8e [['alpha' 4 ['call-send' 'tlon_send' '{}']] %sending '' ~2026.11.15]]
           [0v8f [['alpha' 5 ['call-read' 'tlon_read' '{}']] %done 'Read 3 messages.' ~2026.11.13]]
+          [0v8g [['alpha' 6 ['call-form' 'browser_secure_entry' '{}']] %sending '' ~2026.11.15]]
       ==
       (my ~[[/tlon/typing [~2026.10.10 (sy ~['tlon_send'])]]])
       :*  |  `~nec  (my ~[[~bus ~[%tlon]]])  %all  (sy ~[~bus])
@@ -156,8 +172,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-4:t
-  =/  s  *state-4:t
+  ^-  state-5:t
+  =/  s  *state-5:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -242,7 +258,7 @@
   =.  cursors.db  (~(run by sessions.e) |=(s=session:h log.s))
   =/  imported
     %:  save:mem
-      db
+      everything:mem  db
       (import-name 'alpha' 'deploy')
       0
       [`'Ship on Fridays.' (words:index 'deploy') | & ['alpha' 0v4a 5 ~2026.10.30 '~nec']]
@@ -265,7 +281,7 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-4) *state-4:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-5) *state-5:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field
