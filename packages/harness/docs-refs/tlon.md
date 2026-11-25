@@ -1043,8 +1043,8 @@ job's run binding, `schedule-` and its id, must fit the head's 128-byte limit.
   update from the anchor the task had if its interval is unchanged, and
   otherwise from the update. The hand keeps the interval and anchor to show
   them back. A recurring job has no run limit and runs until it is
-  cancelled. It delivers to the owner's DM when its delivery names that DM,
-  has `mode` `none` or is absent, and otherwise to the channel it names. The
+  cancelled. It delivers to the owner's DM when its delivery names that DM or
+  is absent, and otherwise to the channel it names. The
   job runs as the owner in the bot's conversation there, which in a channel
   is the one shared by everyone there. It answers `created` with the new
   job's id.
@@ -1085,13 +1085,13 @@ value that says what a job here does, the values Messenger's own create sends:
 `agentId` `main` (OpenClaw's default agent), `sessionTarget` `isolated` (a
 fresh session for each run) and `wakeMode` `now` (a run at its time, not at the
 next heartbeat); any other value is refused, as are a `staggerMs` other than 0,
-`payload.toolsAllow`, `webhook` delivery, `delivery.failureDestination`,
-`delivery.accountId` and delivery to a notes channel. Every other field is
-applied, except `createdAtMs` and `updatedAtMs`, the host's record of the task,
-which an edit does not set and the hand ignores. An id that is not one of the
-owner's Tlon schedules answers `not-found`. A head refusal, such as editing a
-job whose run is still in flight, answers `harness-error` with the head's
-message.
+`payload.toolsAllow`, `webhook` delivery, `none` delivery (every run posts its
+result), `delivery.failureDestination`, `delivery.accountId` and delivery to a
+notes channel. Every other field is applied, except `createdAtMs` and
+`updatedAtMs`, the host's record of the task, which an edit does not set and
+the hand ignores. An id that is not one of the owner's Tlon schedules answers
+`not-found`. A head refusal, such as editing a job whose run is still in
+flight, answers `harness-error` with the head's message.
 
 Steward admits an edit only from its configured owner, and the hand sets that
 owner whenever its own changes, so new edits come from the current owner. A

@@ -495,4 +495,15 @@
       (expect-eq !>([%created (scot %uv id)]) !>(answer.p.planned))
       (expect-eq !>(p.planned) !>(?>(?=(%& -.again) p.again)))
   ==
+::  Mode none keeps a run's output in the run; every run here posts it, so
+::  a create or update that asks for none is refused, not sent to the DM.
+::
+++  test-a-task-that-delivers-nowhere-is-refused
+  =/  nowhere=delivery:v1:sa  [`%none ~ ~ ~ ~]
+  =/  base  (create [%cron `'0 9 * * *' ~ ~] `'Brief' ~)
+  ?>  ?=(%create -.base)
+  ;:  weld
+      (refused-naming [%create task.base(delivery `nowhere)] 'delivers nowhere')
+      (refused-naming [%update '0v1' %*(. *task:v1:sa delivery `nowhere)] 'delivers nowhere')
+  ==
 --

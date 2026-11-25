@@ -173,6 +173,8 @@
 ::
 ::  +deliver: where a task's delivery sends its runs. The hand posts only
 ::  into Tlon conversations, the owner's DM unless the task names another.
+::  Every run posts its result, so mode none, which keeps the output in the
+::  run, cannot be honored.
 ::
 ++  deliver
   |=  [delivery=(unit delivery:v1:sa) owner=@p]
@@ -180,7 +182,9 @@
   =/  dm=destination:t  [%dm owner ~]
   ?~  delivery  [%& dm]
   =/  d  u.delivery
-  ?:  =(`%none mode.d)  [%& dm]
+  ?:  =(`%none mode.d)
+    :-  %|
+    'a task that delivers nowhere is not supported; every task posts its result, so choose your DM or a channel'
   ?.  |(?=(~ channel.d) =(`'tlon' channel.d))  [%| 'only Tlon delivery is supported']
   ?~  to.d  [%| 'delivery.to is required']
   ?:  =('notes/' (end [3 6] u.to.d))
