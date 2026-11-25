@@ -104,6 +104,7 @@
         =/  before-sessions  sessions
         =/  before-hands  hands
         =/  before-schedules  schedules
+        =/  before-prompts  prompts
         =/  before-access  access-inputs:hc
         =/  before-scheduler  schedule-inputs:hc
         =.  state  saved
@@ -165,6 +166,13 @@
           :*  %give  %fact  ~[/v1/schedule-events]
               %harness-schedules-1  !>(`schedules:cr`schedules)
           ==
+        ::  Every writer of the default instructions, whatever its surface,
+        ::  changes these layers.
+        =?  cards  !=(before-prompts prompts)
+          %+  snoc  cards
+          :*  %give  %fact  ~[/v1/prompt-events]
+              %harness-prompts-1  !>(`prompts:h`prompts)
+          ==
         =?  cards  !=(before-writes writes.workspace)
           =/  revision=json
             (pairs:enjs:format ~[['revision' (numb:enjs:format writes.workspace)]])
@@ -173,7 +181,11 @@
   ::
   ++  on-init
     ^-  (quip card _this)
-    :_  this(defaults builtin-config:policy, search-config [%brave ''])
+    :_  %=  this
+          defaults  builtin-config:policy
+          prompts  (my ~[[%'AGENTS.md' default-system:policy]])
+          search-config  [%brave '']
+        ==
     :~  [%pass /eyre/connect %arvo %e %connect [~ /harness-api] dap.bowl]
         [%pass /eyre/connect %arvo %e %connect [~ /harness/runners] dap.bowl]
         [%pass /eyre/connect %arvo %e %connect [~ /harness-project] dap.bowl]
@@ -384,6 +396,9 @@
         [%v1 %schedule-events ~]
       [~[[%give %fact ~ %harness-schedules-1 !>(`schedules:cr`schedules)]] this]
     ::
+        [%v1 %prompt-events ~]
+      [~[[%give %fact ~ %harness-prompts-1 !>(`prompts:h`prompts)]] this]
+    ::
       [%session @ ~]  `this
       [%hands @ ~]  `this
       [%crons @ ~]  `this
@@ -409,6 +424,8 @@
       ?+  path  session-read
           [%x %workspace ~]
         ``noun+!>(workspace)
+          [%x %v1 %prompts ~]
+        ``harness-prompts-1+!>(`prompts:h`prompts)
           [%x %cron ~]
         ``json+!>((list-json:schedule-lib schedules [hands hand-index] ~))
           [%x %cron-session @ ~]
@@ -3024,10 +3041,13 @@
     [%give %fact ~[/hosted/[id.request]] %json !>(value)]
   |^
     ?:  =('soul' action.request)
-      =/  attempted  (mule |.((apply-soul:hosted-content defaults args.request)))
+      =/  attempted
+        (mule |.((apply-soul:hosted-content editable-defaults args.request)))
       ?:  ?=(%| -.attempted)
         [~[(reply (error:hosted-auth 400 'Invalid soul settings.'))] state]
-      =.  defaults  config.p.attempted
+      ?.  (prompt-fits:policy prompts %'AGENTS.md' system.config.p.attempted)
+        [~[(reply (error:hosted-auth 400 composed-too-long))] state]
+      =.  state  (set-prompt %'AGENTS.md' system.config.p.attempted)
       [~[(reply response.p.attempted)] state]
     ?:  =('skills' action.request)
       =/  attempted  (mule |.((apply-skills:hosted-content skills args.request)))
@@ -3287,7 +3307,7 @@
     %'harness/tools'  (acp-tools rpc)
     %'harness/skills'  (acp-respond rpc ~ (skills-json:hj skills))
     ?(%'harness/skill' %'harness/skill/save' %'harness/skill/delete')  (acp-skill rpc)
-    %'harness/defaults'  (acp-respond rpc ~ (config-json:hj defaults))
+    %'harness/defaults'  (acp-respond rpc ~ (config-json:hj editable-defaults))
     %'harness/peers'  (acp-respond rpc ~ peer-settings)
     %'harness/peers/remote'  (acp-respond rpc ~ (list-json:peer-access remote-access))
     %'harness/peers/check'  (acp-peers-check rpc)
@@ -3737,8 +3757,10 @@
   =/  decoded  (mule |.((json-config:hj u.raw)))
   ?:  ?=(%| -.decoded)
     (acp-fail rpc '-32602' 'Invalid configuration')
+  ?.  (prompt-fits:policy prompts %'AGENTS.md' system.p.decoded)
+    (acp-fail rpc '-32602' composed-too-long)
   =^  configured  state  (handle-action [%defaults p.decoded])
-  (acp-respond rpc configured (config-json:hj defaults))
+  (acp-respond rpc configured (config-json:hj editable-defaults))
 ::
 ++  acp-mcp-servers
   |=  rpc=acp-request
@@ -4348,6 +4370,7 @@
     %set-key  (action-set-key action)
     %peer-config  (action-peer-config action)
     %defaults  (action-defaults action)
+    %prompt-set  (action-prompt-set action)
     %mcp-config  (action-mcp-config action)
     %ask-peer  (action-ask-peer action)
     %peer-refresh  (action-peer-refresh action)
@@ -4837,9 +4860,33 @@
   ^-  (quip card _state)
   ?>  ?=(%defaults -.action)
   =/  =config:h  config.action
+  ?>  (prompt-fits:policy prompts %'AGENTS.md' system.config)
   =?  provider-keys  !=('' key.config)
     (put-key:auth provider-keys (credential-for-url:auth url.config) key.config)
-  [(refresh-model-config config) state(defaults config(key ''), model-defaults-set &)]
+  =.  state  state(defaults config(key ''), model-defaults-set &)
+  [(refresh-model-config config) (set-prompt %'AGENTS.md' system.config)]
+::
+++  action-prompt-set
+  |=  action=action:h
+  ^-  (quip card _state)
+  ?>  ?=(%prompt-set -.action)
+  ?>  (lte (met 3 body.action) prompt-limit:policy)
+  ?>  (prompt-fits:policy prompts name.action body.action)
+  `(set-prompt name.action body.action)
+::  The single-text surfaces (Settings, harness/defaults and hosted-soul) read
+::  and write the AGENTS.md layer; new conversations copy the composition.
+++  editable-defaults
+  ^-  config:h
+  defaults(system (~(gut by prompts) %'AGENTS.md' ''))
+::  Keep the inherited text composed from the layers on every layer write.
+++  set-prompt
+  |=  [name=prompt-name:h body=@t]
+  ^+  state
+  =.  prompts  (put-prompt:policy prompts name body)
+  state(system.defaults (compose-prompts:policy prompts))
+++  composed-too-long
+  ^-  @t
+  'Default instructions must be at most 131072 bytes in all.'
 ::
 ++  action-mcp-config
   |=  action=action:h
