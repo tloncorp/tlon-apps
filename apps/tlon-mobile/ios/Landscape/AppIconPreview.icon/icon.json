@@ -1,53 +1,41 @@
 {
-  "fill-specializations" : [
-    {
-      "value" : "system-light"
-    },
-    {
-      "appearance" : "dark",
-      "value" : "system-dark"
-    }
-  ],
+  "fill" : {
+    "solid" : "srgb:0.00000,0.00000,0.00000,1.00000"
+  },
   "groups" : [
     {
       "layers" : [
         {
-          "image-name" : "Asset-3.svg",
-          "name" : "Asset-3",
-          "position" : {
-            "scale" : 1.6,
-            "translation-in-points" : [
-              70,
-              448.1024
-            ]
-          }
-        },
-        {
-          "image-name" : "Asset-3.svg",
-          "name" : "Asset-3",
-          "position" : {
-            "scale" : 1.6,
-            "translation-in-points" : [
-              70,
-              -448.1024
-            ]
-          }
-        },
-        {
           "fill-specializations" : [
             {
-              "value" : "system-dark"
+              "value" : "automatic"
+            },
+            {
+              "appearance" : "light",
+              "value" : {
+                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
             },
             {
               "appearance" : "dark",
-              "value" : "system-light"
+              "value" : {
+                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
             }
           ],
-          "glass" : false,
-          "image-name" : "Asset-1.svg",
-          "name" : "Asset-1",
+          "glass-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "appearance" : "tinted",
+              "value" : true
+            }
+          ],
+          "image-name" : "sato-mark.svg",
+          "name" : "sato-mark",
           "position" : {
-            "scale" : 1.25,
+            "scale" : 0.5900000000000001,
             "translation-in-points" : [
               0,
               0
@@ -55,7 +43,6 @@
           }
         }
       ],
-      "name" : "Group",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5

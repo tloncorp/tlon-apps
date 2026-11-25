@@ -1,13 +1,7 @@
 {
-  "fill-specializations" : [
-    {
-      "value" : "system-light"
-    },
-    {
-      "appearance" : "dark",
-      "value" : "system-dark"
-    }
-  ],
+  "fill" : {
+    "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+  },
   "groups" : [
     {
       "layers" : [
@@ -18,14 +12,30 @@
             },
             {
               "appearance" : "dark",
-              "value" : "system-light"
+              "value" : {
+                "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "solid" : "gray:0.52418,1.00000"
+              }
             }
           ],
-          "glass" : false,
-          "image-name" : "Asset-1.svg",
-          "name" : "Asset-1",
+          "glass-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "appearance" : "tinted",
+              "value" : true
+            }
+          ],
+          "image-name" : "sato-mark.svg",
+          "name" : "sato-mark",
           "position" : {
-            "scale" : 1.25,
+            "scale" : 0.5900000000000001,
             "translation-in-points" : [
               0,
               0
@@ -33,7 +43,6 @@
           }
         }
       ],
-      "name" : "Group",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
