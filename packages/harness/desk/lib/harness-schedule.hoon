@@ -89,7 +89,7 @@
       %.  args
       %-  ot:dejs:format
       ~[at+so:dejs:format prompt+so:dejs:format]
-    ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) 4.096))
+    ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) max-prompt-bytes))
     =/  time  (parse:reminder at.fields now)
     %*  .  job
       timezone  timezone.time
@@ -107,7 +107,7 @@
         prompt+so:dejs:format
     ==
   =/  offset  (zone timezone.fields)
-  ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) 4.096))
+  ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) max-prompt-bytes))
   ::  runs is optional: a count limits the job, and without one it repeats
   ::  until it is cancelled.
   =/  runs  (bind (~(get by p.args) 'runs') count)
@@ -131,6 +131,7 @@
 ::  2^53. This keeps it there; it is not a limit on recurring work, which
 ::  without runs repeats until cancelled. Every minute, it lasts two years.
 ++  max-runs  1.000.000
+++  max-prompt-bytes  8.192
 ::
 ++  zone
   |=  timezone=@t

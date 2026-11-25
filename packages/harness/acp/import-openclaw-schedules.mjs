@@ -1,7 +1,7 @@
 // One-time import of an OpenClaw bot's scheduled tasks into Harness schedules.
 // It reads the file `openclaw cron list --json --all` prints, which the
 // operator saves while OpenClaw still runs; it never contacts OpenClaw. Each
-// task becomes a schedule of the existing Tlon conversation it delivered to,
+// task becomes a schedule of the Tlon conversation it delivered to,
 // made as the owner, or is refused with the reason.
 //
 //   cd packages/harness
@@ -10,6 +10,7 @@
 //
 // A recurring task runs until it is cancelled, as it did in OpenClaw;
 // --runs N limits each one to N runs.
+import { setTimeout as sleep } from 'node:timers/promises'
 import { createHash } from 'node:crypto'
 import { readFileSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -18,7 +19,7 @@ import { canonicalShip } from './people.mjs'
 // The head's largest run count.
 export const maxRuns = 1_000_000
 export const capacity = 64
-const maxPromptBytes = 4096
+const maxPromptBytes = 8192
 const day = 86_400_000
 const horizon = 3653 * day
 const soon = 30 * day
@@ -329,8 +330,8 @@ export function plan(job, { owner, now, widenTools = false, noneToOwnerDm = fals
 
 const sameParent = (a, b) => a.id === b.id && (!a.author || !b.author || a.author === b.author)
 
-// The binding of the existing conversation at that destination: { binding,
-// address, notes } or { refuse }. conversations are { binding, destination }.
+// Match the exact thread first. A top-level address without a recorded
+// input is resolved by the Tlon hand under the current delivery policy.
 export function resolve(destination, conversations, { threadsToParent = false } = {}) {
   const find = (parent) => conversations.find(({ destination: address }) => {
     const parsed = addressOf(address)
@@ -343,8 +344,24 @@ export function resolve(destination, conversations, { threadsToParent = false } 
     if (!threadsToParent) return { refuse: 'no conversation in that thread yet; --threads-to-parent posts to its DM or channel instead' }
   }
   const found = find(null)
-  if (!found) return { refuse: `no conversation in ${destination.address} yet; send the bot a message in it first` }
-  return { binding: found.binding, address: found.destination, notes: destination.parent ? ['posts to the conversation, not the thread'] : [] }
+  const notes = destination.parent ? ['posts to the conversation, not the thread'] : []
+  return found ? { binding: found.binding, address: found.destination, notes } : { address: destination.address, notes }
+}
+
+// Opening a lane and binding it to the head completes asynchronously. Poll
+// read-only after the first request so a slow setup is never restarted.
+async function openDestination(client, owner, address, expected) {
+  const params = { owner, address }
+  const deadline = Date.now() + 30_000
+  let result = await client.call('harness/tlon/schedule-destination', { ...params, open: true })
+  for (;;) {
+    if (result.refuse) throw new Error(result.refuse)
+    if (result.binding !== expected) throw new Error('Destination changed during import; rerun the preview')
+    if (result.ready) return
+    if (Date.now() >= deadline) throw new Error('Timed out waiting for the conversation binding')
+    await sleep(250)
+    result = await client.call('harness/tlon/schedule-destination', { ...params, open: false })
+  }
 }
 
 // The Tlon conversations that can take a schedule now, one per binding.
@@ -395,11 +412,21 @@ export async function run({ client, exported, owner, now = new Date(), dryRun = 
     if (found.refuse) { row.refuse = found.refuse; continue }
     row.notes.push(...found.notes)
     Object.assign(row.import, found)
+    if (!found.binding) {
+      const target = await client.call('harness/tlon/schedule-destination', { owner, address: found.address, open: false })
+      if (target.refuse) row.refuse = target.refuse
+      else {
+        row.import.binding = target.binding
+        row.import.needsOpen = !target.ready
+        if (!target.ready) row.notes.push('opens the conversation for delivery')
+      }
+      continue
+    }
     if (!status.has(found.binding)) status.set(found.binding, await client.call('harness/hand', { status: { binding: found.binding } }))
     const hand = status.get(found.binding)
     if (!hand?.enabled || hand.hand !== 'tlon') row.refuse = `the conversation in ${found.address} is not enabled`
   }
-  print(`${tasks.length} tasks from the export, ${jobs.length - tasks.length} built-in OpenClaw jobs left out, ${conversations.length} Tlon conversations on the ship${dryRun ? ' (dry run, nothing will be created)' : ''}`)
+  print(`${tasks.length} tasks from the export, ${jobs.length - tasks.length} built-in OpenClaw jobs left out, ${conversations.length} Tlon conversations with recorded input${dryRun ? ' (dry run, nothing will be created)' : ''}`)
   const totals = Object.fromEntries(['imported', 'would import', 'already there', 'exists with a run limit', 'exists but differs', 'refused', 'disabled', 'failed'].map((kind) => [kind, 0]))
   // Capacity counts every kept record and each create that succeeds; a repeat
   // of an id Harness holds needs no room.
@@ -421,6 +448,7 @@ export async function run({ client, exported, owner, now = new Date(), dryRun = 
       else [kind, detail, stop] = [matches(prior, row.import, owner) ? 'already there' : 'exists but differs', '', stopOf(prior, now)]
     } else {
       try {
+        if (row.import.needsOpen) await openDestination(client, owner, row.import.address, row.import.binding)
         const made = await client.call('harness/cron/add', { id: row.import.id, binding: row.import.binding, actor: owner, kind: row.import.kind, args: row.import.args })
         detail = `, next run ${minute(timeOf(made.next))}`
         if (!prior) [kind, room] = ['imported', room - 1]

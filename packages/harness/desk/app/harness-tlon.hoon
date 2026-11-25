@@ -598,7 +598,7 @@
 ::  route needs only the binding.
 ::
 ++  open-conversation
-  |=  [id=@uv to=destination:t]
+  |=  [id=(unit @uv) to=destination:t]
   ^+  cor
   =/  [sid=@t *]  (lane-for to)
   ?.  (~(has by lanes) sid)
@@ -606,7 +606,7 @@
   =/  route  (~(got by routes) sid)
   ?:  =(%ready phase.route)  (bind-route sid)
   ?:  ?|  (lien ~(val by jobs) |=(=job:t &(=(sid sid.job) =(%create stage.job))))
-          (lien (waiting sid) |=([other=@uv *] !=(id other)))
+          (lien (waiting sid) |=([other=@uv *] !=(id `other)))
       ==
     cor
   (start-route sid)
@@ -682,7 +682,7 @@
   ^+  cor
   ?^  open.edit
     =.  edits.automation  (~(put by edits.automation) id edit)
-    (open-conversation id u.open.edit)
+    (open-conversation `id u.open.edit)
   =/  wire  /steward/edit/(scot %uv id)
   =?  cor  (~(has by wex.bowl) wire our.bowl %harness)
     (emit [%pass wire %agent [our.bowl %harness] %leave ~])
@@ -1075,6 +1075,36 @@
     ==
   ++  work-method
     ?+  method.inbound  (emit (fail '-32601' 'Unknown Tlon method'))
+        %'harness/tlon/schedule-destination'
+      =/  parsed
+        %-  mole
+        |.
+        =,  dejs:format
+        ((ot ~[['owner' (se %p)] ['address' so] ['open' bo]]) (need params.inbound))
+      ?~  parsed  (emit (fail '-32602' 'Expected owner, address and open'))
+      =/  [owner=@p address=@t open=?]  u.parsed
+      ?.  =(`owner owner.policy)  (emit (fail '-32602' 'Tlon owner changed'))
+      =/  to  (conversation:automation-lib address)
+      ?~  to  (emit (fail '-32602' 'Expected a DM or channel address'))
+      ?:  &(?=(%dm -.u.to) !=(owner who.u.to))
+        (emit (fail '-32602' 'A scheduled DM must go to the owner'))
+      ?.  head-live  (emit (fail '-32603' 'Harness head disconnected'))
+      =/  reason  (unopenable u.to)
+      ?^  reason  (emit (reply (pairs:enjs:format ~[['refuse' %s u.reason]])))
+      =/  source  (conversation-binding u.to)
+      ?>  ?=(%& -.source)
+      =/  hands  ledger
+      =/  held  (~(get by bindings.hands) p.source)
+      ?:  &(?=(^ held) !enabled.u.held)
+        (emit (reply (pairs:enjs:format ~[['refuse' %s 'The conversation is disabled']])))
+      =/  ready
+        ?&  ?=(^ (ready-binding u.to))
+            ?=(^ held)
+            =('tlon' hand.u.held)
+            =((address:p u.to) address.u.held)
+        ==
+      =?  cor  &(open !ready)  (open-conversation ~ u.to)
+      (emit (reply (pairs:enjs:format ~[['binding' %s p.source] ['ready' %b ready]])))
         %'harness/tlon/work'
       =/  connected  head-live
       =/  found
@@ -3361,7 +3391,8 @@
     |=  [[id=@uv job=job:t] engine=_cor]
     ?.  &(=(sid sid.job) !=(%error stage.job))  engine
     (bind-job:engine id job)
-  ?~  (waiting sid)  cor
+  ::  An importer can open a route with neither an input nor a Steward edit.
+  ?:  &(?=(~ (waiting sid)) (lien ~(val by jobs) |=(=job:t =(sid sid.job))))  cor
   (bind-route sid)
 ::
 ++  bind-job
