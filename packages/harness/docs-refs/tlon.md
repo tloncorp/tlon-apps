@@ -1357,7 +1357,7 @@ is an ordinary message, answered as any unknown slash text, and grants nothing; 
 open; a command from a ship with DM access that is not the owner changes
 nothing and gets no reply; and no DM command text is in a model request.
 The DM script also checks that the owner's `/pending` lists the open
-request's id with a card, and, with the asking ship blocked natively, that
+request's id with a card, and the tap on Allow is made on that card; and, with the asking ship blocked natively, that
 `/banned` lists it, `/unban` unblocks it and `/banned` then does not. The two run
 apart, since the denial limit lets a ship ask once per five minutes.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM

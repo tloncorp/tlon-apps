@@ -2097,10 +2097,39 @@
   ;<  out=(list card)  bind:m  (do-agent wire [~zod %chat] [%poke-ack ack])
   ;<  =vase  bind:m  get-save
   (pure:m out !<(state-6:t vase))
+::  The buttons the owner can tap: each label and the text it sends, in
+::  order, reached from the card's root through its children
+::
+++  tappable
+  |=  blob=@t
+  ^-  (list [label=@t text=@t])
+  =/  all  (components blob)
+  =/  find
+    |=  id=json
+    ^-  json
+    =/  found  (skim all |=(c=json =(id (dig c ~['id']))))
+    ?>  ?=([* ~] found)
+    i.found
+  =/  id=json  [%s 'root']
+  |-  ^-  (list [label=@t text=@t])
+  =/  node  (find id)
+  ?>  ?=(%o -.node)
+  ?:  =([%s 'Button'] (dig node ~['component']))
+    :~  :-  (so:dejs:format (dig (find (dig node ~['child'])) ~['text']))
+        (so:dejs:format (dig node ~['action' 'event' 'context' 'text']))
+    ==
+  =/  child  (~(get by p.node) 'child')
+  ?^  child  $(id u.child)
+  =/  kids  (~(get by p.node) 'children')
+  ?~  kids  ~
+  ?>  ?=(%a -.u.kids)
+  %+  roll  (flop p.u.kids)
+  |=  [kid=json found=(list [label=@t text=@t])]
+  (weld ^$(id kid) found)
 ++  room-label  'Room in Lux group (chat/~lux/test)'
 ++  pending-tail  '\0aUse /allow, /reject, or /ban with the ID.'
 ::  The three open requests, oldest first, each with its id, and a card
-::  whose buttons are each request's own
+::  whose buttons, each in its request's row, are each request's own
 ::
 ++  test-pending-lists-the-open-requests-oldest-first-with-their-ids
   %-  eval-mare
@@ -2128,7 +2157,7 @@
   =/  sends
     |=  [action=@t id=@t]
     (rap 3 action ' ' id ' ' (token asked id) ~)
-  %+  ex-equal  !>((buttons u.i.cards))
+  %+  ex-equal  !>((tappable u.i.cards))
   !>  ^-  (list [@t @t])
   %-  zing
   %+  turn  `(list @t)`~['d0001' 'c0001' 'c0002']
@@ -2193,7 +2222,7 @@
     (admit (crowd fixture 4 start) later ~[[told (said ~nec '/pending' told)]])
   =/  cards  (carded caz)
   ?>  ?=([[~ @] ~] cards)
-  (ex-equal !>((lent (buttons u.i.cards))) !>(12))
+  (ex-equal !>((lent (tappable u.i.cards))) !>(12))
 ++  test-banned-lists-the-blocked-ships
   %-  eval-mare
   =/  m  (mare ,~)

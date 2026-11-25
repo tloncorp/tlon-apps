@@ -197,6 +197,22 @@
   ::
     `(list @t)`~['\0a\0aUse /allow, /reject, or /ban with the ID.']
   ==
+::  +divider: a card's Divider component
+::
+++  divider
+  |=  id=@t
+  ^-  json
+  (pairs:enjs:format ~[['id' %s id] ['component' %s 'Divider']])
+::  +column: a card's container .component, a Column or a Row, of .children
+::
+++  column
+  |=  [id=@t component=@t children=(list @t)]
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['id' %s id]
+      ['component' %s component]
+      ['children' %a (turn children |=(c=@t [%s c]))]
+  ==
 ::  +pending-card: OpenClaw's card for /pending, a row with Allow, Reject
 ::  and Block buttons for each of .shown
 ::
@@ -209,16 +225,6 @@
   ^-  @t
   =*  words  text:work-card
   =/  count  (lent shown)
-  =/  divider
-    |=(id=@t (pairs:enjs:format ~[['id' %s id] ['component' %s 'Divider']]))
-  =/  group
-    |=  [id=@t component=@t children=(list @t)]
-    ^-  json
-    %-  pairs:enjs:format
-    :~  ['id' %s id]
-        ['component' %s component]
-        ['children' %a (turn children |=(c=@t [%s c]))]
-    ==
   =/  button
     |=  [id=@t label=@t variant=(unit @t) command=@t]
     ^-  json
@@ -236,7 +242,7 @@
     [(cat 3 prefix 'Divider') prefix kids]
   =/  head-parts=(list json)
     :~  (pairs:enjs:format ~[['id' %s 'root'] ['component' %s 'Card'] ['child' %s 'body']])
-        (group 'body' 'Column' children)
+        (column 'body' 'Column' children)
         (words 'eyebrow' 'Pending requests' `'caption')
         %^  words  'title'
           (cat 3 (crip (a-co:co count)) ?:(=(1 count) ' approval request' ' approval requests'))
@@ -254,14 +260,14 @@
     =/  token  (scot %uv (button-token id approval))
     =/  part  |=(name=@t (cat 3 prefix name))
     =/  own=(list json)
-      :~  (group prefix 'Column' (turn `(list @t)`~['Title' 'Context' 'Actions'] part))
+      :~  (column prefix 'Column' (turn `(list @t)`~['Title' 'Context' 'Actions'] part))
           %^  words  (part 'Title')
             ?~(where (cat 3 'DM from ' ship) (cat 3 'Channel access for ' ship))
           `'h4'
           %^  words  (part 'Context')
             ?~(where (cat 3 'Sender: ' ship) (cat 3 'Channel: ' u.where))
           `'caption'
-          (group (part 'Actions') 'Row' (turn `(list @t)`~['Allow' 'Reject' 'Block'] part))
+          (column (part 'Actions') 'Row' (turn `(list @t)`~['Allow' 'Reject' 'Block'] part))
           (button (part 'Allow') 'allowLabel' `'primary' (rap 3 '/allow ' id ' ' token ~))
           (button (part 'Reject') 'rejectLabel' ~ (rap 3 '/reject ' id ' ' token ~))
           (button (part 'Block') 'blockLabel' `'borderless' (rap 3 '/ban ' id ' ' token ~))
@@ -445,16 +451,6 @@
       context-ids
       ?~(copy ~ ~['copy'])
       `(list @t)`~['divider' 'details' 'actions']
-    ==
-  =/  divider
-    |=(id=@t (pairs:enjs:format ~[['id' %s id] ['component' %s 'Divider']]))
-  =/  column
-    |=  [id=@t component=@t children=(list @t)]
-    ^-  json
-    %-  pairs:enjs:format
-    :~  ['id' %s id]
-        ['component' %s component]
-        ['children' %a (turn children |=(c=@t [%s c]))]
     ==
   =/  components=(list json)
     ;:  weld

@@ -1,10 +1,11 @@
 // The owner answers a DM approval request, on three real ships: the bot, its owner
 // (the peer) and a ship on no list (the guest). A guest's command in the DM it was
-// given does nothing and gets no reply. The guest DMs the bot and the owner is sent a card. The owner's tap on the
-// card's Allow button gives the guest DM access, accepts its pending invitation and
+// given does nothing and gets no reply. The guest DMs the bot and the owner is sent a card,
+// whose Allow button the owner's /pending card repeats beside the request's id. The owner's
+// tap on that Allow gives the guest DM access, accepts its pending invitation and
 // answers the message it asked with, once, without its writing again; its next message
-// is answered too. The owner's /pending lists the open request's id; with the guest
-// blocked, /banned lists it, /unban unblocks it and /banned then does not.
+// is answered too. With the guest blocked, /banned lists it, /unban unblocks it and
+// /banned then does not.
 // No command text is in a model request. Runs apart from tlon-approval-commands-channel-conformance: the
 // denial limit lets a ship open one request per five minutes. Restores policy and
 // defaults. Leaves the fixture messages, the card and the replies.
@@ -55,14 +56,16 @@ try {
   assert.match(t.words(pending), /^Pending requests \(\d+\):/)
   const pendingEntry = JSON.parse(pending.essay.blob)[0]
   console.log(`CARD ${JSON.stringify(pendingEntry)}`)
-  const pendingButtons = pendingEntry.messages.find((message) => message.updateComponents).updateComponents.components
-    .filter((c) => c.component === 'Button').map((c) => c.action.event.context.text)
-  assert.ok(pendingButtons.includes(allow), 'the /pending card has no Allow button for the request')
-  console.log('PASS /pending lists the open request\'s id, with a card whose button is the request\'s own')
+  const pendingParts = pendingEntry.messages.find((message) => message.updateComponents).updateComponents.components
+  const pendingAllow = pendingParts.find((c) => c.component === 'Button' && c.action.event.context.text === allow)
+  assert.ok(pendingAllow, 'the /pending card has no Allow button for the request')
+  assert.ok(pendingParts.some((c) => c.component === 'Row' && c.children.includes(pendingAllow.id)), 'the /pending card\'s Allow button is in no row')
+  console.log('PASS /pending lists the open request\'s id, with a card whose Allow button is the request\'s own')
 
-  // The app sends a tapped button's text with a selection receipt in the blob.
+  // The owner taps Allow on the /pending card; the app sends the button's
+  // text with a selection receipt in the blob.
   const tapped = t.da(Date.now())
-  const receipt = [{ type: 'tlon-a2ui-selection', version: 1, sourcePostId: card.seal.id, surfaceId: `approval-${request.id}`, componentId: 'allow', values: [allow] }]
+  const receipt = [{ type: 'tlon-a2ui-selection', version: 1, sourcePostId: pending.seal.id, surfaceId: 'pending-approvals', componentId: pendingAllow.id, values: [allow] }]
   await t.dm(owner, bot, allow, JSON.stringify(receipt))
   await until('the owner is told the guest may DM the bot', async () => (await t.dmFromBot(owner, tapped))
     .some((post) => t.words(post).includes(`Approved DM access for ${guest.ship}. They will be able to message the bot.`)))
