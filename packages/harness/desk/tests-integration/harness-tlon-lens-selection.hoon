@@ -124,4 +124,26 @@
   ;<  kept=(set input-id:h)  bind:m  invalidate
   %+  ex-equal  !>(kept)
   !>((silt [(min a b) (turn (seconds 2 64) |=(at=@da (id 'old' at)))]))
+::  A failure notice the hand abandoned unsent is settled, so its record is
+::  final.
+::
+++  test-an-abandoned-failure-makes-its-lens-record-final
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  db  (observe *state:hh 'room' ~[t0])
+  =/  failed  (id 'room' t0)
+  =.  observations.db
+    (~(jab by observations.db) failed |=(o=observation:hh o(phase %failed)))
+  =.  outbox.db
+    %+  ~(put by outbox.db)  failed
+    :*  failed  'room'  'tlon'  address:(config 'room')  (sid 'room')  %failure
+        'The model provider rejected the request format or options.'  %abandoned
+        'harness-tlon'  ''  ~
+    ==
+  ;<  ~  bind:m  (start db ~['room'])
+  ;<  *  bind:m  (do-agent /head [~zod %harness] [%fact %noun !>(%changed)])
+  ;<  =vase  bind:m  get-save
+  =/  record  (~(got by records.lens:!<(state-5:t vase)) failed)
+  (ex-equal !>(final.record) !>(&))
 --

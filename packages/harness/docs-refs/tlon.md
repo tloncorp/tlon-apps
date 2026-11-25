@@ -691,6 +691,36 @@ messaging the sender.
   conversation, the admission queue or the hand ledger is full, or its
   conversation's first route is still being set up, it is dropped and Activity
   reading moves on.
+- A channel message heard without a mention, by the owner rule or in a
+  channel whose rule is `all`, may be left unanswered. Each request for its
+  turn tells the model so in a line of user context just before the message,
+  where recalled memory goes, so whether a message mentions the bot does not
+  change the system prompt. The line is not kept in the conversation, and a
+  newer message's request does not carry it. A reply that says nothing is
+  not posted: the hand claims it and abandons it with the reason "The bot
+  chose not to reply." A reply says nothing when, without surrounding
+  whitespace, it is empty, or when, also without ASCII punctuation (quotes,
+  backticks, asterisks, periods and the rest) at either end, it is the token
+  `NO_REPLY` in any letter case, once or repeated with whitespace between:
+  `NO_REPLY.`, `**no_reply**` and `NO_REPLY NO_REPLY` are silent.
+  Punctuation alone, and a reply with any other text, such as
+  `Sure. NO_REPLY`, are posted as written. The rule is narrower than
+  OpenClaw's, which also strips Unicode punctuation and finds the token
+  inside a JSON string or envelope. A mention, a reply under the
+  bot's post, channel setup, a DM, a schedule, a reminder, a task reply and a
+  Lens retry are always answered, whatever the text. The owner sees nothing
+  in the channel; the run is finished, and Context Lens shows its delivery as
+  abandoned, and the owner inbox shows the model's answer as its body. The
+  message's event id starts with `unaddressed/`. A failure on such a message
+  is not posted either, whatever the error: the hand abandons the failure
+  notice with the reason "The run failed on a message that did not mention
+  the bot." The owner still sees the failure in Context Lens, which can
+  retry it, in the run report, which keeps status `error` and its text with
+  delivery `abandoned`, and in the owner inbox, where the run is blocked with
+  the text. Failure notices for DMs and mentions are still posted, and so is
+  a cancellation notice. The cost: in a channel with only the owner and the
+  bot, a lasting authentication, billing or model misconfiguration makes
+  every unmentioned question fail with no post.
 - The exact destination determines the stable conversation: a DM, a channel
   and each thread in either have one conversation each. Every admitted speaker
   in a channel shares its conversation, and each message there reaches the
@@ -1278,6 +1308,11 @@ guest an allowed ship and `TEST_NEST` hosted by the owner. It checks that the ow
 is answered there without a mention and the guest is not, that a quoted `/stop`
 does not stop a running turn and reaches the model as the owner's words, that a
 burst of unmentioned owner lines does not delay a DM from the guest and lines that
-found no room are never answered, and that `harness/tlon/channel/configure` with a
+found no room are never answered, that an unmentioned remark answered `NO_REPLY` is
+abandoned with no post while the same answer to a mention is posted, and only the
+unmentioned turn is told it may stay quiet, outside the system message, which both
+turns share, that a provider error on an unmentioned
+remark is abandoned with no post and kept in the run report while the same error on
+a mention is posted, and that `harness/tlon/channel/configure` with a
 `mentions` rule changes only that channel, after which the owner needs a mention
 and the guest is still answered. It restores defaults and policy; messages remain.

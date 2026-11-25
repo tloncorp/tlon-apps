@@ -4,7 +4,7 @@
 ::  each speaker's authority is decided per turn.
 /-  t=harness-tlon, h=harness, a=activity-ver,
     cr=harness-cron, hh=harness-hand, c=channels
-/+  ht=harness-tools, hj=harness-json,
+/+  ht=harness-tools, hj=harness-json, hd=harness-hand,
     story=harness-tlon-story, input=harness-tlon-input
 |%
 ::
@@ -199,7 +199,12 @@
   =/  text
     ?:  plain.u.item  text.u.item
     (attribute:input actor.u.item ~ to.u.item text.u.item)
-  `[[actor.u.item (event-id to.u.item key.u.item) to.u.item text] unaddressed]
+  ::  The adapter may leave a channel message heard without a mention
+  ::  unanswered; its event id is how the adapter and the head tell.
+  =/  id=@t  (event-id to.u.item key.u.item)
+  =?  id  &(?=(%channel -.to.u.item) !addressed.u.item)
+    (cat 3 unaddressed-prefix:hd id)
+  `[[actor.u.item id to.u.item text] unaddressed]
 ::  +event-id: the hand's name for one native message at one destination
 ::
 ++  event-id

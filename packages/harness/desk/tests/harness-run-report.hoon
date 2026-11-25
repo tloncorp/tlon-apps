@@ -1,4 +1,4 @@
-/-  h=harness
+/-  h=harness, hh=harness-hand
 /+  *test, report=harness-run-report, failure=harness-failure
 |%
 ++  fixture
@@ -78,6 +78,23 @@
   =.  log.session  [[%llm-failed 3 raw] log.session]
   =/  found  (need (read:report session 0v2))
   (expect-eq !>(`json`[%s (public-message:failure raw)]) !>((field found 'error')))
+::
+::  The Tlon hand abandons a failure notice for a channel message that did
+::  not mention the bot; the run still reports its error.
+::
+++  test-an-abandoned-failure-notice-keeps-the-error
+  =/  session  fixture
+  =/  raw  'http error 400: unsupported option'
+  =.  log.session  [[%llm-failed 3 raw] log.session]
+  =/  text  (public-message:failure raw)
+  =/  =publication:hh
+    [0v2 'room' 'tlon' 'chat/~lux/test' 'room' %failure text %abandoned 'harness-tlon' '' ~]
+  =/  found  (with-delivery:report (need (read:report session 0v2)) `publication)
+  ;:  weld
+      (expect-eq !>(`json`[%s 'error']) !>((field found 'status')))
+      (expect-eq !>(`json`[%s text]) !>((field found 'error')))
+      (expect-eq !>(`json`[%s 'abandoned']) !>((field (field found 'delivery') 'status')))
+  ==
 ::
 ++  test-recent-page-uses-immutable-cursor
   =/  page  (recent:report fixture ~)

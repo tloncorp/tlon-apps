@@ -25,6 +25,21 @@
   |=  [binding=@t event=@t]
   ^-  input-id:h
   (end [3 16] (shas %hand-input (jam [binding event])))
+::  A hand's event id for a channel message heard without a mention starts
+::  with .unaddressed-prefix: the bot may leave it unanswered.
+::
+++  unaddressed-prefix  'unaddressed/'
+++  unaddressed
+  |=  event=@t
+  ^-  ?
+  =(unaddressed-prefix (end [3 (met 3 unaddressed-prefix)] event))
+::  +message-event: .event without .unaddressed-prefix
+::
+++  message-event
+  |=  event=@t
+  ^-  @t
+  ?.  (unaddressed event)  event
+  (rsh [3 (met 3 unaddressed-prefix)] event)
 ::
 ++  id-json
   |=  id=input-id:h

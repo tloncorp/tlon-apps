@@ -5377,6 +5377,7 @@
         %compaction
         visible
         `(request-data:memory-capture (memory-reach sid) knowledge u.capture)
+        |
       ==
     ?:  %+  gth
           (div (add 3 (met 3 (en:json:html payload))) 4)
@@ -5571,6 +5572,17 @@
 ++  llm-card
   |=  [sid=session-id:h req=@ud kind=request-kind:h =view:h checkpoint=@uvH]
   ^-  card
+  ::  The Tlon hand may leave a channel message heard without a mention
+  ::  unanswered, except a scheduled run's.
+  =/  unaddressed=?
+    ?.  =(%turn kind)  |
+    =/  input  (work-origin sid)
+    ?~  input  |
+    ?.  ?=(%hand -.source.u.input)  |
+    ?&  =('tlon' hand.source.u.input)
+        ?=(~ (for-session:schedule-lib schedules sid))
+        (unaddressed:hd event.source.u.input)
+    ==
   =.  view
     %:  identify:hp
       view  kind  our.bowl
@@ -5581,7 +5593,7 @@
     =/  evidence=(unit @t)
       ?.  &(?=(^ capture) =(%compaction kind) =(req id.u.capture))  ~
       `(request-data:memory-capture (memory-reach sid) knowledge u.capture)
-    (payload-with-capture:hp view kind (skills-visible sid skills) evidence)
+    (payload-with-capture:hp view kind (skills-visible sid skills) evidence unaddressed)
   =?  payload  =(%turn kind)
     (attach-browser-image sid config.view payload)
   =/  body=@t  (en:json:html payload)

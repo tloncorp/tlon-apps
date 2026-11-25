@@ -85,9 +85,14 @@
 ++  payload
   |=  [=view:h kind=request-kind:h skills=(map @t skill:h)]
   ^-  json
-  (payload-with-capture view kind skills ~)
+  (payload-with-capture view kind skills ~ |)
+::  .unaddressed marks a turn for a channel message that did not mention the
+::  bot, which it may leave unanswered; +quiet tells the model so.
+::
 ++  payload-with-capture
-  |=  [=view:h kind=request-kind:h skills=(map @t skill:h) evidence=(unit @t)]
+  |=  $:  =view:h  kind=request-kind:h  skills=(map @t skill:h)
+          evidence=(unit @t)  unaddressed=?
+      ==
   ^-  json
   =?  view  =(%memory kind)  view(tools.config ~, memory ~)
   =?  view  =(%compaction kind)
@@ -104,15 +109,16 @@
         ==
     ==
   ?:  (responses-route url.config.view)
-    (responses-body view kind skills)
+    (responses-body view kind skills unaddressed)
   ?:  (anthropic-route url.config.view)
-    (request:anthropic (request-body view kind skills))
-  (request-body view kind skills)
+    (request:anthropic (request-body view kind skills unaddressed))
+  (request-body view kind skills unaddressed)
 ::  +identify: the operating ship heads each turn's instructions. The head
 ::  resolves it at dispatch, like credentials, so no snapshotted config,
 ::  owner edit or conversation text can replace it. Checkpoints keep their
 ::  fixed instruction, which local runners match by prefix. Estimates omit
-::  this block, under a kilobyte; the context margin absorbs it.
+::  this block and +quiet, together under a kilobyte; the context margin
+::  absorbs them.
 ::
 ++  identify
   |=  [=view:h kind=request-kind:h our=@p parent=(unit @p)]
@@ -157,9 +163,28 @@
       ==
       '\0a\0a'
   ==
-::  +split-at-latest-user: recalled memory goes just before the latest user
-::  message. It changes between inputs, and history placed after it could not
-::  be reused from a provider's prompt cache.
+::  +quiet: the line for an unaddressed turn
+::
+++  quiet
+  %+  rap  3
+  :~  'The latest message in this channel does not mention you. If it is '
+      'not meant for you and needs nothing from you, reply with exactly '
+      'NO_REPLY and nothing else.'
+  ==
+::  +latest-context: recalled memory and +quiet, as one user message. The
+::  memory reference ends with a newline; one more starts the line's
+::  paragraph.
+::
+++  latest-context
+  |=  [=view:h unaddressed=?]
+  ^-  (unit @t)
+  ?~  memory.view  ?.(unaddressed ~ `quiet)
+  =/  recalled  (reference:memory memory.view)
+  ?.  unaddressed  `recalled
+  `(rap 3 ~[recalled '\0a' quiet])
+::  +split-at-latest-user: recalled memory and +quiet go just before the
+::  latest user message. They change between inputs, and history placed
+::  after them could not be reused from a provider's prompt cache.
 ::
 ++  split-at-latest-user
   |=  items=(list item:h)
@@ -173,9 +198,10 @@
 ::  +request-body: assemble the provider-native request
 ::
 ++  request-body
-  |=  [=view:h kind=request-kind:h skills=(map @t skill:h)]
+  |=  [=view:h kind=request-kind:h skills=(map @t skill:h) unaddressed=?]
   ^-  json
   =/  parts  (split-at-latest-user items.view)
+  =/  latest  (latest-context view unaddressed)
   =/  messages=(list json)
     %-  zing
     ^-  (list (list json))
@@ -195,8 +221,8 @@
       ::
         (chat-input config.view before.parts =(%turn kind))
       ::
-        ?~  memory.view  ~
-        ~[(msg-json 'user' (reference:memory memory.view))]
+        ?~  latest  ~
+        ~[(msg-json 'user' u.latest)]
       ::
         (chat-input config.view after.parts =(%turn kind))
       ::
@@ -227,9 +253,10 @@
 ::  +responses-body: stateless Responses inference with opaque continuation.
 ::
 ++  responses-body
-  |=  [=view:h kind=request-kind:h skills=(map @t skill:h)]
+  |=  [=view:h kind=request-kind:h skills=(map @t skill:h) unaddressed=?]
   ^-  json
   =/  parts  (split-at-latest-user items.view)
+  =/  latest  (latest-context view unaddressed)
   =/  input=(list json)
     %-  zing
     ^-  (list (list json))
@@ -248,8 +275,8 @@
       ::
         (responses-input config.view before.parts =(%turn kind))
       ::
-        ?~  memory.view  ~
-        ~[(responses-message 'user' (reference:memory memory.view))]
+        ?~  latest  ~
+        ~[(responses-message 'user' u.latest)]
       ::
         (responses-input config.view after.parts =(%turn kind))
       ::

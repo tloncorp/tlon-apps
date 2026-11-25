@@ -51,6 +51,40 @@
       (expect-eq !>(%waiting) !>((input-state:inbox %completed `%claimed)))
       (expect-eq !>(%finished) !>((input-state:inbox %completed `%delivered)))
       (expect-eq !>(%blocked) !>((input-state:inbox %failed `%delivered)))
+      (expect-eq !>(%blocked) !>((input-state:inbox %failed `%abandoned)))
+  ==
+::  The Tlon hand abandons a failure notice for a channel message that did
+::  not mention the bot; the owner still sees the run blocked, with the text.
+::
+++  test-an-abandoned-failure-notice-is-blocked-with-its-text
+  =/  hands  *state:hh
+  =/  text  'The model provider rejected the request format or options.'
+  =.  observations.hands
+    (my ~[[0v1 ['binding' 'unaddressed/0v1' '~nec' 'A remark' ~2026.9.1 %failed]]])
+  =.  outbox.hands
+    %-  my
+    :~  :*  0v1
+            :*  0v1  'binding'  'tlon'  'chat/~lux/test'  'room'  %failure  text
+                %abandoned  'harness-tlon'  ''  ~
+            ==
+        ==
+    ==
+  =/  result
+    %:  read:inbox
+      *state:w
+      hands
+      *(map @uv schedule:cr)
+      *state:hn
+      (args 'blocked' 'input' 32 ~)
+      ~2026.9.12
+    ==
+  ?>  ?=(%& -.result)
+  =/  listed  (rows p.result)
+  ?>  ?=([* ~] listed)
+  ;:  weld
+      (expect-eq !>('blocked') !>((string:j i.listed 'state')))
+      (expect-eq !>(text) !>((string:j i.listed 'detail')))
+      (expect-eq !>('abandoned') !>((string:j i.listed 'delivery')))
   ==
 ++  test-filter-before-pagination-with-global-counts
   =/  result  (read fixture (args 'attention' 'all' 1 ~))

@@ -1,5 +1,6 @@
 /-  h=harness
-/+  *test, hp=harness-provider, w=harness-provider-wire, ht=harness-tools
+/+  *test, hp=harness-provider, w=harness-provider-wire, ht=harness-tools,
+    memory=harness-memory
 |%
 ++  planet  ~sampel-palnet
 ++  moon  `@p`(add planet (lsh 5 1))
@@ -119,5 +120,105 @@
       (expect-eq !>(base) !>(view))
       (expect !>((starts 'Produce a concise historical checkpoint' (system-text body))))
       (expect !>(!(find-sub:ht '~sampel-palnet' (en:json:html body))))
+  ==
+::  An unaddressed turn's request differs from any other turn's only in
+::  +quiet:hp, user context just before the latest user message, where
+::  recalled memory goes and in its message when there is one. The system
+::  message and every message before that point are unchanged, so a
+::  provider's prompt cache serves both.
+::
+++  history
+  ^-  view:h
+  =/  =view:h  (identify:hp base %turn planet ~)
+  =.  items.view
+    :~  [%user 'Earlier question.']
+        [%assistant 'Earlier answer.' ~]
+        [%user 'See you all then.']
+    ==
+  view
+++  recalled  `(map @t @t)`(my ~[['standup' 'Standup is at nine.']])
+::  .recalled and +quiet:hp, as they share one message
+::
+++  recalled-and-quiet
+  (rap 3 ~[(reference:memory recalled) '\0a' quiet:hp])
+++  listed
+  |=  [body=json key=@t]
+  ^-  (list json)
+  =/  entries  (need (get:w body key))
+  ?>  ?=(%a -.entries)
+  p.entries
+++  encoded
+  |=  [=view:h unaddressed=?]
+  (payload-with-capture:hp view %turn ~ ~ unaddressed)
+++  test-the-quiet-line-is-user-context-before-the-latest-message-in-chat
+  =/  =view:h  history
+  =/  plain  (listed (encoded view |) 'messages')
+  =/  quiet  (listed (encoded view &) 'messages')
+  =/  with  (listed (encoded view(memory recalled) |) 'messages')
+  =/  both  (listed (encoded view(memory recalled) &) 'messages')
+  =/  latest  (dec (lent plain))
+  ;:  weld
+      (expect-eq !>((into plain latest (msg-json:hp 'user' quiet:hp))) !>(quiet))
+      %+  expect-eq
+        !>((snag latest with))
+      !>((msg-json:hp 'user' (reference:memory recalled)))
+      %+  expect-eq
+        !>((snap with latest (msg-json:hp 'user' recalled-and-quiet)))
+      !>(both)
+      (expect !>((find-sub:ht 'Standup is at nine.\0a\0aThe latest message' recalled-and-quiet)))
+  ==
+++  test-the-quiet-line-is-user-context-before-the-latest-message-in-responses
+  =/  responses=view:h  history
+  =.  url.config.responses  'https://chatgpt.com/backend-api/codex/responses'
+  =/  plain  (encoded responses |)
+  =/  quiet  (encoded responses &)
+  =/  with  (listed (encoded responses(memory recalled) |) 'input')
+  =/  both  (listed (encoded responses(memory recalled) &) 'input')
+  =/  input  (listed plain 'input')
+  =/  latest  (dec (lent input))
+  ;:  weld
+      (expect-eq !>((str:w plain 'instructions')) !>((str:w quiet 'instructions')))
+      %+  expect-eq
+        !>((into input latest (responses-message:hp 'user' quiet:hp)))
+      !>((listed quiet 'input'))
+      %+  expect-eq
+        !>((snag latest with))
+      !>((responses-message:hp 'user' (reference:memory recalled)))
+      %+  expect-eq
+        !>((snap with latest (responses-message:hp 'user' recalled-and-quiet)))
+      !>(both)
+  ==
+::  Anthropic joins adjacent user messages, so the line is the text block
+::  before the latest message's own, in the last message.
+::
+++  test-the-quiet-line-is-user-context-before-the-latest-message-in-anthropic
+  =/  native=view:h  history
+  =.  url.config.native  'https://api.anthropic.com/v1/messages'
+  =/  text-block
+    |=  text=@t
+    (pairs:enjs:format ~[['type' %s 'text'] ['text' %s text]])
+  =/  last-blocks
+    |=  messages=(list json)
+    (listed (rear messages) 'content')
+  =/  plain  (encoded native |)
+  =/  quiet  (encoded native &)
+  =/  with  (listed (encoded native(memory recalled) |) 'messages')
+  =/  both  (listed (encoded native(memory recalled) &) 'messages')
+  =/  plain-messages  (listed plain 'messages')
+  =/  quiet-messages  (listed quiet 'messages')
+  ;:  weld
+      (expect-eq !>((str:w plain 'system')) !>((str:w quiet 'system')))
+      (expect-eq !>((snip plain-messages)) !>((snip quiet-messages)))
+      (expect-eq !>('user') !>((str:w (rear quiet-messages) 'role')))
+      %+  expect-eq
+        !>([(text-block quiet:hp) (last-blocks plain-messages)])
+      !>((last-blocks quiet-messages))
+      (expect-eq !>((snip with)) !>((snip both)))
+      %+  expect-eq
+        !>((snag 0 (last-blocks with)))
+      !>((text-block (reference:memory recalled)))
+      %+  expect-eq
+        !>([(text-block recalled-and-quiet) (slag 1 (last-blocks with))])
+      !>((last-blocks both))
   ==
 --

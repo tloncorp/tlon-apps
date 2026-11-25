@@ -1,8 +1,9 @@
 // ~zod is the bot, the peer (~lux) its owner and the host of TEST_NEST, and the
 // guest (~nec) an allowed ship. The owner is heard without a mention in a
 // channel it hosts while the channel has no rule of its own; a guest is not.
-// A local provider records each turn's input and can hold turns. Restores
-// defaults and policy; test messages remain.
+// A local provider records each turn's input, instructions and quiet line, can hold turns,
+// answers NO_REPLY to the steps it is told to and rejects the requests for
+// others. Restores defaults and policy; test messages remain.
 import assert from 'node:assert/strict'
 import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
@@ -21,7 +22,7 @@ owner.ship = name(owner.cookie); guest.ship = name(guest.cookie)
 const client = new Client(), ship = `~${client.ship}`, marker = `heard-${randomUUID().slice(0, 8)}`
 assert.equal(new Set([ship, owner.ship, guest.ship]).size, 3, 'The bot, owner and guest are three ships')
 assert.equal(nest.split('/')[1], owner.ship, 'The owner hosts TEST_NEST')
-const failures = [], inputs = [], held = []
+const failures = [], inputs = [], references = [], systems = [], hinted = [], held = [], silent = new Set(), rejected = new Set()
 let event = 0, holding = () => false, defaults, policy
 
 // Each turn answers every step its new input names. A held turn waits until
@@ -29,18 +30,30 @@ let event = 0, holding = () => false, defaults, policy
 // not, so it is not part of the input.
 const words = (content) => typeof content === 'string' ? content : JSON.stringify(content ?? '')
 const reference = /^(Recent public channel activity|Public thread reference) captured at admission/
+// An unmentioned turn's quiet line is user context before its input, in the
+// message recalled memory uses when there is one, so it is not part of the input.
+const instruction = 'The latest message in this channel does not mention you. If it is not meant for you and needs nothing from you, reply with exactly NO_REPLY and nothing else.'
 const stepsIn = (text) => [...text.matchAll(new RegExp(`${marker}-(\\w+)`, 'g'))].map((m) => m[1])
 const server = createServer(async (req, res) => {
   try {
     const body = JSON.parse(await readText(req))
     const last = body.messages.findLastIndex((m) => m.role === 'assistant')
-    const input = body.messages.slice(last + 1).filter((m) => m.role === 'user').map((m) => words(m.content)).filter((text) => !reference.test(text)).join('\n')
+    const added = body.messages.slice(last + 1).filter((m) => m.role === 'user').map((m) => words(m.content))
+    hinted.push(added.some((text) => text.includes(instruction)))
+    const input = added.map((text) => text.replace(instruction, '')).filter((text) => text.trim() && !reference.test(text)).join('\n')
     const steps = stepsIn(input)
     inputs.push(input)
+    references.push(added.filter((text) => reference.test(text)).join('\n'))
+    systems.push(words(body.messages.find((m) => m.role === 'system')?.content))
     if (steps.some((step) => holding(step))) await new Promise((resolve) => held.push(resolve))
     // The quoted /stop carries no step; its answer is named for it.
     if (input.includes(`${owner.ship}: /stop`)) steps.push('quoted')
-    const content = steps.length ? steps.map((step) => `${marker}-${step}-ok`).join(' ') : 'NO_STEP'
+    if (steps.some((step) => rejected.has(step))) {
+      res.writeHead(400, { 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ error: { message: 'fixture rejected the request' } }))
+    }
+    const content = steps.some((step) => silent.has(step)) ? 'NO_REPLY'
+      : steps.length ? steps.map((step) => `${marker}-${step}-ok`).join(' ') : 'NO_STEP'
     res.writeHead(200, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content } }], usage: { prompt_tokens: 20, completion_tokens: 10 } }))
   } catch (error) { failures.push(error); res.writeHead(500); res.end('fixture error') }
@@ -50,6 +63,10 @@ function release() {
   for (const resolve of held.splice(0)) resolve()
 }
 const requested = (step) => inputs.some((input) => stepsIn(input).includes(step))
+// The instructions of the model request for .step's turn.
+const instructions = (step) => systems[inputs.findIndex((input) => stepsIn(input).includes(step))]
+// Whether the model request for .step's turn carries the quiet line.
+const quietFor = (step) => hinted[inputs.findIndex((input) => stepsIn(input).includes(step))]
 
 async function poke(who, app, mark, json) {
   const res = await fetch(`${who.url}/~/channel/${marker}-${who.ship.slice(1)}`, { method: 'PUT', headers: { cookie: who.cookie, 'content-type': 'application/json' },
@@ -77,6 +94,15 @@ const answered = async (step) => Object.values((await scry(owner, `channels/v5/$
   .some((p) => authorShip(p?.essay?.author) === ship && JSON.stringify(p.essay.content).includes(`${marker}-${step}-ok`))
 const dmAnswered = async (step) => Object.values((await scry(guest, `chat/v4/dm/${ship}/writs/newest/32/light`)).writs || {})
   .some((p) => authorShip(p?.essay?.author) === ship && JSON.stringify(p.essay.content).includes(`${marker}-${step}-ok`))
+// The bot's admitted input for .step, from the events of its conversations.
+async function admitted(step) {
+  for (const sid of (await client.call('harness/tlon')).sessions) {
+    const res = await fetch(`${base}/~/scry/harness/events/${sid}.json`, { headers: { cookie }, signal: AbortSignal.timeout(15000) })
+    if (!res.ok) continue
+    const found = (await res.json()).findLast((e) => e.type === 'input' && e.source?.kind === 'hand' && JSON.stringify(e.item).includes(`${marker}-${step}`))
+    if (found) return { ...found, sid }
+  }
+}
 async function until(label, check, timeout = 60000) {
   const start = Date.now()
   while (Date.now() - start < timeout) {
@@ -119,6 +145,7 @@ try {
   await post(owner, [`${marker}-owner1 plain owner post`])
   await until('the owner is answered without a mention in a channel it hosts', () => answered('owner1'))
   assert.ok(inputs.some((input) => input.includes(`${owner.ship}: ${marker}-owner1`)), 'the owner\'s post reaches the model with its speaker')
+  assert.ok(inputs.every((input, i) => !stepsIn(input).includes('owner1') || !stepsIn(references[i]).includes('owner1')), 'the owner\'s post is not repeated in its own reference')
 
   // The app's setup request: the receipt rides in the post's blob, and the
   // model gets the setup prompt with its client context.
@@ -163,6 +190,15 @@ try {
   await unheard(`burst lines that found no room are never answered (${dropped.join(', ')})`, dropped)
   const accepted = burst.filter(requested)
   for (const step of accepted) await until(`${step} is answered`, () => answered(step))
+  // Accepted lines queued behind the held turn start in order, each leaving
+  // itself and every line still queued behind it out of its reference.
+  const turns = inputs.map((input, i) => ({ own: stepsIn(input), shown: stepsIn(references[i]) }))
+    .filter((turn) => turn.own.some((step) => accepted.includes(step)))
+  turns.forEach((turn, i) => {
+    const waiting = turns.slice(i).flatMap((later) => later.own)
+    assert.ok(!turn.shown.some((step) => waiting.includes(step)), `the turn for ${turn.own} repeats a waiting line in its reference: ${turn.shown}`)
+  })
+  console.log('PASS no burst line is repeated in its own reference or in one taken while it waited')
   // Every bot post since the burst answers accepted lines or the sentinel and
   // nothing else: no refusal notice or other reply to a dropped line.
   const expected = new Set([...accepted, 'settle2'])
@@ -171,6 +207,62 @@ try {
     assert.ok(steps.length > 0 && steps.every((step) => expected.has(step)), `unexpected bot post ${id} after the burst: ${text}`)
   }
   console.log('PASS the burst left no bot post but answers to accepted lines and the sentinel')
+
+  // The owner's unmentioned remark is answered NO_REPLY: its run completes,
+  // its publication is abandoned and nothing is posted, and the next message
+  // is answered. The same answer to a mention is posted. Only the
+  // unmentioned turn's request tells the model it may stay quiet, and both
+  // requests have the same system message.
+  silent.add('quiet1'); silent.add('quiet2')
+  const quietBaseline = new Set((await botPosts()).map(([id]) => id))
+  await post(owner, [`${marker}-quiet1 a remark for someone else`])
+  let quiet
+  await until('quiet1 was admitted as heard without a mention', async () => (quiet = await admitted('quiet1')))
+  assert.ok(quiet.source.event.startsWith('unaddressed/'), `quiet1 event id: ${quiet.source.event}`)
+  await until('quiet1: its run completed', async () => (await client.call('harness/hand', { status: { binding: quiet.source.binding } }))
+    .observations.some((o) => o.inputId === quiet.id && o.phase === 'completed'))
+  await until('quiet1: its publication was abandoned', async () => (await client.call('harness/hand', { effect: { hand: 'tlon', effect: quiet.id } })).status === 'abandoned')
+  const abandoned = await client.call('harness/hand', { effect: { hand: 'tlon', effect: quiet.id } })
+  assert.equal(abandoned.text, 'NO_REPLY')
+  assert.equal(abandoned.resolutions.at(-1).reason, 'The bot chose not to reply.')
+  assert.deepEqual((await botPosts()).filter(([id]) => !quietBaseline.has(id)), [], 'a bot post appeared for quiet1')
+  console.log('PASS an unmentioned remark answered NO_REPLY is abandoned and nothing is posted')
+  await post(owner, [`${marker}-owner3 plain owner post`])
+  await until('the next message after a quiet turn is answered', () => answered('owner3'))
+  await post(owner, [{ ship }, ` ${marker}-quiet2`])
+  await until('NO_REPLY to a mention is posted', async () => (await botPosts())
+    .some(([id, text]) => !quietBaseline.has(id) && text.includes('NO_REPLY')))
+  assert.equal(quietFor('quiet1'), true, 'the unmentioned turn is told it may stay quiet')
+  assert.equal(quietFor('quiet2'), false, 'the mentioned turn is not told it may stay quiet')
+  assert.equal(instructions('quiet1'), instructions('quiet2'), 'mention status does not change the system message')
+  assert.ok(!instructions('quiet1').includes(instruction), 'the quiet line is not in the system message')
+  console.log('PASS only the unmentioned turn is told it may stay quiet')
+
+  // A provider error on the owner's unmentioned remark is not posted: the
+  // failure notice is abandoned and the run report keeps the error. The same
+  // error on a mention is posted.
+  const rejection = 'The model provider rejected the request format or options.'
+  rejected.add('broken1'); rejected.add('broken2')
+  const brokenBaseline = new Set((await botPosts()).map(([id]) => id))
+  await post(owner, [`${marker}-broken1 a remark for someone else`])
+  let broken
+  await until('broken1 was admitted as heard without a mention', async () => (broken = await admitted('broken1')))
+  assert.ok(broken.source.event.startsWith('unaddressed/'), `broken1 event id: ${broken.source.event}`)
+  await until('broken1: its failure notice was abandoned', async () => (await client.call('harness/hand', { effect: { hand: 'tlon', effect: broken.id } })).status === 'abandoned')
+  const notice = await client.call('harness/hand', { effect: { hand: 'tlon', effect: broken.id } })
+  assert.ok(notice.text.startsWith(rejection), `broken1 notice: ${notice.text}`)
+  assert.equal(notice.resolutions.at(-1).reason, 'The run failed on a message that did not mention the bot.')
+  assert.deepEqual((await botPosts()).filter(([id]) => !brokenBaseline.has(id)), [], 'a bot post appeared for broken1')
+  const report = await client.call('harness/session/runs', { sessionId: broken.sid, lensId: broken.id })
+  assert.equal(report.status, 'error')
+  assert.ok(report.error.startsWith(rejection), `broken1 run error: ${report.error}`)
+  assert.equal(report.delivery.status, 'abandoned')
+  console.log('PASS a provider error on an unmentioned remark is abandoned, reported and not posted')
+  await post(owner, [{ ship }, ` ${marker}-broken2`])
+  await until('a provider error on a mention is posted', async () => (await botPosts())
+    .some(([id, text]) => !brokenBaseline.has(id) && text.includes(rejection)))
+  // Later turns carry the failed lines in their input; answer them.
+  rejected.clear()
 
   // The one-channel call sets this channel's own rule and nothing else; the
   // owner then needs a mention there, and the guest keeps its access.
