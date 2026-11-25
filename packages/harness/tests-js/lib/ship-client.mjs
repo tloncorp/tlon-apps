@@ -107,8 +107,17 @@ export class Client {
         this.through = Number(message.sequence)
       }
       if (this.through > this.acknowledged) {
-        const through = this.through
-        await this.poke({ ack: { connection: this.connection, target: 'client', through } })
+        const through = this.through, acked = Date.now()
+        // Acknowledging the same position twice is harmless, so an ack that
+        // times out is sent again on the next loop, as a poll is asked again.
+        try {
+          await this.poke({ ack: { connection: this.connection, target: 'client', through } })
+        } catch (error) {
+          if (this.stopping.signal.aborted) return
+          if (error.name !== 'TimeoutError') throw error
+          this.silentSince ??= acked
+          continue
+        }
         this.acknowledged = through
       }
       await sleep(100)
