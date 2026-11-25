@@ -28,7 +28,7 @@
 lux_tests="tlon-notes-conformance tlon-completion-conformance tlon-hooks-publishing-conformance"
 # Scripts that need ~nec: one on ~nec alone, and those with ~zod as the bot and ~lux
 # and ~nec in the same channel, as owner, guest or a ship that asks for access.
-three_tests="tlon-shared-channel-conformance tlon-approval-commands-dm-conformance tlon-approval-commands-channel-conformance tlon-approval-commands-revoke-conformance"
+three_tests="tlon-shared-channel-conformance tlon-approval-commands-dm-conformance tlon-approval-commands-channel-conformance tlon-approval-commands-revoke-conformance tlon-approval-commands-group-conformance"
 nec_tests="tlon-permissions-conformance $three_tests"
 
 # A group's test files, in the order the full run takes them: the offline tests, the

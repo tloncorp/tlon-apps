@@ -1484,6 +1484,10 @@ in a DM and in a channel; and a revoked ship's new request.
 three ships that the owner's `/revoke` in the channel takes a guest's
 settings grant there and is answered there, without reaching the model, and
 that the guest's next mention is not answered and opens a request.
+`tests-js/tlon-approval-commands-group-conformance.mjs` checks on the same
+three ships that a guest's invitation to its group does not make the bot join
+and sends the owner a card for the group, and that the owner's `/allow` makes
+the bot join the group and its channel and stores no grant.
 `desk/tests-integration/harness-tlon-group-approvals.hoon` covers group invite
 requests on the agent: one card per group, whoever invites; an invitation from
 the owner or a ship on a ship-wide list joining without one; none for a
