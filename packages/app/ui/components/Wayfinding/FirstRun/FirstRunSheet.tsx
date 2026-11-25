@@ -74,9 +74,8 @@ export function FirstRunSheet({
         <YStack paddingHorizontal="$xl" gap="$l">
           {intro ? (
             <Text
-              fontSize={17}
-              lineHeight={24}
-              letterSpacing={-0.2}
+              size="$label/xl"
+              trimmed={false}
               color="$secondaryText"
               paddingHorizontal="$xs"
             >
@@ -108,16 +107,15 @@ export function FirstRunSheet({
                     it shrink pulls it back to the row, so the text wraps. */}
                 <YStack flex={1} flexShrink={1} gap={2}>
                   {row.label ? (
-                    <Text fontSize={13} lineHeight={18} color="$secondaryText">
+                    <Text
+                      size="$label/m"
+                      trimmed={false}
+                      color="$secondaryText"
+                    >
                       {row.label}
                     </Text>
                   ) : null}
-                  <Text
-                    fontSize={17}
-                    lineHeight={23}
-                    letterSpacing={-0.2}
-                    color="$primaryText"
-                  >
+                  <Text size="$label/xl" trimmed={false} color="$primaryText">
                     {row.title}
                   </Text>
                   {row.detail ? (
@@ -143,7 +141,6 @@ export function FirstRunSheet({
             <Button
               preset="hero"
               size="medium"
-              borderRadius={12}
               label={primaryLabel}
               onPress={onPrimary}
               loading={primaryLoading}

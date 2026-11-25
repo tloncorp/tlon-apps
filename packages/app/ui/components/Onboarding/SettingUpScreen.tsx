@@ -153,9 +153,8 @@ function SetupStepRow({ label, state }: { label: string; state: StepState }) {
       </View>
       <Text
         flex={1}
-        fontSize={17}
-        lineHeight={24}
-        letterSpacing={-0.2}
+        size="$label/xl"
+        trimmed={false}
         color={state === 'current' ? '$primaryText' : '$secondaryText'}
       >
         {label}

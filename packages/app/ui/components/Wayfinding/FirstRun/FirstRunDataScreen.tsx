@@ -44,20 +44,10 @@ export function FirstRunDataScreen({ onBack }: { onBack: () => void }) {
               <LineIcon name={item.icon} size={24} />
             </LineIconTile>
             <YStack flex={1} gap={3}>
-              <Text
-                fontSize={17}
-                lineHeight={23}
-                letterSpacing={-0.2}
-                color="$primaryText"
-              >
+              <Text size="$label/xl" trimmed={false} color="$primaryText">
                 {item.title}
               </Text>
-              <Text
-                fontSize={15}
-                lineHeight={21}
-                letterSpacing={-0.1}
-                color="$secondaryText"
-              >
+              <Text size="$label/m" trimmed={false} color="$secondaryText">
                 {item.text}
               </Text>
             </YStack>

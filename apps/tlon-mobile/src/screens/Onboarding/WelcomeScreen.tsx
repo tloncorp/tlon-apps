@@ -152,7 +152,6 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               size="medium"
               fill="outline"
               width="100%"
-              borderRadius={12}
               borderWidth={1}
               borderColor="$border"
               onPress={() => handlePressSignup('phone')}

@@ -118,16 +118,15 @@ function LineChoiceRow({
           <XStack alignItems="center" gap={8}>
             <Text
               flexShrink={1}
-              fontSize={17}
-              lineHeight={23}
-              letterSpacing={-0.2}
+              size="$label/xl"
+              trimmed={false}
               color="$primaryText"
             >
               {choice.title}
             </Text>
             {choice.badge ? (
               <View paddingHorizontal={6} paddingVertical={1}>
-                <Text fontSize={12} lineHeight={16} color="$secondaryText">
+                <Text size="$label/s" trimmed={false} color="$secondaryText">
                   {choice.badge}
                 </Text>
                 <LineOutline radius={4} color="$tertiaryText" />
@@ -135,22 +134,12 @@ function LineChoiceRow({
             ) : null}
           </XStack>
           {choice.meta ? (
-            <Text
-              fontSize={15}
-              lineHeight={20}
-              letterSpacing={-0.1}
-              color="$secondaryText"
-            >
+            <Text size="$label/m" trimmed={false} color="$secondaryText">
               {choice.meta}
             </Text>
           ) : null}
           {choice.detail ? (
-            <Text
-              fontSize={15}
-              lineHeight={20}
-              letterSpacing={-0.1}
-              color="$secondaryText"
-            >
+            <Text size="$label/m" trimmed={false} color="$secondaryText">
               {choice.detail}
             </Text>
           ) : null}

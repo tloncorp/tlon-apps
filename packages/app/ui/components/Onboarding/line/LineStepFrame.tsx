@@ -5,7 +5,6 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
-import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { ScreenHeader } from '../../ScreenHeader';
 import { OnboardingButton } from '../OnboardingButton';
 import { LINE, LineOutline, LineRule } from './lineKit';
@@ -37,7 +36,6 @@ const FOOT_GAP_UNDER_QUIET = 2;
 
 /** The progress along the top: one short dash per step, ink up to this one. */
 export function OnboardingStepDots({ step }: { step: number }) {
-  const isDark = useIsDarkMode();
   return (
     <XStack
       justifyContent="center"
@@ -51,9 +49,7 @@ export function OnboardingStepDots({ step }: { step: number }) {
           key={index}
           width={DASH_WIDTH}
           height={DASH_HEIGHT}
-          backgroundColor={
-            index < step ? '$primaryText' : isDark ? '#433E3E' : '#E5E5E5'
-          }
+          backgroundColor={index < step ? '$primaryText' : '$border'}
         />
       ))}
     </XStack>
@@ -116,9 +112,8 @@ export function LineButton({
         gap="$m"
       >
         <Text
-          fontSize={17}
-          lineHeight={24}
-          letterSpacing={-0.2}
+          size="$label/xl"
+          trimmed={false}
           color={foreground}
           numberOfLines={1}
         >
@@ -235,9 +230,8 @@ export function LineStepFrame({
             marginTop={10}
             marginHorizontal={32}
             textAlign="center"
-            fontSize={17}
-            lineHeight={24}
-            letterSpacing={-0.2}
+            size="$label/xl"
+            trimmed={false}
             color="$secondaryText"
           >
             {subtitle}
@@ -332,13 +326,7 @@ export function LineBulletList({
       {items.map((item) => (
         <XStack key={item.label} alignItems="center" gap={16}>
           <LineIconTile>{item.icon}</LineIconTile>
-          <Text
-            flex={1}
-            fontSize={17}
-            lineHeight={23}
-            letterSpacing={-0.2}
-            color="$primaryText"
-          >
+          <Text flex={1} size="$label/xl" trimmed={false} color="$primaryText">
             {item.label}
           </Text>
         </XStack>

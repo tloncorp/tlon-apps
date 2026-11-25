@@ -179,9 +179,8 @@ export function ConnectServicesScreen({
             >
               <Text
                 flex={1}
-                fontSize={17}
-                lineHeight={23}
-                letterSpacing={-0.2}
+                size="$label/xl"
+                trimmed={false}
                 color="$primaryText"
               >
                 {copy.allServices}
@@ -291,18 +290,12 @@ function ServiceRow({
         />
       </View>
       <YStack flex={1}>
-        <Text
-          fontSize={17}
-          lineHeight={23}
-          letterSpacing={-0.2}
-          color="$primaryText"
-        >
+        <Text size="$label/xl" trimmed={false} color="$primaryText">
           {row.displayName}
         </Text>
         <Text
-          fontSize={15}
-          lineHeight={20}
-          letterSpacing={-0.1}
+          size="$label/m"
+          trimmed={false}
           color={lineNeedsAttention ? '$primaryText' : '$secondaryText'}
           accessibilityLiveRegion="polite"
         >
