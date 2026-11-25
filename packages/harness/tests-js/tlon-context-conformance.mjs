@@ -19,20 +19,34 @@ const ship = cookie.split('=')[0].slice('urbauth-'.length), marker = `context-${
 const client = new Client(), contexts = [{ kind: 'dm' }, { kind: 'channel' }], failures = []
 const note = `c${randomUUID().slice(0, 8)}`, secret = `${marker}-private-note`, skillName = `${marker}-forbidden`
 const reminders = new Map(), reminderSpecs = new Map()
-let event = 0, stamp = 0, originals, requests = 0, completed = false, adapterStopped = false
+let event = 0, stamp = 0, originals, requests = 0, completed = false, adapterStopped = false, waiting
+// A ship busy with one long event answers late: a read that times out is
+// asked again until the wait it serves, or two minutes, runs out.
 async function scry(path, remote = false) {
-  const response = await fetch(`${remote ? peerUrl : base}/~/scry/${path}.json`, { headers: { cookie: remote ? peerCookie : cookie }, signal: AbortSignal.timeout(15000) })
-  assert.ok(response.ok, `${path}: ${response.status}`); return response.json()
+  const asked = Date.now(), end = waiting?.end ?? asked + 120000
+  for (let left = end - asked; left > 0; left = end - Date.now()) {
+    try {
+      const response = await fetch(`${remote ? peerUrl : base}/~/scry/${path}.json`, { headers: { cookie: remote ? peerCookie : cookie }, signal: AbortSignal.timeout(Math.min(15000, left)) })
+      assert.ok(response.ok, `${path}: ${response.status}`)
+      const data = await response.json()
+      if (Date.now() < end) return data
+    } catch (error) {
+      if (error.name !== 'TimeoutError') throw error
+    }
+  }
+  throw new Error(`${path}: the ship has not answered for ${((Date.now() - asked) / 1000).toFixed(1)} s, waiting for ${waiting?.label ?? 'a direct read'}`)
 }
 async function until(label, check) {
   // Peer propagation is distinct from the channel host's durable receipt.
-  const end = Date.now() + 120000
-  while (Date.now() < end) {
-    if (failures.length) throw new AggregateError(failures)
-    const value = await check(); if (value) return value
-    await sleep(150)
-  }
-  throw new Error(`Timed out: ${label}`)
+  waiting = { label, end: Date.now() + 120000 }
+  try {
+    while (Date.now() < waiting.end) {
+      if (failures.length) throw new AggregateError(failures)
+      const value = await check(); if (value) return value
+      await sleep(150)
+    }
+    throw new Error(`Timed out: ${label}`)
+  } finally { waiting = undefined }
 }
 async function posts(ctx, remote = true) {
   const data = await scry(ctx.kind === 'dm' ? `chat/v4/dm/${remote ? ship : peer}/writs/newest/100/heavy` : `channels/v5/${nest}/posts/newest/100/post`, remote)
