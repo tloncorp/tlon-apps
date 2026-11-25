@@ -88,6 +88,8 @@
     :~  ['b-owner-dm' ['tlon' 'dm/~nec' 'owner-dm' ~['~nec'] &]]
         ['b-room' ['tlon' 'chat/~lux/test' 'room' ~['*'] &]]
         ['b-guest-dm' ['tlon' 'dm/~bus' 'guest-dm' ~['~bus'] &]]
+        ['b-alice' ['custom' 'room/alice' 'alice-room' ~['alice'] &]]
+        ['b-owner-hand' ['custom' 'room/owner' 'owner-hand' ~['~nec'] &]]
     ==
   s
 ++  test-owner-private-dm-gets-local-time-zone-line-and-cron-default
@@ -179,15 +181,25 @@
   ^-  form:m
   =/  s  base-state
   =/  guest-src=input-source:h  [%hand 'b-guest-dm' 'tlon' 'dm/~bus' 'ev1' '~bus']
+  =/  alice-src=input-source:h  [%hand 'b-alice' 'custom' 'room/alice' 'ev2' 'alice']
+  =/  owner-hand-src=input-source:h  [%hand 'b-owner-hand' 'custom' 'room/owner' 'ev3' '~nec']
   =.  sessions.s
     %-  my
     :~  ['guest-dm' (clock-session guest-src `~bus)]
+        ['alice-room' (clock-session alice-src ~)]
+        ['owner-hand' (clock-session owner-hand-src `~nec)]
         ['peer--~bus' (clock-session [%peer ~bus 0v1] `~bus)]
         ['peer--~nec' (clock-session [%peer ~nec 0v2] `~nec)]
     ==
   ;<  [g-rec=@t g-req=@t]  bind:m  (run-clock s 'guest-dm')
   ;<  ~  bind:m  (ex-equal !>((has-substr "Pacific/Chatham" g-rec)) !>(|))
   ;<  ~  bind:m  (ex-equal !>((has-substr "Pacific/Chatham" g-req)) !>(|))
+  ;<  [a-rec=@t a-req=@t]  bind:m  (run-clock s 'alice-room')
+  ;<  ~  bind:m  (ex-equal !>((has-substr "Pacific/Chatham" a-rec)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((has-substr "Pacific/Chatham" a-req)) !>(|))
+  ;<  [oh-rec=@t oh-req=@t]  bind:m  (run-clock s 'owner-hand')
+  ;<  ~  bind:m  (ex-equal !>((has-substr "Pacific/Chatham" oh-rec)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((has-substr "The owner's timezone is Pacific/Chatham." oh-req)) !>(&))
   ;<  [bp-rec=@t bp-req=@t]  bind:m  (run-clock s 'peer--~bus')
   ;<  ~  bind:m  (ex-equal !>((has-substr "Pacific/Chatham" bp-rec)) !>(|))
   ;<  ~  bind:m  (ex-equal !>((has-substr "Pacific/Chatham" bp-req)) !>(|))

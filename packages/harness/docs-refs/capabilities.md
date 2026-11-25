@@ -113,8 +113,15 @@ and [companion workflows](companion.md).
   can be copied or cached elsewhere.
 - Recurring schedules support IANA timezones (with daylight-saving rules from
   the desk's tzdata table, as of IANA tzdata `2026e`; a bot keeps its desk's
-  rules until a new desk ships), UTC, and fixed offsets (which do not follow
-  daylight saving). Schedules and operational records have capacity limits.
+  rules until a new desk ships, so later rule changes such as `America/Havana`
+  in `2026f` lag until the table is regenerated), UTC, and fixed offsets (which
+  do not follow daylight saving). Only canonical area/location IANA names and
+  `UTC` are accepted; `GMT` and legacy link names are rejected (and onboarding
+  leaves the owner timezone unset if a client supplies one). Schedules and
+  operational records have capacity limits.
+- Shared channels and non-owner conversations receive UTC only, whoever speaks;
+  a private owner turn or scheduled run with ship-wide `tlon` access can still
+  write local time into a channel if prompted to post there.
 - Local acknowledgement is not remote delivery or a read receipt. There is no
   cross-system exactly-once guarantee.
 

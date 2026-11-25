@@ -6246,10 +6246,11 @@
   .^(? %gx /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/admin/[sid]/noun)
 ::  Owner timezone is scoped per conversation, not per speaker. Only the
 ::  owner's private conversations (local ACP/poke, owner DM, owner peer,
-::  single-actor private hand, and their scheduled runs or subagents) receive
-::  local time, the turn timezone line, or cron_add's default zone. Shared
-::  channels and other people's conversations always use UTC whoever speaks,
-::  so local time and zone never enter shared session history.
+::  single-actor hand bound to the owner's ship, and their scheduled runs or
+::  subagents) receive local time, the turn timezone line, or cron_add's
+::  default zone. Shared channels and other people's conversations always use
+::  UTC whoever speaks, so local time and zone never enter shared session
+::  history.
 ++  session-timezone
   |=  [sid=session-id:h zone=(unit @t)]
   ^-  (unit @t)
@@ -6269,7 +6270,7 @@
     (slaw %p (rsh [3 6] sid))
   ?^  peer  ?:((is-owner u.peer) zone ~)
   =/  bound=(list binding:hh)
-    (skim ~(val by bindings.hands) |=(b=binding:hh =(sid sid.b)))
+    (turn (session-bindings:hd [hands hand-index] sid) |=([@t =binding:hh] binding))
   ?:  !=(~ bound)
     ?:((levy bound private-binding) zone ~)
   =/  input  (current-input:admin log.u.session)
@@ -6290,13 +6291,12 @@
   |=  binding=binding:hh
   ^-  ?
   ?.  ?=([@t ~] actors.binding)  |
-  ?:  =('tlon' hand.binding)
-    =/  partner  (dm-partner:admin address.binding)
-    =/  actor  (slaw %p i.actors.binding)
-    &(?=(^ partner) ?=(^ actor) =(u.partner u.actor) (is-owner u.partner))
-  ?:  =('*' i.actors.binding)  |
   =/  actor  (slaw %p i.actors.binding)
-  ?~(actor & (is-owner u.actor))
+  ?~  actor  |
+  ?.  (is-owner u.actor)  |
+  ?.  =('tlon' hand.binding)  &
+  =/  partner  (dm-partner:admin address.binding)
+  &(?=(^ partner) =(u.partner u.actor))
 ::
 ++  admin-current
   |=  ticket=ticket:admin

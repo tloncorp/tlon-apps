@@ -19,6 +19,7 @@ const bindings = []
 const calls = []
 let savedBefore = null
 let restored = false
+let restoredOwner = null
 
 const answer = (res, text, tools = []) => res.end(JSON.stringify({
   choices: [{
@@ -68,12 +69,15 @@ async function until(label, read, timeout = 60_000) {
 
 let clockResult = null
 let handClockResult = null
+let nonOwnerClockResult = null
 let sharedClockResult = null
 let defaultJob = null
 let explicitJob = null
+let nonOwnerOmitReceipt = null
 let sharedOmitReceipt = null
 let sharedUtcJob = null
 let sawSystemNote = false
+let nonOwnerSawSystemNote = false
 let sharedSawSystemNote = false
 let handHidSetTimezone = false
 
@@ -101,7 +105,7 @@ const server = createServer(async (req, res) => {
       clockResult = JSON.parse(receipts[1].content)
       return answer(res, `${marker}-owner-done`)
     }
-    if (prompt.includes('HAND_TURN')) {
+    if (prompt.includes('OWNER_HAND_TURN')) {
       handHidSetTimezone = !body.tools.some((t) => t.function.name === 'set_timezone')
       if (receipts.length === 0) {
         return answer(res, '', [tool('current_time', {})])
@@ -113,11 +117,28 @@ const server = createServer(async (req, res) => {
           tool('cron_add', { schedule: '0 9 * * 1', timezone: 'Europe/London', prompt: `${marker}-explicit-tz`, runs: '2' }),
         ])
       }
+      assert.ok(!receipts[1].content.startsWith('error:'), `expected default-tz job JSON, got: ${receipts[1].content} (clock=${JSON.stringify(handClockResult)})`)
       defaultJob = JSON.parse(receipts[1].content)
       explicitJob = JSON.parse(receipts[2].content)
       schedules.add(defaultJob.id)
       schedules.add(explicitJob.id)
       return answer(res, `${marker}-hand-done`)
+    }
+    if (prompt.includes('ALICE_HAND_TURN')) {
+      if (system.includes("owner's timezone") || system.includes('America/Los_Angeles')) {
+        nonOwnerSawSystemNote = true
+      }
+      if (receipts.length === 0) {
+        return answer(res, '', [tool('current_time', {})])
+      }
+      if (receipts.length === 1) {
+        nonOwnerClockResult = JSON.parse(receipts[0].content)
+        return answer(res, '', [
+          tool('cron_add', { schedule: '0 9 * * 1', prompt: `${marker}-alice-omit`, runs: '2' }),
+        ])
+      }
+      nonOwnerOmitReceipt = receipts[1].content
+      return answer(res, `${marker}-non-owner-done`)
     }
     if (prompt.includes('SHARED_TURN')) {
       if (system.includes("owner's timezone") || system.includes('America/Los_Angeles')) {
@@ -226,8 +247,25 @@ try {
   assert.ok(clockResult.weekday && clockResult.utcWeekday)
   assert.equal((await client.call('harness/timezone')).timezone, 'America/Los_Angeles')
 
-  // 5. Private single-actor hand turn: hides owner-only set_timezone, sees local time,
+  // 5. Private owner-bound hand turn: hides owner-only set_timezone, sees local time,
   //    and defaults/accepts IANA cron zones
+  const tlonStatus = await client.call('harness/tlon')
+  let ownerShip = tlonStatus.policy?.owner
+  if (!ownerShip) {
+    ownerShip = `~${client.ship}`
+    await client.call('harness/tlon/owner/set', {
+      owner: ownerShip,
+      expectedOwner: null,
+      siblingMoonOwners: tlonStatus.siblingMoonOwners,
+      expectedSiblingMoonOwners: tlonStatus.siblingMoonOwners,
+    })
+    restoredOwner = {
+      owner: null,
+      expectedOwner: ownerShip,
+      siblingMoonOwners: tlonStatus.siblingMoonOwners,
+      expectedSiblingMoonOwners: tlonStatus.siblingMoonOwners,
+    }
+  }
   const { sessionId: privateHandSid } = await client.call('session/new', { name: `${marker}-private-hand` })
   await client.call('harness/session/configure', {
     sessionId: privateHandSid,
@@ -241,9 +279,9 @@ try {
       tools: [],
     },
   })
-  await hand.bind(privateHandSid, { sessionId: privateHandSid, address: `room/${marker}`, actors: ['alice'] })
+  await hand.bind(privateHandSid, { sessionId: privateHandSid, address: `room/${marker}`, actors: [ownerShip] })
   bindings.push(privateHandSid)
-  await hand.observe(privateHandSid, { event: `${marker}-hand`, actor: 'alice', text: 'HAND_TURN: Add two weekly schedules.' })
+  await hand.observe(privateHandSid, { event: `${marker}-hand`, actor: ownerShip, text: 'OWNER_HAND_TURN: Add two weekly schedules.' })
   await until('hand turn creates IANA and defaulted schedules', () => explicitJob)
   assert.equal(handHidSetTimezone, true, 'non-admin hand turn hides set_timezone')
   assert.equal(handClockResult.timezone, 'America/Los_Angeles')
@@ -252,6 +290,33 @@ try {
 
   const handOut = await until('hand reply', async () => (await hand.outbox()).find((effect) => effect.sessionId === privateHandSid))
   await hand.deliver(handOut.effectId, async () => 'fixture-delivered')
+
+  // 5b. Single-actor non-owner hand (non-ship actor): gets UTC only, no owner timezone
+  const { sessionId: aliceHandSid } = await client.call('session/new', { name: `${marker}-alice-hand` })
+  await client.call('harness/session/configure', {
+    sessionId: aliceHandSid,
+    config: {
+      ...config,
+      key: '',
+      url: `http://127.0.0.1:${server.address().port}/completions`,
+      model: 'timezone-fixture',
+      system: 'Synthetic non-owner timezone test.',
+      headers: [],
+      tools: [],
+    },
+  })
+  await hand.bind(aliceHandSid, { sessionId: aliceHandSid, address: `room/${marker}-alice`, actors: ['alice'] })
+  bindings.push(aliceHandSid)
+  await hand.observe(aliceHandSid, { event: `${marker}-alice`, actor: 'alice', text: 'ALICE_HAND_TURN: Check time and schedule.' })
+  await until('non-owner hand turn completes', () => nonOwnerOmitReceipt)
+  assert.equal(nonOwnerSawSystemNote, false, 'non-owner single-actor hand omits owner timezone from system prompt')
+  assert.equal(nonOwnerClockResult.timezone, 'UTC', 'non-owner single-actor hand current_time reports UTC')
+  assert.equal(nonOwnerClockResult.local, undefined, 'non-owner single-actor hand current_time omits local time')
+  assert.match(nonOwnerOmitReceipt, /^error:/, 'non-owner single-actor hand rejects cron_add without explicit timezone')
+  assert.ok(!nonOwnerOmitReceipt.includes('America/Los_Angeles'), 'non-owner single-actor hand cron_add error does not echo owner timezone')
+
+  const aliceOut = await until('alice hand reply', async () => (await hand.outbox()).find((effect) => effect.sessionId === aliceHandSid))
+  await hand.deliver(aliceOut.effectId, async () => 'fixture-delivered')
 
   // 6. Shared multi-speaker hand conversation: withholds owner timezone from system prompt,
   //    current_time, and cron_add default even when the ship/owner speaks.
@@ -291,6 +356,9 @@ try {
   }
   for (const binding of bindings) {
     try { await hand.enable(binding, false) } catch {}
+  }
+  if (restoredOwner !== null) {
+    try { await client.call('harness/tlon/owner/set', restoredOwner) } catch {}
   }
   if (savedBefore !== null && !restored) {
     try {
