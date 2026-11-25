@@ -52,7 +52,8 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
     {
       scopes: 'openid email profile https://www.googleapis.com/auth/calendar',
       summary: 'Helps plan your week',
-      intro: 'Sato will be able to check your schedule and add events for you.',
+      intro:
+        'Your Sato will be able to check your schedule and add events for you.',
       accessMode: 'read and write',
       access: 'See, edit, share and delete all the calendars you can access.',
       account: 'The Google account you choose next.',
@@ -66,7 +67,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       scopes: 'openid email profile https://www.googleapis.com/auth/gmail.send',
       summary: 'Sends email once you OK it',
       intro:
-        'Sato will be able to send email from your Gmail address when you ask.',
+        'Your Sato will be able to send email from your Gmail address when you ask.',
       accessMode: 'send only',
       access: 'Send email as you. It can’t read, change or delete your email.',
       account: 'The Google account you choose next.',
@@ -80,7 +81,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       scopes: 'read:user user:email repo',
       summary: 'Tracks repos and issues',
       intro:
-        'Sato will be able to read your repositories and keep track of issues and pull requests for you.',
+        'Your Sato will be able to read your repositories and keep track of issues and pull requests for you.',
       accessMode: 'read and write',
       access:
         'Read and change code, issues and pull requests in every repository you can reach, public and private.',
@@ -95,7 +96,7 @@ export const FIRST_RUN_FEATURED_SERVICES: [string, ServiceAccessCopy][] = [
       scopes: '',
       summary: 'Finds and edits notes',
       intro:
-        'Sato will be able to search your Notion pages and make changes for you.',
+        'Your Sato will be able to search your Notion pages and make changes for you.',
       accessMode: 'read and write',
       access: 'Read, create and edit pages in the Notion workspace you pick.',
       account: 'The Notion workspace you choose next.',
@@ -109,7 +110,7 @@ export const firstRunCopy = {
   back: 'Back',
 
   meet: {
-    title: 'Meet Sato',
+    title: 'Meet your Sato',
     subtitle: 'It handles the important stuff in the background.',
     points: [
       { icon: 'apps', label: 'Uses your email and calendar, if you let it' },
@@ -123,8 +124,14 @@ export const firstRunCopy = {
     title: 'Yours to keep',
     subtitle: 'Use it however you like, for as long as you like.',
     points: [
-      { icon: 'computer', label: 'Runs on a computer we look after' },
-      { icon: 'lock', label: 'No training on your data' },
+      {
+        icon: 'computer',
+        label: 'Runs on a computer we look after. Download it anytime.',
+      },
+      {
+        icon: 'lock',
+        label: 'Remembers your chats. The AI it uses doesn’t keep them.',
+      },
       { icon: 'chatCheck', label: 'Asks before it emails or messages anyone' },
     ] satisfies FeaturePoint[],
     dataLink: 'How your data is kept',
@@ -138,17 +145,17 @@ export const firstRunCopy = {
       {
         icon: 'computer',
         title: 'It has its own computer',
-        text: 'Sato runs on a computer of its own, not on your phone, with its own memory. We look after it for you.',
+        text: 'Your Sato runs on a computer of its own, not on your phone, with its own memory. We look after it for you.',
       },
       {
         icon: 'sparkle',
         title: 'Models see only what they need',
-        text: 'Sato remembers your history. The AI company behind the included model sees only what each request needs, and keeps none of it (zero data retention).',
+        text: 'Your Sato remembers your history. The AI company behind the included model sees only what each request needs, and keeps none of it (zero data retention).',
       },
       {
         icon: 'code',
         title: 'The code is open source',
-        text: 'Anyone can read how Sato works, and you can run it on your own computer if you’d rather.',
+        text: 'Anyone can read how your Sato works, and you can run it on your own computer if you’d rather.',
       },
       {
         icon: 'fileDown',
@@ -156,7 +163,7 @@ export const firstRunCopy = {
         text: 'Export everything it knows, or move it to a computer you run yourself, anytime.',
       },
     ] satisfies { icon: LineIconName; title: string; text: string }[],
-    faqLink: 'Read the full answers at tlon.io/faqs',
+    faqLink: 'Read the full answers in the FAQ',
     faqUrl: 'https://tlon.io/faqs',
     primary: 'Done',
   },
@@ -165,7 +172,7 @@ export const firstRunCopy = {
     title: 'Connect your services',
     subtitle:
       'Pick what you’d like help with. You can skip this and connect later.',
-    none: 'No services are available to connect right now. You can connect one later from Sato’s settings.',
+    none: 'No services are available to connect right now. You can connect one later from your Sato’s settings.',
     allServices: 'All services',
     connectButton: 'Connect',
     tryAgainButton: 'Try again',
@@ -187,7 +194,7 @@ export const firstRunCopy = {
     accountLabel: 'Account',
     disconnectLabel: 'Turning it off',
     disconnectLine:
-      'Disconnect any time in Sato’s settings, under Connect services.',
+      'Disconnect any time in your Sato’s settings, under Connect services.',
     footnote:
       'Connecting does not invite anyone or automatically share this content in a workspace.',
     continue: (service: string) => `Continue to ${service}`,
@@ -196,7 +203,8 @@ export const firstRunCopy = {
 
   model: {
     title: 'You choose the model',
-    subtitle: 'The AI behind Sato. Switch anytime, and it keeps what it knows.',
+    subtitle:
+      'The AI behind your Sato. Switch anytime, and it keeps what it knows.',
     sectionIncluded: 'Free with Sato',
     sectionSubscription: 'Use your subscription',
     sectionApiKey: 'Use your own API key',
@@ -220,11 +228,11 @@ export const firstRunCopy = {
     primaryIncluded: 'Use built-in',
     primarySubscription: (plan: string) => `Sign in to ${plan}`,
     primaryApiKey: 'Add your API key',
-    a11yGroup: 'How Sato gets a model',
+    a11yGroup: 'How your Sato gets a model',
     switchFailed: (name: string) =>
-      `Couldn’t switch Sato to ${name}. Go back to try again.`,
+      `Couldn’t switch your Sato to ${name}. Go back to try again.`,
     switchFailedLater: (name: string) =>
-      `Couldn’t switch Sato to ${name}. You can change models in its settings.`,
+      `Couldn’t switch your Sato to ${name}. You can change models in its settings.`,
   },
 
   switchSheet: {
@@ -238,11 +246,11 @@ export const firstRunCopy = {
     planTitle: (plan: string) => `Uses your ${plan} plan`,
     keyTitle: 'You pay the provider',
     fallback: (model: string) => `If it’s unavailable, ${model} steps in.`,
-    sameBotTitle: 'Sato stays the same',
+    sameBotTitle: 'Your Sato stays the same',
     sameBotDetail: 'Same history and context. You can switch back any time.',
     continueSubscription: (plan: string) => `Continue to ${plan}`,
     continueApiKey: 'Add an API key',
-    waitingForBot: 'Waiting for Sato…',
+    waitingForBot: 'Waiting for your Sato…',
     planChoice: 'Which subscription',
     keep: (model: string) => `Keep ${model}`,
   },
@@ -250,7 +258,7 @@ export const firstRunCopy = {
   apiKey: {
     title: 'Add your API key',
     subtitle:
-      'Pick the provider, then paste your key. It’s stored on your Sato instance.',
+      'Pick the provider, then paste your key. It’s stored on your Sato’s computer.',
     providerLabel: 'Provider',
     keyLabel: (provider: string) => `${provider} API key`,
     keyPlaceholder: 'Paste your key here',
@@ -262,7 +270,7 @@ export const firstRunCopy = {
   workspace: {
     title: 'Bring your friends',
     subtitle:
-      'Start a workspace to plan things and get them done together. Everyone’s Sato helps out.',
+      'Start a workspace to plan things and get them done together. Your Satos help out.',
     points: [
       { icon: 'people', label: 'Plan trips and projects together' },
       { icon: 'file', label: 'Shares notes and files with everyone' },
@@ -273,9 +281,9 @@ export const firstRunCopy = {
   },
 
   setup: {
-    // The screen keeps signup's "Setting up" title, so "Getting Sato
-    // ready…" leads the body instead.
+    // The screen keeps signup's "Setting up" title, so "Getting your
+    // Sato ready…" leads the body instead.
     waitingBody:
-      'Getting Sato ready… Your choices are saved, and your chat opens as soon as it’s ready.',
+      'Getting your Sato ready… Your choices are saved, and your chat opens as soon as it’s ready.',
   },
 };

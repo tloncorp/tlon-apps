@@ -19,7 +19,7 @@ const SETUP_STEPS: {
 }[] = [
   {
     key: 'computer',
-    label: 'Preparing your Tlon computer',
+    label: 'Preparing your Sato’s computer',
     lastPhase: NodeBootPhase.BOOTING,
   },
   {
@@ -29,7 +29,7 @@ const SETUP_STEPS: {
   },
   {
     key: 'bot',
-    label: 'Setting up your Tlonbot',
+    label: 'Setting up your Sato',
     lastPhase: NodeBootPhase.ACCEPTING_INVITES,
   },
 ];
@@ -144,7 +144,7 @@ function SetupStepRow({ label, state }: { label: string; state: StepState }) {
         width={MARKER}
         height={MARKER}
         borderRadius={MARKER / 2}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         alignItems="center"
         justifyContent="center"
       >

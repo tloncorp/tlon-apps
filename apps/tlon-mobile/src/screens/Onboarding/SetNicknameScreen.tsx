@@ -192,7 +192,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       subtitle={
         isRevivalOnboarding
           ? 'Choose the name you want to be known as.'
-          : 'Pick an avatar and a name. This is how Sato and your friends will see you.'
+          : 'Pick an avatar and a name. This is how your Sato and friends will see you.'
       }
       contentGap={PROFILE_CONTENT_GAP}
       keyboardBottomOffset={LINE_BUTTON_HEIGHT + 2 * NEXT_GAP}
@@ -282,7 +282,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                   paddingRight: 12,
                   backgroundColor: error
                     ? '$negativeBackground'
-                    : '$secondaryBackground',
+                    : '$background',
                 }}
                 testID="set-nickname-input"
               />
