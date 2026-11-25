@@ -2275,17 +2275,17 @@
     (confirmed:engine proof)
   ==
 ::
-::  +left: the bot left or lost a channel; its per-place grants and open
-::  requests there go
+::  +left: the bot left or lost a channel; its per-place grants there go
 ::
 ::    Groups leaves a deleted channel, and every channel of a group the bot
 ::    leaves, is kicked from or sees deleted, through %channels, which
-::    reports each leave with this response.
+::    reports each leave with this response. Open requests there stay until
+::    answered or expired: a host could otherwise free a ship's slots by
+::    removing and re-adding the channel, and send the owner a card each time.
 ::
 ++  left
   |=  nest=nest:dv
   ^+  cor
-  =.  approvals  (keep:ask approvals |=(=approval:t !=(`nest place.approval)))
   ?.  (~(has by channel-grants.policy) nest)  cor
   (configure policy(channel-grants (~(del by channel-grants.policy) nest)) sibling-moon-owners)
 ::

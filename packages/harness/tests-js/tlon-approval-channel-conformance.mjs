@@ -3,7 +3,7 @@
 // owner) and a peer on no list, which hosts a fresh group with one channel. A post that
 // does not mention the bot opens nothing, a thread reply within the denial limit opens no
 // second request or card (the Hoon tests check joining past the limit), and leaving the
-// channel closes it. Nothing the peer sends starts a model turn. Runs apart from
+// channel leaves it open. Nothing the peer sends starts a model turn. Runs apart from
 // tlon-denial-conformance: the denial limit lets a ship open one request per five minutes.
 // Restores policy and defaults and deletes the group. Prints the card's A2UI entry on a
 // CARD line for checking with the app's validator.
@@ -172,9 +172,17 @@ try {
 
   await client.pokeAgent('channels', 'channel-action-2', { channel: { nest: room, action: { leave: null } } })
   await until('the bot left the channel', async () => !(await joined()))
-  await until('leaving the channel closes its request', async () => requests(await status()).length === 0)
+  await sleep(3000)
+  assert.deepEqual(requests(await status()), [request], 'leaving the channel closed its request')
+  console.log('PASS leaving the channel leaves its request open')
 } finally {
   try {
+    // Giving the peer access closes its request, which would otherwise hold one of its
+    // slots on this kept ship for 48 hours.
+    if (policy) {
+      await client.call('harness/tlon/configure', { ...(await status()).policy, allowed: [peer] })
+      await until('the peer\'s request closed', async () => requests(await status()).length === 0)
+    }
     if (defaults) await client.call('harness/defaults/configure', { config: { ...defaults, key: '' } })
     if (policy) await client.call('harness/tlon/configure', { ...policy, enabled: false })
     if (created) {

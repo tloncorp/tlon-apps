@@ -645,7 +645,11 @@ by every author.
   answered: the ship's own and, in a channel, the last change to the channel's
   replies.
 - A request closes when its ship gains access in its place, by any settings
-  save that gives it, and when the bot leaves or loses the channel. A DM
+  save that gives it. Leaving or losing the channel does not close it: it
+  stays open, counted against both limits, until the owner answers it or it
+  expires, so a group host cannot free a ship's slot by removing the channel
+  and adding it back, and the ship's next attempt there after the bot joins
+  again opens no request and sends no card. A DM
   request closes when the bot accepts the ship's invitation, by `accept_dm` or
   because the ship gained DM access: nothing is left to approve. Writing
   into the DM with another tool, such as `send_dm`, `react` or
@@ -751,8 +755,8 @@ by every author.
   channel still answers every reader, and in a channel the ship also needs
   native read permission. When the bot leaves a channel or loses it (it
   leaves or is kicked from the group, or the channel or group is deleted),
-  every grant and open request for that channel is removed, so joining again
-  finds none. The
+  every grant for that channel is removed, so joining again finds none; an
+  open request there stays (see above). The
   `trusted` list holds at most 64 ships; the allowed list and per-place grants
   have no size limit.
 - Group invitations are accepted when sent by the owner or by a ship on a
@@ -1149,14 +1153,15 @@ invitation, notes the acceptance and answers only what it sends afterward.
 `tests-js/tlon-approval-channel-conformance.mjs` checks the same in a fresh
 channel: a post that does not mention the bot opens nothing, a mention opens one
 request and one card, a thread reply within the limit opens nothing more, and
-leaving the channel closes it. Both print each card's A2UI entry on a `CARD`
+leaving the channel leaves the request open. Both print each card's A2UI entry on a `CARD`
 line, to check with the app's validator.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers these rules on the
 agent, with those a two-ship script cannot reach within the denial limit: a
 later message joining the open request, the same ship in a second place, a
 blocked ship, a channel with replies off, a ship with access whose text is not
-admitted, a declined invitation, a channel the bot is not in, catch-up across a
-channel policy change, the limit itself and a rejected card.
+admitted, a declined invitation, a channel the bot is not in, a channel the bot
+leaves and joins again, catch-up across a channel policy change, the limit
+itself and a rejected card.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending

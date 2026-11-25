@@ -546,7 +546,11 @@
   =.  allowed.allowed  (silt ~[~dev])
   ;<  [* u=state-6:t]  bind:m  (configure w allowed)
   (ex-equal !>(approvals.u) !>(*approvals:t))
-++  test-leaving-a-channel-closes-its-requests
+::  A host that removes the channel and adds it back frees no slot: ~dev's
+::  request stays through the leave, its mention after the bot joins again
+::  opens nothing and sends no card, and the request expires as any other.
+::
+++  test-leaving-and-rejoining-a-channel-keeps-its-request-and-sends-no-second-card
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -555,8 +559,18 @@
   ;<  [* s=state-6:t]  bind:m
     (admit s later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
   ;<  w=state-6:t  bind:m  (leave s room-nest)
-  ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~dev ~]])))
-  (ex-equal !>(~(key by by-id.approvals.w)) !>((sy ~[(requested s ~dev ~)])))
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.s))
+  ;<  [caz=(list card) u=state-6:t]  bind:m
+    %^  admit  w  ~2026.9.10..00.30.00
+    ~[[~2026.9.10..00.20.00 (mention ~dev room-nest ~2026.9.10..00.20.00)]]
+  ;<  ~  bind:m  (ex-equal !>(approvals.u) !>(approvals.s))
+  ;<  ~  bind:m  (ex-equal !>((held:ask approvals.u ~dev)) !>(2))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>((kinds u 'permission-denied')) !>(3))
+  ;<  ~  bind:m  (ex-equal !>((kinds u 'approval-request')) !>(2))
+  ;<  [* x=state-6:t]  bind:m  (wake u (add later ~h48) `~)
+  ;<  ~  bind:m  (ex-equal !>((open x)) !>(`(set [@p place:t])`~))
+  (ex-equal !>((kinds x 'approval-expired')) !>(2))
 ++  test-no-owner-or-a-disabled-adapter-opens-nothing
   %-  eval-mare
   =/  m  (mare ,~)
