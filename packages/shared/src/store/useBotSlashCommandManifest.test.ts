@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import * as db from '../db';
-import { getStaticSlashCommandManifest } from '../domain';
+import { STATIC_MANIFESTS, getStaticSlashCommandManifest } from '../domain';
 import {
   resolveBotManifestShipId,
   resolveGroupChannelBotShipId,
@@ -32,39 +32,89 @@ const member = (contactId: string, status?: 'invited' | 'joined') => ({
 describe('selectBotSlashCommandManifest', () => {
   test("the claimed harness selects that harness's list", () => {
     expect(
-      selectBotSlashCommandManifest({ enabled: true, botInfo: claim('hermes') })
+      selectBotSlashCommandManifest({
+        enabled: true,
+        botInfo: claim('hermes'),
+        channelType: 'dm',
+      })
     ).toBe(staticHermes);
     expect(
       selectBotSlashCommandManifest({
         enabled: true,
         botInfo: claim('openclaw'),
+        channelType: 'dm',
       })
     ).toBe(staticOpenclaw);
   });
 
+  test('a harness claim selects the Harness list in a DM', () => {
+    expect(
+      selectBotSlashCommandManifest({
+        enabled: true,
+        botInfo: claim('harness'),
+        channelType: 'dm',
+      })
+    ).toBe(STATIC_MANIFESTS.harness);
+  });
+
+  // A Harness bot may not hear an unmentioned channel message, and the popup
+  // inserts commands without a mention.
+  test('a harness bot gets no popup in a group channel; others still do', () => {
+    expect(
+      selectBotSlashCommandManifest({
+        enabled: true,
+        botInfo: claim('harness'),
+        channelType: 'chat',
+      })
+    ).toBeNull();
+    for (const channelType of ['dm', 'chat'] as const) {
+      expect(
+        selectBotSlashCommandManifest({
+          enabled: true,
+          botInfo: claim('openclaw'),
+          channelType,
+        })
+      ).toBe(staticOpenclaw);
+    }
+  });
+
   test('falls back to the openclaw list when no claim is stored', () => {
     expect(
-      selectBotSlashCommandManifest({ enabled: true, botInfo: null })
+      selectBotSlashCommandManifest({
+        enabled: true,
+        botInfo: null,
+        channelType: 'dm',
+      })
     ).toBe(staticOpenclaw);
     expect(
-      selectBotSlashCommandManifest({ enabled: true, botInfo: undefined })
+      selectBotSlashCommandManifest({
+        enabled: true,
+        botInfo: undefined,
+        channelType: 'dm',
+      })
     ).toBe(staticOpenclaw);
   });
 
   test('falls back when the claim is invalid or names an unknown harness', () => {
     expect(
-      selectBotSlashCommandManifest({ enabled: true, botInfo: 'not-json' })
+      selectBotSlashCommandManifest({
+        enabled: true,
+        botInfo: 'not-json',
+        channelType: 'dm',
+      })
     ).toBe(staticOpenclaw);
     expect(
       selectBotSlashCommandManifest({
         enabled: true,
         botInfo: JSON.stringify({ v: 2, harness: 'hermes', version: '1' }),
+        channelType: 'dm',
       })
     ).toBe(staticOpenclaw);
     expect(
       selectBotSlashCommandManifest({
         enabled: true,
         botInfo: claim('third-party-bot'),
+        channelType: 'dm',
       })
     ).toBe(staticOpenclaw);
   });
@@ -74,6 +124,7 @@ describe('selectBotSlashCommandManifest', () => {
       selectBotSlashCommandManifest({
         enabled: false,
         botInfo: claim('hermes'),
+        channelType: 'dm',
       })
     ).toBeNull();
   });
@@ -225,7 +276,11 @@ describe('resolveBotManifestShipId', () => {
     expect(resolveBotManifestShipId(chatChannel(), null)).toBeNull();
     // No ship to look up, so selection stays on the default list.
     expect(
-      selectBotSlashCommandManifest({ enabled: true, botInfo: undefined })
+      selectBotSlashCommandManifest({
+        enabled: true,
+        botInfo: undefined,
+        channelType: 'chat',
+      })
     ).toBe(staticOpenclaw);
   });
 

@@ -65,6 +65,14 @@
       max-context=@ud     ::  provider window (catalog or fallback)
       tools=(list tool-grant)
   ==
+::  The default instructions, as the named files Tlon's System Prompts
+::  screen edits. An empty layer is absent, so equal texts compare equal.
+::
++$  prompt-name
+  $?  %'AGENTS.md'  %'SOUL.md'  %'TOOLS.md'  %'IDENTITY.md'
+      %'USER.md'  %'BOOTSTRAP.md'  %'MEMORY.md'
+  ==
++$  prompts  (map prompt-name @t)
 +$  model-choice  [provider=@t model=@t]
 +$  model-contexts  (map @t [identity=@uvH windows=(map @t @ud)])
 ::  Remote, stateless Streamable HTTP MCP server. Headers are held in
@@ -240,6 +248,9 @@
       [%revoke =ship]
       [%peer-config =config]
       [%defaults =config]
+      ::  replace one default-instructions layer; empty text clears it
+      ::
+      [%prompt-set name=prompt-name body=@t]
       [%mcp-config servers=(list [id=mcp-server-id server=mcp-server])]
       ::  internal: session spawning, sent by the agent to itself
       ::

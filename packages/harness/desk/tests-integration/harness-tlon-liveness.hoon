@@ -32,7 +32,7 @@
   =/  m  (mare ,(list contact:ct))
   =/  n  (mare ,(list card))
   ^-  form:m
-  =/  saved=state-5:t  *state-5:t
+  =/  saved=state-6:t  *state-6:t
   =.  saved
     %=  saved  owner-initialized  1  policy  [enabled `~zod ~ %mentions ~ ~ ~ ~]  watching  &
       activity-through  ~2026.10.1

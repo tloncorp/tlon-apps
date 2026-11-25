@@ -1,5 +1,6 @@
 ::  Tlon-specific state belongs to a hand, never to the semantic head.
-/-  c=channels, a=activity-ver, h=harness, ad=harness-adapter
+/-  c=channels, a=activity-ver, h=harness, ad=harness-adapter, cr=harness-cron
+/-  sa=steward-automation
 |%
 +$  response  ?(%off %mentions %all)
 +$  channel-rule  [response=response everyone=?]
@@ -58,8 +59,42 @@
   ==
 +$  lens-sync
   [enabled=$~(| ?) owner=(unit @p) after=@da records=(map input-id:h lens-record) error=@t]
-+$  state-5
-  $:  %5
+::  What a schedule took from a Steward edit: the IANA zone it was created
+::  in, which the head keeps only as an offset, the every schedule it was
+::  made from, and the name and description Harness jobs do not have.
++$  task-names
+  $:  zone=(unit @t)
+      every=(unit cadence)
+      name=(unit @t)
+      description=(unit @t)
+  ==
+::  An every schedule as Steward gave it, and the cron expression the hand
+::  made of it. A job whose expression has since changed is shown as cron.
++$  cadence  [interval=@dr anchor=@da expression=@t]
+::  A Steward edit still applying at the head: the head actions left to
+::  send, in order, the answer once all succeed, and the names to keep then.
+::  A create for a destination where the bot has no conversation yet waits
+::  in .open while the hand opens one, under the owner it was planned for.
++$  task-edit
+  $:  steps=(list action:cr)
+      answer=response-body:v1:sa
+      names=(unit [id=@uv =task-names])
+      open=(unit destination)
+      owner=@p
+  ==
+::  The head's last schedule snapshot, so the Steward projection is rebuilt
+::  without reading the head, Steward-given names by schedule, edits in
+::  flight by Steward request id, and whether this hand has projected to
+::  Steward: until it has, it does not replace tasks it did not write.
++$  automation
+  $:  =schedules:cr
+      names=(map @uv task-names)
+      edits=(map @uv task-edit)
+      projected=$~(| ?)
+  ==
++$  state-6
+  $:  %6
+      automation=automation
       browser-entries=(map @uv browser-entry)
       lens=lens-sync
       owner-initialized=@ud
