@@ -5988,7 +5988,7 @@
     (skip granted |=(grant=tool-grant:h |(=(%admin grant) =(%cron grant))))
   =/  session  (~(get by sessions) sid)
   =/  peer  ?~(session ~ (peer-source:admin log.u.session))
-  =?  granted  &(?=(^ peer) !(is-owner u.peer))
+  =?  granted  &(?=(^ peer) !(peer-owner u.peer))
     =/  live  (peer-grant-for u.peer)
     ?~  live  ~
     %+  skim  granted
@@ -6963,7 +6963,7 @@
   =?  peer  &(?=(~ peer) =('peer--' (end [3 6] sid)))
     (slaw %p (rsh [3 6] sid))
   ?~  peer  library
-  ?:  (is-owner u.peer)  library
+  ?:  (peer-owner u.peer)  library
   =/  grant  (peer-grant-for u.peer)
   ?~  grant  ~
   %-  malt
@@ -6988,6 +6988,13 @@
   ^-  ?
   =/  trust  snapshot:~(. peer-trust bowl)
   (owner:~(. ownership bowl) owner.policy.trust siblings.trust who)
+::  A peer input from this ship never answers as the owner, even when this
+::  ship is the owner.
+::
+++  peer-owner
+  |=  who=@p
+  ^-  ?
+  &(!=(our.bowl who) (is-owner who))
 ::
 ++  owner-grant
   ^-  peer-grant:h
@@ -7009,6 +7016,8 @@
 ++  peer-grant-for
   |=  who=@p
   ^-  (unit peer-grant:h)
+  ::  This ship is never its own peer, whoever owns it.
+  ?:  =(our.bowl who)  ~
   ?:  (is-owner who)  `owner-grant
   (bind (~(get by (effective:peer-policy peers trusted-peers peer-limits)) who) guest-grant)
 ::  A grant to a ship other than the owner, which never holds %tlon or %code.

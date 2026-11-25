@@ -2,9 +2,10 @@
 ::  Each step boots the agent from saved state on the ship it plays, with a
 ::  fresh bowl, so ~zod's and ~nec's heads share nothing but what a test
 ::  hands between them. Optional live bindings are absent: scries answer %.n.
-/-  h=harness, w=harness-workspace, adapter=harness-adapter, t=harness-tlon, *harness-store
+/-  h=harness, w=harness-workspace, adapter=harness-adapter, t=harness-tlon, *harness-store,
+    renew=harness-oauth
 /+  *test, *test-agent, rpc=harness-peer-rpc, defaults=harness-defaults, work=harness-workspace,
-    hl=harness, effects=harness-effects, failure=harness-failure
+    hl=harness, effects=harness-effects, failure=harness-failure, j=harness-workspace-json
 /=  head  /app/harness
 |%
 ++  t0  ~2026.9.14
@@ -500,9 +501,12 @@
   s(peers (my ~[[~nec [guest-grants ~ 0 ~]]]))
 ++  trust-boot
   |=  [saved=state-0 src=@p owner=@p]
+  (trust-boot-with saved src owner (my ~[[~bus guest-grants]]))
+++  trust-boot-with
+  |=  [saved=state-0 src=@p owner=@p trusted=(map @p (list tool-grant:h))]
   =/  m  (mare ,~)
   ^-  form:m
-  =/  =peer-trust:t  [[& `owner (my ~[[~bus guest-grants]]) %mentions ~ ~] |]
+  =/  =peer-trust:t  [[& `owner trusted %mentions ~ ~] |]
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src src, dap %harness, now t0))
   ;<  ~  bind:m
     %-  set-scry-gate
@@ -725,4 +729,234 @@
   ^-  form:m
   ;<  [body=(list @t) waiting=?]  bind:m  (finished-js ~nec ~nec)
   (ex-equal !>([body waiting]) !>([~['error: js thread exceeded its time limit'] |]))
+::  Peer work addressed to this ship is refused before any request is sent,
+::  whoever owns the bot. ~nec's conversation holds %peers and asks for the
+::  call; ~bus, a trusted ship, is the granted destination that is sent.
+::
+++  peer-targets
+  |=  cards=(list card)
+  ^-  (list @p)
+  %+  murn  cards
+  |=  =card
+  ^-  (unit @p)
+  ?.  ?=([%pass * %agent [@ %harness] %poke ?(%harness-rpc-0 %harness-a2a-0) *] card)  ~
+  `;;(@p -.-.+.+.+.card)
+++  addressed
+  |=  [owner=@p to=@p name=@t]
+  =/  m  (mare ,[sent=(list @p) asks=@ud answered=?])
+  ^-  form:m
+  =/  =action:h
+    ?:  =('ask_peer' name)  [%ask-peer 'peer--~nec' 'call' to 'Do the work.']
+    [%peer-rpc 'peer--~nec' 'call' to `'tlon' '{}']
+  ;<  ~  bind:m  (trust-boot (peer-call ~nec name) ~zod owner)
+  ;<  caz=(list card)  bind:m  (do-poke %harness-effect !>(`effect:h`[1 action]))
+  ;<  next=state-0  bind:m  saved
+  =/  answered
+    %+  lien  log:(~(got by sessions.next) 'peer--~nec')
+    |=(e=event:h &(?=(%tool-completed -.e) =('call' call-id.e)))
+  (pure:m [(peer-targets caz) ~(wyt by asks.next) answered])
+++  ex-self-addressed
+  |=  [owner=@p name=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  control=[sent=(list @p) asks=@ud answered=?]  bind:m  (addressed owner ~bus name)
+  ;<  ~  bind:m  (ex-equal !>([owner name control]) !>([owner name [~[~bus] 1 |]]))
+  ;<  self=[sent=(list @p) asks=@ud answered=?]  bind:m  (addressed owner ~zod name)
+  (ex-equal !>([owner name self]) !>([owner name [~ 0 &]]))
+++  test-a-peer-tool-call-addressed-to-this-ship-is-refused
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-self-addressed ~lux 'call_peer_tool')
+  (ex-self-addressed ~zod 'call_peer_tool')
+++  test-a-peer-ask-addressed-to-this-ship-is-refused
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-self-addressed ~lux 'ask_peer')
+  (ex-self-addressed ~zod 'ask_peer')
+::  A peer request whose authenticated source is this ship is refused and
+::  admits no work, whoever owns the bot.
+::
+++  invoked-from-this-ship
+  |=  [owner=@p name=@t]
+  =/  m  (mare ,[@t refused=? receipt=?])
+  ^-  form:m
+  ;<  [result=(unit (each @t @t)) next=state-0]  bind:m
+    (rpc-poke guest-fixture ~zod owner [%invoke 0v1 t0 name '{}'])
+  =/  refused  =(`[%| 'no grant for your ship'] result)
+  (pure:m [name refused (~(has by peer-receipts.next) [~zod 0v1])])
+++  ex-from-this-ship
+  |=  owner=@p
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  admin=[@t ? ?]  bind:m  (invoked-from-this-ship owner 'harness_admin')
+  ;<  tlon=[@t ? ?]  bind:m  (invoked-from-this-ship owner 'tlon')
+  ;<  code=[@t ? ?]  bind:m  (invoked-from-this-ship owner 'run_js')
+  ;<  ~  bind:m  (trust-boot guest-fixture ~zod owner)
+  ;<  caz=(list card)  bind:m
+    (do-poke %harness-a2a-0 !>(`a2a:h`[%ask 0v2 %text 'Do the work.']))
+  ;<  next=state-0  bind:m  saved
+  =/  asked  (~(has by sessions.next) 'peer--~zod')
+  =/  serving  (~(has by serving.next) 'peer--~zod')
+  =/  answers
+    %+  murn  caz
+    |=  =card
+    ^-  (unit [ship a2a:h])
+    ?.  ?=([%pass * %agent [@ %harness] %poke %harness-a2a-0 *] card)  ~
+    `[;;(@p -.-.+.+.+.card) !<(a2a:h +.+.+.+.+.+.card)]
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>([owner answers])
+    !>([owner `(list [ship a2a:h])`~[[~zod [%answer 0v2 [%| 'no grant for your ship']]]]])
+  %+  ex-equal
+    !>([owner admin tlon code asked serving])
+  !>([owner ['harness_admin' & |] ['tlon' & |] ['run_js' & |] | |])
+++  test-a-peer-request-from-this-ship-is-refused
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-from-this-ship ~lux)
+  (ex-from-this-ship ~zod)
+::  This ship holds no peer grant even when it is listed as a peer or as a
+::  Tlon trusted ship. ~nec's conversation calls current_time on .to; ~lux
+::  owns the bot.
+::
+++  timed
+  |=  [s=state-0 trusted=(map @p (list tool-grant:h)) to=@p]
+  =/  m  (mare ,[sent=(list @p) asks=@ud answered=?])
+  ^-  form:m
+  =/  =action:h  [%peer-rpc 'peer--~nec' 'call' to `'current_time' '{}']
+  ;<  ~  bind:m  (trust-boot-with s ~zod ~lux trusted)
+  ;<  caz=(list card)  bind:m  (do-poke %harness-effect !>(`effect:h`[1 action]))
+  ;<  next=state-0  bind:m  saved
+  =/  answered
+    %+  lien  log:(~(got by sessions.next) 'peer--~nec')
+    |=(e=event:h &(?=(%tool-completed -.e) =('call' call-id.e)))
+  (pure:m [(peer-targets caz) ~(wyt by asks.next) answered])
+++  test-this-ship-listed-as-a-peer-or-a-trusted-ship-holds-no-grant
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  s  (peer-call ~nec 'call_peer_tool')
+  =/  listed  s(peers (~(put by peers.s) ~zod [~[%workspace %peers] ~ 0 ~]))
+  =/  trusted  (my ~[[~bus guest-grants] [~zod guest-grants]])
+  ;<  control=[(list @p) @ud ?]  bind:m  (timed listed trusted ~bus)
+  ;<  peer=[(list @p) @ud ?]  bind:m  (timed listed (my ~[[~bus guest-grants]]) ~zod)
+  ;<  trust=[(list @p) @ud ?]  bind:m  (timed s trusted ~zod)
+  %+  ex-equal
+    !>([control peer trust])
+  !>([[~[~bus] 1 |] [~ 0 &] [~ 0 &]])
+::  A peer input from this ship never answers as the owner, even when this
+::  ship is the owner, so a peer conversation stored with such an input gets
+::  neither the owner's tools nor the owner's skills on its next request.
+::  ~nec, owning the bot and asking it, is the control.
+::
+++  skill-desc  'Fixture skill shared with owners only'
+++  llm-bodies
+  |=  cards=(list card)
+  ^-  (list @t)
+  %+  murn  cards
+  |=  c=card
+  ^-  (unit @t)
+  ?.  ?=([%pass [%llm *] %arvo %i %request *] c)  ~
+  =/  sent=http-card:renew  c
+  ?~  body.request.sent  ~
+  `q.u.body.request.sent
+::  The next model request of a peer conversation stored with an unanswered
+::  input from .src, driven by a configuration refresh or, with .local, by a
+::  plain local prompt.
+::
+++  next-request
+  |=  [src=@p owner=@p local=?]
+  =/  m  (mare ,[names=(list @t) body=@t])
+  ^-  form:m
+  =/  s  guest-fixture
+  =/  sid  (cat 3 'peer--' (scot %p src))
+  =/  cfg
+    %=  defaults.s
+      tools  ~[%code %skills %workspace]
+      url  'https://openrouter.ai/api/v1/chat/completions'
+      key  'fixture-key'
+    ==
+  =/  input=admitted-input:h
+    [0v1 [%peer src 0v1] `src `[%peer src 0v1] t0 [%user 'Do the work.']]
+  =.  skills.s  (my ~[['fixture-skill' [skill-desc 'Follow the fixture.']]])
+  =.  sessions.s  (my ~[[sid [~[[%input-received input] [%config-replaced cfg]] 1]]])
+  =.  serving.s  (my ~[[sid ~[[src 0v1]]]])
+  ;<  ~  bind:m  (trust-boot s ~zod owner)
+  ;<  caz=(list card)  bind:m
+    ?.  local  (do-poke %harness-action !>(`action:h`[%config sid cfg ~s30]))
+    (do-poke %harness-action !>(`action:h`[%send sid 'Continue.']))
+  =/  bodies  (llm-bodies caz)
+  ;<  ~  bind:m  (ex-equal !>([src (lent bodies)]) !>([src 1]))
+  ?>  ?=(^ bodies)
+  =/  tools  (get:j (need (de:json:html i.bodies)) 'tools')
+  =/  names=(list @t)
+    ?.  ?=([~ %a *] tools)  ~
+    (turn p.u.tools |=(entry=json (string:j (need (get:j entry 'function')) 'name')))
+  (pure:m [names i.bodies])
+++  owner-held
+  |=  [names=(list @t) body=@t]
+  ^-  [admin=? code=? skill=?]
+  :+  (lien names |=(name=@t =('harness_admin' name)))
+    (lien names |=(name=@t =('run_js' name)))
+  (has body (trip skill-desc))
+++  test-a-peer-input-from-this-ship-never-holds-the-owners-tools
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  owner=[(list @t) @t]  bind:m  (next-request ~nec ~nec |)
+  ;<  self=[(list @t) @t]  bind:m  (next-request ~zod ~zod |)
+  %+  ex-equal
+    !>([(owner-held owner) (owner-held self)])
+  !>([[& & &] [| | |]])
+++  test-a-peer-conversation-of-this-ship-never-sees-the-owners-skills
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  owner=[(list @t) body=@t]  bind:m  (next-request ~nec ~nec &)
+  ;<  self=[(list @t) body=@t]  bind:m  (next-request ~zod ~zod &)
+  %+  ex-equal
+    !>([(has body.owner (trip skill-desc)) (has body.self (trip skill-desc))])
+  !>([& |])
+::  A tool listing or access check addressed to this ship is still sent, and
+::  is answered with no grant as for any other ship.
+::
+++  self-poke
+  |=  cards=(list card)
+  ^-  (list cage)
+  %+  murn  cards
+  |=  =card
+  ^-  (unit cage)
+  ?.  ?=([%pass * %agent [@ %harness] %poke *] card)  ~
+  ?.  =(~zod -.-.+.+.+.card)  ~
+  `+.+.+.+.+.card
+++  reported
+  |=  [owner=@p name=@t]
+  =/  m  (mare ,[@t body=@t asks=@ud])
+  ^-  form:m
+  =/  =action:h
+    ?:  =('check_peer' name)  [%check-peer 'peer--~nec' 'call' ~zod]
+    [%peer-rpc 'peer--~nec' 'call' ~zod ~ '{}']
+  ;<  ~  bind:m  (trust-boot (peer-call ~nec name) ~zod owner)
+  ;<  sent=(list card)  bind:m  (do-poke %harness-effect !>(`effect:h`[1 action]))
+  =/  request  (self-poke sent)
+  ;<  ~  bind:m  (ex-equal !>([name (lent request)]) !>([name 1]))
+  ?>  ?=(^ request)
+  ;<  reply=(list card)  bind:m  (do-poke i.request)
+  =/  response  (self-poke reply)
+  ;<  ~  bind:m  (ex-equal !>([name (lent response)]) !>([name 1]))
+  ?>  ?=(^ response)
+  ;<  *  bind:m  (do-poke i.response)
+  ;<  next=state-0  bind:m  saved
+  =/  replies  (tool-replies next 'peer--~nec')
+  (pure:m [name ?~(replies '' i.replies) ~(wyt by asks.next)])
+++  ex-reported
+  |=  owner=@p
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  listing=[@t body=@t asks=@ud]  bind:m  (reported owner 'list_peer_tools')
+  ;<  check=[@t body=@t asks=@ud]  bind:m  (reported owner 'check_peer')
+  %+  ex-equal
+    !>([owner listing check(body (has body.check "\"allowed\":false"))])
+  !>([owner ['list_peer_tools' 'peer error: no grant for your ship' 0] ['check_peer' & 0]])
+++  test-a-listing-or-check-addressed-to-this-ship-reports-no-grant
+  %-  eval-mare
+  ;<  ~  bind:(mare ,~)  (ex-reported ~lux)
+  (ex-reported ~zod)
 --

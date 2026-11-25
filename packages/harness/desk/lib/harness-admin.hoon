@@ -35,7 +35,7 @@
     ?.  &(=(ship.source our) =(`our actor.u.input))  ~
     `%local
       %peer
-    ?.  &(=(`ship.source owner) =(`ship.source actor.u.input))  ~
+    ?.  &(!=(ship.source our) =(`ship.source owner) =(`ship.source actor.u.input))  ~
     `%peer
       %hand
     =/  actor  (slaw %p actor.source)
