@@ -5,7 +5,7 @@
     ad=harness-adapter, *harness-store
 /+  *test-agent, tst=test, policy=harness-defaults, hd=harness-hand,
     sl=harness-schedule, tp=harness-tlon-policy, si=harness-session-index,
-    corpus-lib=harness-corpus
+    corpus-lib=harness-corpus, mem=harness-memory
 /=  head  /app/harness
 /=  adapter  /app/harness-tlon
 |%
@@ -195,6 +195,15 @@
     b(wex (~(put by wex.b) [/publications ~zod %channels] [& /v3]))
   (pure:m ~)
 ++  step  form:(mare ,(list card))
+::  A session snapshot builds the conversation's memory reach and renders its
+::  pack, with no other work of a message.
+++  timed-snapshot
+  |=  [label=@t =path]
+  =/  m  (mare ,cage)
+  ^-  form:m
+  |=  s=state
+  ~>  %bout.[1 label]
+  ((got-peek path) s)
 ++  timed-step
   |=  [label=@t f=step]
   ^-  step
@@ -283,6 +292,9 @@
   ;<  bound=(list card)  bind:m
     %+  timed-step  'cost-head-bind-existing'
     (do-poke %harness-hand !>(`request:hh`['bind' [%bind (bid 0) (config 0)]]))
+  ;<  snapshot=cage  bind:m
+    (timed-snapshot (rap 3 'cost-head-memory-reach-' (scot %ud nb) ~) /x/snapshot/(sid 8))
+  ;<  ~  bind:m  (ex-equal !>(?=([%o *] !<(json q.snapshot))) !>(&))
   ;<  ledger=cage  bind:m  (got-peek /x/hand-state)
   ;<  index=cage  bind:m  (got-peek /x/hand-index)
   ;<  ~  bind:m  (ex-equal q.index !>((reindex:hd !<(state:hh q.ledger))))
@@ -474,6 +486,16 @@
     ~>  %bout.[1 (tag 'cost-crowded-message-corpus-sync')]
     (sync:corpus-lib corpus.before sessions.after)
   ;<  ~  bind:m  (ex-equal !>(~(key by modified)) !>(~(key by modified.after)))
+  ::  The reach reads the asking session's bindings through the index; the
+  ::  walk over every binding it replaced is timed beside it.
+  ;<  snapshot=cage  bind:m
+    (timed-snapshot (tag 'cost-crowded-memory-reach') /x/snapshot/(sid 8))
+  =/  walked
+    ~>  %bout.[1 (tag 'cost-crowded-memory-reach-old-walk')]
+    :-  (silt (turn ~(val by bindings.hands.after) |=(b=binding:hh sid.b)))
+    (turn ~(val by bindings.hands.after) |=(b=binding:hh (locate:mem address.b)))
+  ;<  ~  bind:m  (ex-equal !>(=(n ~(wyt in -.walked))) !>(&))
+  ;<  ~  bind:m  (ex-equal !>(?=([%o *] !<(json q.snapshot))) !>(&))
   ;<  bound=(list card)  bind:m
     %+  timed-step  (tag 'cost-crowded-head-new-bind')
     (do-poke %harness-hand !>(`request:hh`['bind' [%bind (bid n) (config n)]]))

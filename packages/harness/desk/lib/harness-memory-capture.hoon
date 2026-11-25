@@ -140,10 +140,10 @@
   ?~  evidence.job.collected  [(done db head.db) ~]
   [db `[head.db job.collected]]
 ++  plan
-  |=  [db=state:m id=@ud job=job:m config=config:h now=@da]
+  |=  [=reach:memory db=state:m id=@ud job=job:m config=config:h now=@da]
   ^-  pending:m
   =/  query  (clip:text (rap 3 (turn evidence.job |=(e=evidence:m text.e))) 2.048)
-  =/  names  (choose:memory db query '')
+  =/  names  (choose:memory reach(owner ~) db query '')
   =/  bases=(map @t @ud)
     %+  roll  names
     |=  [name=@t bases=(map @t @ud)]
@@ -171,20 +171,26 @@
     (push db job(attempts 1) |)
   (done db id.pending)
 ++  request
-  |=  [db=state:m pending=pending:m]
+  |=  [=reach:memory db=state:m pending=pending:m]
   ^-  view:h
   =/  view  *view:h
   %=  view
     config  config.pending(system instruction, tools ~)
-    items  ~[[%user (request-data db pending)]]
+    items  ~[[%user (request-data reach db pending)]]
   ==
+::  Current bodies are read again at dispatch, on retry and for estimates,
+::  so a related fact that has left this conversation's reach is dropped.
+::
 ++  request-data
-  |=  [db=state:m pending=pending:m]
+  |=  [=reach:memory db=state:m pending=pending:m]
   ^-  @t
   =/  related
-    %+  turn  ~(tap by bases.pending)
+    %+  murn  ~(tap by bases.pending)
     |=  [name=@t revision=@ud]
+    ^-  (unit json)
     =/  record  (~(got by records.db) name)
+    ?.  (sees:memory reach source.value.record)  ~
+    %-  some
     %-  pairs:enjs:format
     :~  ['name' %s name]
         ['revision' (numb:enjs:format revision)]
@@ -205,7 +211,9 @@
 ::  Leaf compaction cites only original events covered by its source plan.
 ::  Inspect at most 256 event cells; evidence has the same 8 KiB/12 limits.
 ++  compact
-  |=  [db=state:m sid=@t req=@ud session=session:h sources=(list @ud) config=config:h now=@da]
+  |=  $:  =reach:memory  db=state:m  sid=@t  req=@ud  session=session:h
+          sources=(list @ud)  config=config:h  now=@da
+      ==
   ^-  (unit pending:m)
   ?.  (enabled:memory db sid)  ~
   =/  =job:m
@@ -217,7 +225,7 @@
               (boundary i.log.job)
           ==
         ?~  evidence.job  ~
-        `(plan db req job config now)
+        `(plan reach db req job config now)
       =/  item
         ?.  (lien sources |=(position=@ud =(position at.job)))  ~
         (excerpt job i.log.job)
@@ -326,7 +334,7 @@
   between a user's assertion and a verified observation. Avoid duplicate facts.
   '''
 ++  accept
-  |=  [db=state:m pending=pending:m body=@t]
+  |=  [=reach:memory db=state:m pending=pending:m body=@t]
   ^-  (each state:m @t)
   ?.  &((enabled:memory db sid.job.pending) =(barrier.pending barrier.db))
     [%| 'Capture is no longer enabled for this source.']
@@ -337,11 +345,11 @@
   =/  remaining  p.u.parsed
   |-  ^-  (each state:m @t)
       ?~  remaining  [%& db]
-      =/  result  (proposal db pending i.remaining)
+      =/  result  (proposal reach db pending i.remaining)
       ?:  ?=(%| -.result)  result
       $(remaining t.remaining, db p.result)
 ++  proposal
-  |=  [db=state:m pending=pending:m object=json]
+  |=  [=reach:memory db=state:m pending=pending:m object=json]
   ^-  (each state:m @t)
   ?.  ?=(%o -.object)  [%| 'Capture entries must be objects.']
   =/  name  (str:j object 'name')
@@ -370,7 +378,7 @@
   ?:  &(general !=('user' role.evidence))
     [%| 'General preferences require a user source.']
   %:  save:memory
-    db  name  base
+    reach  db  name  base
     [`(str:j object 'text') terms general | source.evidence]
   ==
 --

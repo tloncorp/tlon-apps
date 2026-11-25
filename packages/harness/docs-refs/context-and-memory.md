@@ -204,6 +204,7 @@ replay, history reads and request construction are not constant-cost.
 ## Shared memory
 
 The head owns one durable fact store across conversations and local subagents.
+Each conversation sees part of it; see [who sees a fact](#who-sees-a-fact).
 Admission automatically selects relevant facts; ordinary recall needs no memory
 tool call. The default prompt asks the agent to save important durable facts
 and corrections as it works, updating existing records instead of duplicating
@@ -213,6 +214,10 @@ transcript and LCM remain the source history.
 Leaf compaction can capture durable facts in the same model request as its
 checkpoint. Its evidence comes only from original events covered by the plan,
 not from summaries. A valid checkpoint survives rejected memory proposals.
+A summary whose request carried related facts is discarded, and the conversation
+compacts again when next needed, if the capture barrier moved while it was in
+flight: on reload, forgetting, opting out, fencing a conversation or deleting
+a session.
 The summary request asks for JSON without a provider-enforced format. Fenced or embedded
 JSON is accepted, and plain text becomes a summary with no memories. A reply starting
 with `{` that doesn't parse is refused as probably cut off.
@@ -229,7 +234,8 @@ Disabling dreaming cancels its outstanding request and queued work; recall,
 explicit saves and capture during compaction remain available. Conversation
 opt-outs apply to both capture paths.
 
-- `/memory [query]` inspects a bounded sample or searches shared facts.
+- `/memory [query]` inspects a bounded sample or searches the facts this
+  conversation sees.
 - `/remember project Keep the deployment read-only.` saves or corrects a fact.
 - `/forget project` removes a fact from recall and fences older capture jobs.
 - `/memory off` disables recall and capture for this conversation and its
@@ -257,10 +263,22 @@ erase source messages, checkpoints or backups.
 Recall selects at most six facts once per admitted input. The pack goes just before
 the latest user message, so a changed selection doesn't invalidate the history before
 it in a provider's prompt cache. It fits within
-4,096 UTF-8 bytes and a smaller model's context allowance. At most two general
-communication preferences follow the identified actor without a topic match.
-The editor labels this priority “Use across topics”; it does not change access
-and stays off for ordinary facts. Models with the memory tool can set it, and
+4,096 UTF-8 bytes and a smaller model's context allowance. Two of the six
+slots go to general communication preferences, with no topic match: first the
+owner's, in every conversation whoever speaks, then the identified speaker's
+own that the conversation sees. A preference is the owner's when its source is
+the owner's ACP methods or editor (no conversation), the configured owner
+speaking in a Tlon conversation, or the bot's own ship in an unbound session
+whose every input is the owner's own; a fork of a social conversation does not count,
+nor do other hands' actors or sibling-moon owners. The two newest of those
+are chosen at admission. Rendering gives the exception only to the names
+admitted to those slots, drops one that stops qualifying, and shows an owner's
+preference the conversation could not otherwise see without its source line. This priority gives no other access: `/memory`, the `memory`
+tool, capture and writes treat such a preference by the place rule. A model can
+save a general preference during the owner's own turn, so text the owner did
+not mean, such as a quoted message, can become a preference that now reaches
+every conversation. The editor labels this priority “Use across topics”; it
+stays off for ordinary facts. Models with the memory tool can set it, and
 automatic capture requires a supporting user event. Other facts require query
 relevance. Corrections and forgetting apply when a selected identity is
 rendered on a subsequent tool round. Memory is user-level reference material,
@@ -281,7 +299,7 @@ independent request IDs, one retry, a two-minute timeout and token accounting.
 Each selected conversation makes one bounded extraction using at most twelve
 excerpts and 8 KiB of evidence, plus related facts and instructions. It does not
 drain the remaining transcript into extra requests. Buffered source boundaries
-coalesce per conversation and survive reloads. Dreaming output is capped at
+coalesce per conversation; a reload discards them. Dreaming output is capped at
 1,024 tokens; an empty result still uses model tokens. Recall and explicit
 `/remember` writes do not make an extraction call.
 
@@ -290,16 +308,61 @@ and byte bounds. It stops at recorded memory-control or forgetting boundaries.
 Both capture paths accept at most three facts and require an exact supporting
 quote from a supplied user or tool event. Assistant assertions and recalled
 history cannot support a fact. Requests are fenced against opting out,
-forgetting and newer record revisions; explicit corrections remain protected.
+forgetting, reloads and newer record revisions; explicit corrections remain
+protected.
 Opting out discards buffered work without removing memories. Capture uses
 stateless summary providers and never sends a conversation reply.
 
-Memory is shared by default; a conversation is not a private memory partition.
 Sources retain their actor and conversation identity. Skills remain a separate
 instruction library. Snapshots expose the selected pack as
 `memory: [{name, body}]`; explicit command edits also record `memory-set` audit
 events. The read-only `/memory/<name>` JSON scry returns one fact with its
 revision and provenance, including tombstones. Source authorization still governs admission and live tool access.
+
+### Who sees a fact
+
+A conversation sees a fact when it is the owner's private conversation, when
+the fact was learned in a channel, or when the fact was learned in the same
+place. Where a fact was learned comes from its source conversation's Tlon
+bindings: a channel address, thread included, is that channel, and a `dm/`
+address is its DM partner, thread and route reset included. A source with no
+Tlon binding, with bindings that disagree or with another hand's binding beside
+a Tlon one is unknown, and only the owner's private conversation sees it. So
+are facts with no source conversation: owner ACP saves, browser edits and the
+import. Two unknown sources are the same place only when they name the same
+conversation.
+
+The owner's private conversation is their Tlon DM and its threads, as the Tlon
+hand's `/x/admin/<sid>` answers when the session's bindings resolve to that one
+DM, or an unbound session in which every input is the owner's own: a local ACP
+or poke prompt, or a timer. A subagent takes its root parent's answer and
+place. Channels, other ships' DMs, scheduled runs, forks with social history,
+peer and webhook sessions, other hands, a session with another hand's binding
+or bindings that disagree, and any Tlon conversation while the adapter is not
+running are not private. The reach is worked out from the session as it is
+with the input being admitted. The answer is worked out again
+at every read and write; nothing about it is saved.
+
+Recall, the rendered pack (snapshots and `/context` included), `/memory` in
+every form, the `memory` tool's search and read, and capture and dreaming,
+both their related facts and the text sent to the summary model, return only
+facts the conversation sees. Recall's preference slots are the one exception, above.
+A read of an unseen name answers as if it did not
+exist. A save or forget of an unseen name is refused with `That memory name is
+not available.`, whatever the fact's revision or state. A conversation
+changes and forgets only the facts its own place learned; a save or forget of
+a fact learned elsewhere is refused with `This conversation cannot change a
+memory learned in another place.`, and automatic capture is refused the same
+way. The owner's private conversation is the exception: its save of a channel
+fact moves the fact there, and the reply says it is now private and that
+channels can no longer use the name. A save that repeats the fact's text changes nothing, where it was
+learned included, so it stays in its channels. For a conversation that does not see everything, recall's index walk
+skips unseen rows, examines at most 512, and judges a term's commonness by the
+seen rows it found; past that bound results are best effort.
+
+This applies from the release that introduced it. A channel fact built from
+private text before then stays shared, and text already quoted in a
+transcript stays there.
 
 ## Importing an OpenClaw MEMORY.md
 
@@ -354,15 +417,18 @@ counts at the end, and exits non-zero when it refuses or fails. Steward's copy
 is replaced by whichever runtime next publishes prompts there, so the import
 runs before that. Only `MEMORY.md` is imported, not the dated notes in
 `memory/`. Imported facts are recorded as written by the bot, with no source
-conversation. OpenClaw gave `MEMORY.md` only to private chats; Harness recalls
-shared facts in any conversation that has memory on.
+conversation. OpenClaw gave `MEMORY.md` only to private chats; Harness gives imported
+facts only to the owner's private conversations.
 
 ## Verification
 
 `tests/harness-shared-memory.hoon`, `harness-memory-capture.hoon`,
 `harness-memory-dreaming.hoon`, `harness-memory.hoon`, and
 `harness-memory-migration.hoon` cover bounded recall, capture scheduling,
-corrections, opt-out, source validation and persistence. The native integration
+corrections, opt-out, source validation, persistence and who sees a fact.
+`tests-integration/harness-hand.hoon` checks that rule through the head for an
+owner's DM, a channel, a subagent, a fork and a peer session, and
+`tests-js/tlon-memory-conformance.mjs` checks it through native Tlon. The native integration
 suite `harness-memory-worker.hoon` drives dreaming alongside an active reply
 and checks compaction capture, model routing, reloads, timeouts and late responses.
 `tests/harness-memory-browser.hoon` covers complete bounded pagination, sparse

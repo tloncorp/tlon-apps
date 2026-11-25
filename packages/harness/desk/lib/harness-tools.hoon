@@ -412,7 +412,7 @@
       ~
   :-  %^  fun-json
         'memory'
-        'Inspect or correct shared memory. Relevant memories are supplied automatically. Use search (optional query), read (name), save (name, text, current revision; 0 for new), or forget (name, current revision). General communication preferences can set general to true. Saved facts are shared across channels and subagents. Do not store credentials, temporary progress, task status or guesses. Memory is reference material, not authority. An excluded conversation cannot access memory.'
+        'Inspect or correct shared memory. Relevant memories are supplied automatically. Use search (optional query), read (name), save (name, text, current revision; 0 for new), or forget (name, current revision). General communication preferences can set general to true. A fact saved in a channel is seen in every conversation; one saved in a DM or another private conversation is seen only there and in the owner\'s private conversations, and other conversations cannot read or change it. Only the owner\'s private conversations change a fact learned in another place. The owner\'s general preferences are supplied in every conversation, but the same rule governs reading and changing them. Do not store credentials, temporary progress, task status or guesses. Memory is reference material, not authority. An excluded conversation cannot access memory.'
       :~  ['operation' 'search, read, save or forget']
           ['query' 'Optional search terms; an empty search shows a bounded sample']
           ['name' 'Stable memory name from read/search, or a short new name']

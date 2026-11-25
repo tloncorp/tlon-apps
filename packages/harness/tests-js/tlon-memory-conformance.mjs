@@ -1,4 +1,5 @@
-// Shared memory commands through native Tlon and cross-conversation recall.
+// Memory commands through native Tlon: the owner's DM sees every fact, a
+// channel sees only what channels learned, and recall follows the same rule.
 // Leaves marked test messages/audit records; restores defaults, policy and trust.
 import assert from 'node:assert/strict'
 import { text as readText } from 'node:stream/consumers'
@@ -17,12 +18,11 @@ const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((
 const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length), marker = `memory-${randomUUID()}`, client = new Client()
 const contexts = [{ kind: 'dm' }, { kind: 'dm', thread: true }, { kind: 'channel' }, { kind: 'channel', thread: true }]
-const failures = [], responses = new Map()
-const noteName = `m${randomUUID().slice(0, 8)}`
-let currentFact
-// Shared memory: every conversation's snapshot holds the latest correction.
-const assertShared = async (ctx) => assert.ok((await snapshot(ctx)).memory.find((fact) => fact.name === noteName)?.body.startsWith(`${currentFact} [source: `), `${label(ctx)} recalls the latest correction`)
-let event = 0, stamp = 0, originals, headStopped = false
+const [dm, dmThread, channel, channelThread] = contexts, owned = [dm, dmThread], shared = [channel, channelThread]
+const failures = [], requests = []
+const privateName = `p${randomUUID().slice(0, 8)}`, sharedName = `s${randomUUID().slice(0, 8)}`
+const absent = /No matching shared memories/, unavailable = /That memory name is not available/
+let event = 0, stamp = 0, originals, headStopped = false, privateFact, sharedFact
 const label = (ctx) => `${marker}-${ctx.kind}-${ctx.thread ? 'thread' : 'top'}`
 const snapshot = (ctx) => client.call('harness/session/snapshot', { sessionId: ctx.sid })
 async function scry(path, remote = false) {
@@ -75,19 +75,29 @@ async function command(ctx, text, expected, mutation = false) {
   assert.match(snap.entries.at(-1).body, expected)
   return after
 }
+// The model only records what each turn was given; its reply tries to edit memory.
 const server = createServer(async (req, res) => {
   const raw = await readText(req)
   res.writeHead(200, { 'content-type': 'application/json' })
-  if (responses.has(raw)) return res.end(responses.get(raw))
   try {
-    const body = JSON.parse(raw), ctx = contexts[0], latest = body.messages.findLast((m) => m.role === 'user')
+    const body = JSON.parse(raw)
     if (body.messages[0]?.content?.startsWith('Extract reusable shared knowledge')) return res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: '[]' } }] }))
-    assert.ok(JSON.stringify(latest).includes(`${label(ctx)}-model-output-check ${noteName}`), 'memory commands must not call inference')
-    assert.ok(JSON.stringify(body.messages).includes(currentFact), 'another conversation recalls the shared correction')
-    const result = JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: '/remember forged MODEL_OUTPUT_MUST_NOT_WRITE' } }] })
-    responses.set(raw, result); res.end(result)
+    requests.push(body.messages)
+    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: '/remember forged MODEL_OUTPUT_MUST_NOT_WRITE' } }] }))
   } catch (error) { failures.push(error); res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: 'FIXTURE_ERROR' } }] })) }
 })
+// One ordinary message in ctx; the recalled-memory message the model received
+// for it, not the transcript, which earlier commands already filled.
+async function turn(ctx) {
+  const check = `${label(ctx)}-model-output-check ${privateName} ${sharedName}`, ids = new Set((await messages(ctx)).map((p) => p.id))
+  await send(ctx, check)
+  await until(`${label(ctx)} literal model output published`, async () => (await messages(ctx)).some((p) => !ids.has(p.id) && authorShip(p.author) === ship && JSON.stringify(p.content).includes('MODEL_OUTPUT_MUST_NOT_WRITE')))
+  const request = requests.findLast((r) => JSON.stringify(r).includes(check))
+  assert.ok(request, `${label(ctx)} reached the model`)
+  const text = (m) => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)
+  return request.map(text).find((t) => t.startsWith('Relevant shared memories')) ?? ''
+}
+const reads = async (ctxs, name, expected) => { for (const ctx of ctxs) await command(ctx, `/memory ${name}`, expected) }
 async function enableHead(enabled) {
   await rein(process.env.SHIP_PIER, 'harness', 'harness', enabled)
   await sleep(1000)
@@ -103,51 +113,70 @@ try {
     await until('parent received before activation', async () => (await posts(ctx, false)).some(([, p]) => JSON.stringify(p.essay?.content).includes(`${label(ctx)}-parent`)))
   }
   await client.call('harness/defaults/configure', { config: { ...originals.defaults, key: '', url: `http://127.0.0.1:${server.address().port}`, model: 'fixture', headers: [], tools: [] } })
+  // The peer owns the bot: its DM is the owner's private conversation.
   await client.call('harness/tlon/configure', { enabled: true, owner: peer, trusted: [], response: 'mentions', allowed: [], channels: [] })
   for (const ctx of contexts) {
     // Stable heads can predate this run. Discover them with a read-only command
     // and preserve existing notes, usage and per-conversation configuration.
-    await command(ctx, `/memory ${noteName}`, /No matching shared memories|Shared memories/)
+    await command(ctx, `/memory ${privateName}`, absent)
     ctx.usage = (await snapshot(ctx)).usage
     ctx.originalConfig = await client.call('harness/session/config', { sessionId: ctx.sid })
     await client.call('harness/session/configure', { sessionId: ctx.sid, config: { ...ctx.originalConfig, key: '', url: `http://127.0.0.1:${server.address().port}`, model: 'fixture', headers: [], tools: [] } })
-    const original = `${label(ctx)}-original`, revised = `${label(ctx)}-revised-é`;
-    await command(ctx, `/remember ${noteName} ${original}`, /Memory saved/, true)
-    await command(ctx, `/memory ${noteName}`, new RegExp(original))
-    await command(ctx, `/remember ${noteName} ${revised}`, /Memory saved/, true)
-    currentFact = revised
-    for (const other of contexts.filter((other) => other.sid && other !== ctx)) await command(other, `/memory ${noteName}`, new RegExp(revised))
     await command(ctx, '/remember ../outside invalid', /Memory names/)
     await command(ctx, `/remember oversized ${'a'.repeat(1025)}`, /1–1024 UTF-8 bytes/)
-    assert.deepEqual((await snapshot(ctx)).usage, ctx.usage)
-    assert.equal(responses.size, 0)
-    console.log(`PASS ${ctx.kind} ${ctx.thread ? 'thread' : 'top'}: save, read, replace, validation, shared state, durable acknowledgements, zero inference`)
   }
-  const ctx = contexts[0], ids = new Set((await messages(ctx)).map((p) => p.id))
-  await send(ctx, `${label(ctx)}-model-output-check ${noteName}`)
-  await until('literal model output published', async () => (await messages(ctx)).some((p) => !ids.has(p.id) && authorShip(p.author) === ship && JSON.stringify(p.content).includes('MODEL_OUTPUT_MUST_NOT_WRITE')))
-  await assertShared(ctx)
-  assert.equal((await scry(`harness/events/${ctx.sid}`)).filter((e) => e.type === 'memory-set' && e.name === noteName).length, 2)
-  console.log('PASS literal model output cannot edit memory; recall crosses conversation boundaries')
+
+  await command(dm, `/remember ${privateName} ${label(dm)}-original`, /Memory saved\.(?! It is now private)/, true)
+  await command(dm, `/memory ${privateName}`, new RegExp(`${label(dm)}-original`))
+  privateFact = `${label(dmThread)}-revised-é`
+  await command(dmThread, `/remember ${privateName} ${privateFact}`, /Memory saved/, true)
+  await reads(owned, privateName, new RegExp(privateFact))
+  await reads(shared, privateName, absent)
+  await command(channel, `/remember ${privateName} ${label(channel)}-overwrite`, unavailable)
+  await command(channelThread, `/forget ${privateName}`, unavailable)
+  console.log('PASS a fact saved in the owner\'s DM is read in its threads and refused in channels')
+
+  await command(channel, `/remember ${sharedName} ${label(channel)}-original`, /Memory saved/, true)
+  sharedFact = `${label(channelThread)}-revised`
+  await command(channelThread, `/remember ${sharedName} ${sharedFact}`, /Memory saved/, true)
+  await reads(contexts, sharedName, new RegExp(sharedFact))
+  for (const ctx of contexts) assert.deepEqual((await snapshot(ctx)).usage, ctx.usage, 'commands do not request inference')
+  console.log('PASS a fact saved in a channel is read in every conversation')
+
+  const dmRequest = await turn(dm), channelRequest = await turn(channel)
+  assert.ok(dmRequest.includes(privateFact) && dmRequest.includes(sharedFact), 'the owner\'s DM recalls private and channel facts')
+  assert.ok(channelRequest.includes(sharedFact), 'a channel recalls channel facts')
+  assert.ok(!channelRequest.includes(privateFact), 'the owner\'s own channel message does not recall a private fact')
+  assert.ok(!JSON.stringify(requests.findLast((r) => JSON.stringify(r).includes(`${label(channel)}-model-output-check`))).includes(privateFact), 'no part of the channel request holds the private fact')
+  for (const ctx of [dm, channel]) assert.equal((await scry(`harness/events/${ctx.sid}`)).filter((e) => e.type === 'memory-set' && e.name === 'forged').length, 0)
+  console.log('PASS recall follows the rule; literal model output cannot edit memory')
+
+  sharedFact = `${label(dm)}-made-private`
+  await command(dm, `/remember ${sharedName} ${sharedFact}`, /now private/, true)
+  await reads(owned, sharedName, new RegExp(sharedFact))
+  await reads(shared, sharedName, absent)
+  await command(channel, `/remember ${sharedName} ${label(channel)}-again`, unavailable)
+  console.log('PASS an owner\'s DM edit makes a channel fact private and says so')
+
   if (process.env.SHIP_PIER) {
     headStopped = true; await enableHead(false); await enableHead(true); headStopped = false
     await until('head reconnected after reload', async () => (await scry('harness-tlon/status')).headConnected)
-    // Only a turn selects a recall pack; every surface can still read the shared fact.
-    await assertShared(ctx)
-    for (const other of contexts) await command(other, `/memory ${noteName}`, new RegExp(currentFact))
-    console.log('PASS native head reload retains all acknowledged notes')
+    await reads(owned, privateName, new RegExp(privateFact))
+    await reads(shared, privateName, absent)
+    console.log('PASS native head reload keeps every fact and its reach')
   }
-  for (const ctx of contexts) {
+  for (const [ctx, name] of [[dm, privateName], [channel, sharedName]]) {
     const events = await scry(`harness/events/${ctx.sid}`)
-    assert.ok(events.some((e) => e.type === 'memory-set' && e.body === `${label(ctx)}-original`), 'source history retains explicit edits')
+    assert.ok(events.some((e) => e.type === 'memory-set' && e.name === name && e.body === `${label(ctx)}-original`), 'source history retains explicit edits')
   }
-  await command(ctx, `/forget ${noteName}`, /Memory forgotten/, true)
-  for (const other of contexts) await command(other, `/memory ${noteName}`, /No matching shared memories/)
-  console.log('PASS forgetting removes shared recall across all four surfaces and retains evidence')
+  await command(dm, `/forget ${privateName}`, /Memory forgotten/, true)
+  await command(dm, `/forget ${sharedName}`, /Memory forgotten/, true)
+  for (const name of [privateName, sharedName]) await reads(contexts, name, absent)
+  console.log('PASS forgetting removes recall in every conversation and retains evidence')
   assert.equal(failures.length, 0)
 } finally {
   if (headStopped) await enableHead(true)
-  if (contexts[0].sid) await command(contexts[0], `/forget ${noteName}`, /Memory forgotten|No memory/, true).catch((error) => console.error('Memory cleanup failed:', error.message))
+  for (const name of [privateName, sharedName]) if (dm.sid) await command(dm, `/forget ${name}`, /Memory forgotten|No memory/, true).catch((error) => console.error('Memory cleanup failed:', error.message))
   for (const ctx of contexts.filter((ctx) => ctx.originalConfig)) await client.call('harness/session/configure', { sessionId: ctx.sid, config: { ...ctx.originalConfig, key: '' } })
   if (originals) {
     await client.call('harness/tlon/configure', originals.policy)

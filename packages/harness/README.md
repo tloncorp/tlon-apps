@@ -134,7 +134,9 @@ undo an external action already performed.
 
 Use `/remember preference Keep replies short.` to pin a note,
 `/memory` to list notes and `/forget preference` to unpin one.
-Notes belong to that conversation and survive compaction verbatim. Search
+A note saved in a channel is seen in every conversation; one saved in a DM,
+only there and in the owner's DM. The owner's general preferences are
+recalled in every conversation. Notes survive compaction verbatim. Search
 content finds retained evidence; it does not fetch every other app's history.
 See [context and memory](docs-refs/context-and-memory.md).
 

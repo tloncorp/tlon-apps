@@ -241,7 +241,7 @@
   =.  cursors.db  (~(run by sessions.e) |=(s=session:h log.s))
   =/  imported
     %:  save:mem
-      db
+      everything:mem  db
       (import-name 'alpha' 'deploy')
       0
       [`'Ship on Fridays.' (words:index 'deploy') | & ['alpha' 0v4a 5 ~2026.10.30 '~nec']]
