@@ -734,7 +734,13 @@ hand handles no message from its own ship.
   before the owner's admission cutoff.
 - The id is the rest of the text, trimmed, matched as OpenClaw matches it:
   the exact id, else the one open id it begins, case as typed. With no id the
-  command acts on the newest open request. A request whose 48 hours have
+  command acts on the open request only when it is the only one. With more
+  than one open it acts on none, so that it cannot act on a request the owner
+  did not mean, and the reply lists them, oldest first, one line each with id,
+  ship and place: `More than one approval is pending. Send the command again
+  with an ID:`, then lines such as `c1a2b ~ship chat/~host/name` or
+  `d3c4d ~ship dm/~ship`. OpenClaw acts on the newest; this differs on
+  purpose. A request whose 48 hours have
   passed expires before the id is looked up. An id that names no open request,
   including a closed or expired one from an older card, changes nothing and
   gets `No pending approval found for ID: #<id>`, or `No pending approval
@@ -1241,7 +1247,7 @@ nothing and gets no reply; and no DM command text is in a model request. The two
 apart, since the denial limit lets a ship ask once per five minutes.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM
 and channel requests, `/ban`'s block and its refusal, unknown, closed and
-expired ids, the newest request with no id, a command in a DM thread, a
+expired ids, a command with no id among one or several requests, a command in a DM thread, a
 command from a trusted ship that is not the owner, and a command in a channel,
 the owner's included, handled as an ordinary message.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between

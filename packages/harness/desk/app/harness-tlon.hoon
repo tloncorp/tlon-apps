@@ -3081,6 +3081,10 @@
   ?~  heard  cor
   =/  to  to.u.heard
   ?:  (lte (posted-at:continuity event) (admission-cutoff who to))  cor
+  ::  Among several, a bare command could act on a request the owner did
+  ::  not mean, so it lists them instead.
+  ?:  &(?=(~ id.order) (gth ~(wyt by by-id.approvals) 1))
+    (answer-order to (choices:ask approvals))
   =/  found  (pick:ask approvals id.order)
   ?~  found  (answer-order to (unknown:ask id.order))
   =/  [id=@t =approval:t]  u.found

@@ -115,19 +115,29 @@
       (expect-eq !>(~) !>((read-order:ask '/Allow d1234')))
   ==
 ::  Exact first, then the one id the text begins, case as typed; no id is
-::  the newest request.
+::  the only open request, and none of several.
 ::
 ++  test-an-order-finds-its-request-as-openclaw-does
   =/  three  (open:ask staggered 'c5699' [~bus `room ~2026.9.9..00.00.02])
+  =/  one  (open:ask *approvals:t 'c5699' [~bus `room ~2026.9.9..00.00.02])
   ;:  weld
       (expect-eq !>(`['d1234' [~dev ~ ~2026.9.9]]) !>((pick:ask three `'d1234')))
       (expect-eq !>(`['d1234' [~dev ~ ~2026.9.9]]) !>((pick:ask three `'d1')))
       (expect-eq !>(~) !>((pick:ask three `'c56')))
       (expect-eq !>(~) !>((pick:ask three `'D1234')))
       (expect-eq !>(~) !>((pick:ask three `'d9999')))
-      (expect-eq !>(`['c5699' [~bus `room ~2026.9.9..00.00.02]]) !>((pick:ask three ~)))
+      (expect-eq !>(~) !>((pick:ask three ~)))
+      (expect-eq !>(`['c5699' [~bus `room ~2026.9.9..00.00.02]]) !>((pick:ask one ~)))
       (expect-eq !>(~) !>((pick:ask *approvals:t ~)))
   ==
+++  test-several-open-requests-are-listed-oldest-first
+  %+  expect-eq
+    !>  %+  rap  3
+        :~  'More than one approval is pending. Send the command again with an ID:'
+            '\0ad1234 ~dev dm/~dev'
+            '\0ac5678 ~dev chat/~lux/test'
+        ==
+  !>((choices:ask staggered))
 ++  test-the-replies-to-the-owner-are-openclaws
   ;:  weld
       %+  expect-eq

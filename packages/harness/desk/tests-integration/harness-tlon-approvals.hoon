@@ -1434,15 +1434,36 @@
   ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
   ;<  ~  bind:m  (ex-equal !>((lent (answered caz))) !>(1))
   (ex-equal !>((turned caz)) !>(|))
-::  With no id, as on OpenClaw, the newest request: ~wes's.
+::  With several open, unlike OpenClaw, a bare command acts on none and
+::  lists them; with one, it acts on that one; with none, it says so.
 ::
-++  test-a-command-without-an-id-acts-on-the-newest-request
+++  test-a-command-without-an-id-acts-only-on-the-only-request
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  [caz=(list card) s=state-6:t]  bind:m
-    (admit asked later ~[[told (said ~nec '/reject' told)]])
-  ;<  ~  bind:m  (ex-equal !>(~(key by by-id.approvals.s)) !>((silt ~['d0001' 'c0001'])))
+    (admit asked later ~[[told (said ~nec '/allow' told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    :~  :-  'dm/~nec'
+        %+  rap  3
+        :~  'More than one approval is pending. Send the command again with an ID:'
+            '\0ad0001 ~dev dm/~dev'
+            '\0ac0001 ~dev chat/~lux/test'
+            '\0ac0002 ~wes chat/~lux/test'
+        ==
+    ==
+  =/  single  asked
+  =.  approvals.single  (close:ask (close:ask approvals.single 'd0001') 'c0001')
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    (admit single later ~[[told (said ~nec '/reject' told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>(`(list [@t @t])`~[['dm/~nec' 'Denied ~wes for Room in Lux group (chat/~lux/test).']])
   ;<  [caz=(list card) w=state-6:t]  bind:m
     (admit fixture later ~[[told (said ~nec '/reject' told)]])
   %+  ex-equal  !>((answered caz))

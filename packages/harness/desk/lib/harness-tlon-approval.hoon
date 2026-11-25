@@ -53,20 +53,18 @@
     %reject  `[%reject id]
     %ban  `[%ban id]
   ==
-::  +pick: the request an order names, as OpenClaw finds it
+::  +pick: the request an order names
 ::
-::    The exact id, else the one id it begins; with no id, the newest
-::    request.
+::    As OpenClaw finds it, the exact id, else the one id it begins. With no
+::    id, the only open request; unlike OpenClaw, never one of several.
 ::
 ++  pick
   |=  [=approvals:t id=(unit @t)]
   ^-  (unit [id=@t =approval:t])
   =/  all  ~(tap by by-id.approvals)
   ?~  id
-    %+  roll  all
-    |=  [[key=@t =approval:t] newest=(unit [id=@t =approval:t])]
-    ?:  &(?=(^ newest) (lte at.approval at.approval.u.newest))  newest
-    `[key approval]
+    ?.  ?=([* ~] all)  ~
+    `i.all
   =/  exact  (~(get by by-id.approvals) u.id)
   ?^  exact  `[u.id u.exact]
   =/  begun
@@ -92,6 +90,23 @@
       %reject
     ?~  where  (rap 3 'Denied DM request from ' ship '.' ~)
     (rap 3 'Denied ' ship ' for ' u.where '.' ~)
+  ==
+::  +choices: the reply to an order without an id while several requests
+::  are open, oldest first
+::
+++  choices
+  |=  =approvals:t
+  ^-  @t
+  =/  open
+    %+  sort  ~(tap by by-id.approvals)
+    |=([a=[@t =approval:t] b=[@t =approval:t]] (lth at.approval.a at.approval.b))
+  %+  rap  3
+  :-  'More than one approval is pending. Send the command again with an ID:'
+  %+  turn  open
+  |=  [id=@t =approval:t]
+  %+  rap  3
+  :~  '\0a'  id  ' '  (scot %p who.approval)  ' '
+      (address:p (place-to:p [who place]:approval))
   ==
 ::  +unknown: OpenClaw's reply to an order that names no open request
 ::
