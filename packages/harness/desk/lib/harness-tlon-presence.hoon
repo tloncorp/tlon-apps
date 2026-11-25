@@ -57,7 +57,9 @@
   =/  blob=json
     %-  pairs:enjs:format
     :~  ['protocol' %s 'tlon.computing-status.v1']
-        ['thinking' %b =(~ tools)]
+        ::  Only active work reaches here; idle contexts get a %clear. Messenger
+        ::  hides a status whose thinking is false, so tools must not unset it.
+        ['thinking' %b &]
         :-  'toolCalls'
         :-  %a
         %+  turn  tool-names

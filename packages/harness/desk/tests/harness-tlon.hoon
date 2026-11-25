@@ -245,12 +245,25 @@
   =/  expected
     %-  pairs:enjs:format
     :~  ['protocol' %s 'tlon.computing-status.v1']
-        ['thinking' %b |]
+        ['thinking' %b &]
         :*  'toolCalls'  %a
             ~[(pairs:enjs:format ~[['toolName' %s 'web_search'] ['label' %s 'Searching the web']])]
         ==
     ==
   (expect-eq !>(expected) !>(blob))
+++  test-presence-display-without-tools-is-thinking
+  =/  shown  (display:presence ~)
+  =/  blob  (need (de:json:html (need blob.shown)))
+  =/  expected
+    %-  pairs:enjs:format
+    :~  ['protocol' %s 'tlon.computing-status.v1']
+        ['thinking' %b &]
+        ['toolCalls' %a ~]
+    ==
+  ;:  weld
+      (expect-eq !>(`(unit @t)``'Thinking...') !>(text.shown))
+      (expect-eq !>(expected) !>(blob))
+  ==
 ++  test-liveness-patch-preserves-profile-and-recognizes-current-claim
   =/  con=contact:ct
     %-  my
