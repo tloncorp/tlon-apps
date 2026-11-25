@@ -44,7 +44,7 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%5) !>(-.new))
+      (expect-eq !>(%6) !>(-.new))
       (expect-eq !>(*approvals:t) !>(approvals.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
@@ -175,7 +175,7 @@
   =/  three  (two-to-three:migrate every-field)
   =/  new  (load:migrate !>(three))
   ;:  weld
-      (expect-eq !>(%5) !>(-.new))
+      (expect-eq !>(%6) !>(-.new))
       (expect !>(&(?=(^ trusted.policy.three) ?=(^ allowed.policy.three))))
       (expect !>(?=(^ channels.policy.three)))
       (expect-eq !>(trusted.policy.three) !>(trusted.policy.new))
@@ -185,18 +185,68 @@
       (expect-eq !>(~) !>(channel-grants.policy.new))
       (expect-eq !>(~) !>(place-cuts.new))
       (expect-eq !>(cuts.three) !>(cuts.new))
+      (expect-eq !>(~) !>(browser-entries.new))
+      (expect-eq !>(*approvals:t) !>(approvals.new))
   ==
-::  The upgrade that adds approval requests keeps every saved field and
-::  starts with none open.
+::  A pending browser handoff and the ship-wide access survive the upgrade
+::  that adds per-place grants, which start empty.
 ::
-++  test-state-four-upgrade-keeps-every-field-and-opens-no-requests
-  =/  four  (three-to-four:migrate (two-to-three:migrate every-field))
-  =.  dm-grants.policy.four  (silt ~[~bus])
-  =.  place-cuts.four  (my ~[[[~bus ~] ~2026.1.13]])
+++  test-state-four-upgrade-keeps-browser-entries-and-access-and-adds-no-place-grants
+  =/  four=state-4:migrate  (three-to-four:migrate (two-to-three:migrate every-field))
+  =.  browser-entries.four
+    (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
   =/  new  (load:migrate !>(four))
   ;:  weld
-      (expect-eq !>(%5) !>(-.new))
-      (expect-eq !>(*approvals:t) !>(approvals.new))
-      (expect-eq !>(+.four) !>(+>.new))
+      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(browser-entries.four) !>(browser-entries.new))
+      (expect !>(&(?=(^ trusted.policy.four) ?=(^ allowed.policy.four))))
+      (expect !>(?=(^ channels.policy.four)))
+      %+  expect-eq
+        !>(policy.four)
+      !>([enabled owner trusted response allowed channels]:policy.new)
+      (expect-eq !>([~ ~]) !>([dm-grants channel-grants]:policy.new))
+      (expect-eq !>(~) !>(place-cuts.new))
+      (expect-eq !>(cuts.four) !>(cuts.new))
+      (expect-eq !>(lanes.four) !>(lanes.new))
+      (expect-eq !>(~) !>((dropped:migrate !>(four))))
   ==
+::  The upgrade that adds approval requests keeps every saved field, browser
+::  handoffs, access and place cutoffs included, and starts with none open.
+::
+++  test-state-five-upgrade-keeps-every-field-and-opens-no-requests
+  =/  five=state-5:migrate
+    (four-to-five:migrate (three-to-four:migrate (two-to-three:migrate every-field)))
+  =.  browser-entries.five
+    (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
+  =.  dm-grants.policy.five  (silt ~[~bus])
+  =.  place-cuts.five  (my ~[[[~bus ~] ~2026.1.13]])
+  =/  new  (load:migrate !>(five))
+  ;:  weld
+      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(*approvals:t) !>(approvals.new))
+      (expect-eq !>(+.five) !>(+>.new))
+      (expect-eq !>(~) !>((dropped:migrate !>(five))))
+  ==
+::
+++  test-state-three-loads-with-no-pending-browser-handoff
+  =/  old=state-3:migrate  (three:migrate !>(every-field))
+  =/  four  (three-to-four:migrate old)
+  ;:  weld
+      (expect !>(=(%4 -.four)))
+      (expect !>(=(~ browser-entries.four)))
+      (expect !>(=(+.old +>.four)))
+      (expect !>(=(~ browser-entries:(load:migrate !>(old)))))
+      (expect-eq !>(~) !>((dropped:migrate !>(old))))
+  ==
+::
+++  test-pending-browser-handoff-loads-unchanged
+  =/  current  *state-6:t
+  =.  policy.current  [& `~nec ~ %mentions ~ ~ ~ ~]
+  =.  tool-receipts.current
+    %-  my
+    ~[[0v1 `tool-receipt:t`[['dm' 1 ['call' 'browser_secure_entry' '{}']] %sending '' ~2026.11.1]]]
+  =.  browser-entries.current
+    %-  my
+    ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]]
+  (expect-eq !>(current) !>((load:migrate !>(current))))
 --

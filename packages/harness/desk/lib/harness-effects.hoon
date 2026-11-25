@@ -185,26 +185,28 @@
   ^-  (unit json)
   =/  method=@t
     ?:(=('list_mcp_tools' name.call) 'tools/list' 'tools/call')
-  =/  params=json
+  =/  params=(unit json)
     ?:  =('list_mcp_tools' name.call)
-      (params:mcp args.call)
+      `(params:mcp args.call)
     =/  tool-name  (tool-str args.call 'name')
     =/  arguments  (tool-str args.call 'arguments')
-    ?~  tool-name  ~
+    ?.  &(?=(^ tool-name) !=('' u.tool-name))  ~
     =/  parsed=(unit json)
       ?~(arguments `(pairs:enjs:format ~) (de:json:html u.arguments))
-    ?~  parsed  ~
+    ?.  ?=([~ %o *] parsed)  ~
+    :-  ~
     %-  pairs:enjs:format
     :~  ['name' %s u.tool-name]
         ['arguments' u.parsed]
     ==
+  ?~  params  ~
   :-  ~
   ^-  json
   %-  pairs:enjs:format
   :~  ['jsonrpc' %s '2.0']
       ['id' (numb:enjs:format 1)]
       ['method' %s method]
-      ['params' params]
+      ['params' u.params]
   ==
 ++  mcp-card
   |=  [sid=session-id:h generation=@ud call=tool-call:h tools=(list tool-grant:h)]

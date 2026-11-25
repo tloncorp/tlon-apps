@@ -1,7 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useScreenOptions } from '@tloncorp/app/hooks/useScreenOptions';
 
-import { AllowNotificationsScreen } from './screens/Onboarding/AllowNotificationsScreen';
 import { CheckOTPScreen } from './screens/Onboarding/CheckOTPScreen';
 import { CheckVerifyScreen } from './screens/Onboarding/CheckVerifyScreen';
 import { EULAScreen } from './screens/Onboarding/EULAScreen';
@@ -87,10 +86,6 @@ export function OnboardingStack() {
       <OnboardingStackNavigator.Screen
         name="SetNotifications"
         component={SetNotificationsScreen}
-      />
-      <OnboardingStackNavigator.Screen
-        name="AllowNotifications"
-        component={AllowNotificationsScreen}
       />
       <OnboardingStackNavigator.Screen
         name="SetTelemetry"

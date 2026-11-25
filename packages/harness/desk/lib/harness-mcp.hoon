@@ -22,17 +22,54 @@
   |=  [args=@t body=@t]
   ^-  json
   =/  input  (need (de:json:html args))
-  =/  decoded  (de:json:html body)
-  =/  rpc=json
-    ?^  decoded  u.decoded
-    =/  replies
-      (skim (events:w body) |=(event=json =(`[%n '1'] (get:w event 'id'))))
-    ?>  =(1 (lent replies))
-    (snag 0 replies)
-  ?>  &(?=(%o -.rpc) =(`[%n '1'] (get:w rpc 'id')))
-  ?^  (get:w rpc 'error')  rpc
-  =/  result  (need (get:w rpc 'result'))
+  =/  reply  (rpc body)
+  ?^  (get:w reply 'error')  reply
+  =/  result  (need (get:w reply 'result'))
   =/  tools  (need (get:w result 'tools'))
   ?>  ?=(%a -.tools)
-  (put:w rpc 'result' (select:catalog-lib input tools (str:w result 'nextCursor')))
+  (put:w reply 'result' (select:catalog-lib input tools (str:w result 'nextCursor')))
+::
+++  rpc
+  |=  body=@t
+  ^-  json
+  =/  decoded  (de:json:html body)
+  ?^  decoded
+    ?>  =(`[%n '1'] (get:w u.decoded 'id'))
+    u.decoded
+  =/  replies
+    (skim (events:w body) |=(event=json =(`[%n '1'] (get:w event 'id'))))
+  ?>  =(1 (lent replies))
+  (snag 0 replies)
+::
+++  browser-session
+  |=  [body=@t released=?]
+  ^-  @t
+  ?.  =('HTTP 200\0a\0a' (end 3^10 body))  body
+  =/  parsed  (mole |.((rpc (rsh 3^10 body))))
+  ?~  parsed  'error: Invalid browser session reply.'
+  =/  reply  u.parsed
+  =/  result  (get:w reply 'result')
+  ?~  result  body
+  ?:  released
+    =/  content  (get:w u.result 'content')
+    ?.  ?=([~ %a *] content)  body
+    =.  p.u.content
+      %+  turn  p.u.content
+      |=  part=json
+      ?.  =('text' (str:w part 'type'))  part
+      =/  text  (str:w part 'text')
+      =/  kept
+        %+  skip  (lines:w text)
+        |=(line=tape =("- Session dashboard: " (scag 21 line)))
+      =/  safe  (crip (zing (join (trip '\0a') kept)))
+      (put:w part 'text' [%s safe])
+    (encode-receipt (put:w reply 'result' (put:w u.result 'content' u.content)))
+  =/  details  (get:w u.result 'structuredContent')
+  ?.  ?=([~ %o *] details)  body
+  ?.  (~(has by p.u.details) 'viewer_url')  body
+  =.  p.u.details  (~(del by p.u.details) 'viewer_url')
+  (encode-receipt (put:w reply 'result' (put:w u.result 'structuredContent' u.details)))
+++  encode-receipt
+  |=  reply=json
+  (cat 3 'HTTP 200\0a\0a' (en:json:html reply))
 --

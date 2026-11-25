@@ -5,8 +5,8 @@
 |%
 ::
 ++  detach-routes
-  |=  [saved=state-5:t hands=state:hh]
-  ^-  state-5:t
+  |=  [saved=state-6:t hands=state:hh]
+  ^-  state-6:t
   ::  Disabled bindings cannot authorize new input. Keep send receipts, but
   ::  start a fresh conversation so late results cannot enter its new history.
   =/  detached
@@ -111,7 +111,7 @@
     |=  [nest=nest:c ships=(set @p)]
     (turn ~(tap in ships) |=(who=@p [who `nest]))
   (silt (weld dms channels))
-::  Adding %tlon or %code for another ship changes nothing it can do, but
+::  Adding an owner-only tool for another ship changes nothing it can do, but
 ::  removing one is a change, so the owner can stop work that holds it.
 ++  owner-only-revoked
   |=  [before=policy:t after=policy:t actor=@p]
@@ -120,7 +120,7 @@
   =/  kept  (fall (~(get by trusted.after) actor) ~)
   %+  lien  (fall (~(get by trusted.before) actor) ~)
   |=  grant=tool-grant:h
-  &(?=(?(%tlon %code) grant) !(lien kept |=(held=tool-grant:h =(held grant))))
+  &((owner-only-tool:ht grant) !(lien kept |=(held=tool-grant:h =(held grant))))
 ::
 ++  cutoffs
   |=  $:  before=policy:t

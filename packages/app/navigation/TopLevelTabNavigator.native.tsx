@@ -13,6 +13,7 @@ import * as store from '@tloncorp/shared/store';
 
 import { useWarmBotSettingsCard } from '../features/settings/bot/useWarmBotSettingsCard';
 import { useAgentOnboardingLandingConsumer } from '../features/top/useAgentOnboardingLandingConsumer';
+import { useAgentOnboardingInviteConsumer } from '../features/top/useAgentOnboardingInviteConsumer';
 import { useBotDmTab } from '../hooks/useBotDmTab';
 import { useCalm, useContact } from '../ui/contexts/appDataContext';
 import { useSigilColors } from '../ui/utils/colorUtils';
@@ -67,6 +68,7 @@ export function TopLevelTabNavigator() {
   // living in the Workspaces screen would never run on a fresh account; it
   // sits here, above every tab, and can reset the root stack from here.
   useAgentOnboardingLandingConsumer();
+  useAgentOnboardingInviteConsumer();
   useWarmBotSettingsCard();
   // A DM's channel id is the other party's id, so this is the bot's contact.
   const botContact = useContact(botDm.enabled ? botDm.channelId : '');

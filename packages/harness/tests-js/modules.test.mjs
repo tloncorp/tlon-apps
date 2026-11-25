@@ -57,7 +57,8 @@ test('Tlon starts listening on install without overriding saved enable choices',
   const agent = await readFile(new URL('../desk/app/harness-tlon.hoon', import.meta.url), 'utf8')
   const init = agent.split('++  on-init\n')[1].split('\n++  on-save')[0]
   assert.match(init, /policy \[& ~ ~ %mentions ~ ~ ~ ~\]/)
-  assert.match(init, /initialize-owner:cor[\s\S]+abet:boot:refresh-peers:cor/)
+  assert.match(agent, /^\s+due  expire-approvals:cor$/m)
+  assert.match(init, /initialize-owner:cor[\s\S]+abet:boot:refresh-peers:due/)
   const reload = agent.split('++  on-load\n')[1].split('\n++  on-poke')[0]
   assert.doesNotMatch(reload, /policy \[|enabled\.policy\s+&/)
   const boot = agent.split('++  boot\n')[1].split('\n++  watch-head')[0]
@@ -282,8 +283,10 @@ test('Tlon addressing cannot become a second memory or command authority', () =>
 test('Tlon messages are driven by head facts and receipts, never maintenance wakes', async () => {
   const adapter = await readFile(new URL('../desk/app/harness-tlon.hoon', import.meta.url), 'utf8')
   const arm = (name) => adapter.split(`++  ${name}\n`)[1]?.split('\n++  ')[0]
-  assert.match(arm('on-arvo'), /maintain:cor/)
+  assert.match(adapter, /^\s+due  expire-approvals:cor$/m)
+  assert.match(arm('on-arvo'), /maintain:due/)
   assert.doesNotMatch(arm('maintain'), /reconcile|%claim|publish/)
+  assert.doesNotMatch(arm('expire-approvals'), /reconcile|%claim|publish/)
   assert.match(arm('agent'), /\[%head ~\]\s+\(agent-head wire sign\)/)
   assert.match(arm('agent-head'), /%fact[\s\S]*reconcile/)
   assert.match(arm('agent-hand'), /%receipt phase\)[\s\S]*attempt\.u\.delivery[\s\S]*reconcile\(deliveries/)
@@ -324,4 +327,12 @@ test('Harness CI triggers on exactly the Tlon files the desk compiles against', 
     .map((match) => [...match[1].matchAll(/- "(desk\/[^"]*)"/g)].map((entry) => entry[1]).sort())
   assert.equal(lists.length, 2, 'expected pull_request and push path lists')
   for (const paths of lists) assert.deepEqual(paths, listed)
+})
+
+test('the head asks the ledger index which bindings name a session instead of walking them', async () => {
+  const agent = await readFile(new URL('../desk/app/harness.hoon', import.meta.url), 'utf8')
+  assert.doesNotMatch(agent, /~\((?!get |got |has )[a-z]+ by bindings\.hands\)/)
+  for (const question of ['session-hand:hd', 'session-enabled:hd', 'session-bound:hd']) {
+    assert.match(agent, new RegExp(`\\(${question} \\[hands hand-index\\]`))
+  }
 })

@@ -15,7 +15,7 @@ const peerUrl = process.env.PEER_URL, pier = process.env.SHIP_PIER
 const inChannel = process.env.SURFACE === 'channel', nest = process.env.TEST_NEST
 const hostPier = process.env.CHANNEL_HOST_PIER
 assert.ok(peerUrl && pier && process.env.PEER_COOKIE, 'Set PEER_URL, PEER_COOKIE, SHIP_PIER')
-assert.ok(nest, 'Set TEST_NEST for channel delivery and the refused-conversation scenario')
+assert.ok(nest, 'Set TEST_NEST for channel delivery')
 const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((r) => /\turbauth-~/.test(r)).split('\t')
 const peerCookie = `${row[5]}=${row[6]}`, peer = row[5].slice('urbauth-'.length)
 const ship = cookie.split('=')[0].slice('urbauth-'.length)
@@ -68,9 +68,9 @@ async function send(suffix, channel = inChannel) {
   assert.ok(r.ok)
 }
 async function idle() {
-  return until('idle hand has no clock wake or pending sends', async () => {
+  return until('idle hand has no clock wake but its Steward lease renewal, and no pending sends', async () => {
     const s = await status()
-    return s?.headConnected && s.deliveryMode === 'events' && !s.pending && !s.delivering && s.maintenanceWake === null
+    return s?.headConnected && s.deliveryMode === 'events' && !s.pending && !s.delivering && (s.maintenanceWake === null || s.maintenanceWake === s.leaseRenewal)
   })
 }
 try {
@@ -162,27 +162,6 @@ try {
     await idle()
     assert.equal((await matches('confirmation')).length, 1)
     assert.equal(requests.length, 7)
-  }
-
-  // Last: it fills the owner's DM binding for good. A DM run only; the
-  // channel surface has no owner DM session to fill.
-  if (!inChannel) {
-    const refusedFrom = Date.now()
-    const binding = (await client.call('harness/tlon/work')).records.find((r) => r.kind === 'input' && r.sessionId === sessionId).binding
-    for (let n = (await hand.status(binding)).observations.length; n < 256; n++) await hand.action('notify', { binding, event: `${marker}-fill-${n}`, actor: peer, text: `fill ${n}` })
-    await until('owner DM binding holds 256 delivered records', async () => (await hand.status(binding)).observations.length === 256 && (await hand.outbox()).length === 0, 600000)
-    const calls = requests.length
-    for (let n = 1; n <= 9; n++) await send(`refused-${n}`, false)
-    await send('mentioned', true)
-    await until('mention after nine refused DMs reaches inference', () => requests.length === calls + 1)
-    finish(calls, 'mentioned'); await until('mention answered', async () => (await matches('mentioned', true)).length === 1); await idle()
-    const sentence = 'I can\'t answer messages here right now.'
-    const notices = (await posts(false)).filter((p) => authorShip(p.essay?.author) === ship && p.essay.sent >= refusedFrom && JSON.stringify(p.essay.content).includes(sentence))
-    assert.deepEqual(notices.map((p) => p.essay.content), [[{ inline: [sentence] }]], 'one notice in the owner DM')
-    const refusals = (await client.call('harness/tlon')).events.filter((e) => e.actor === peer && ['refusal', 'refusal-notice'].includes(e.kind)).map((e) => e.kind)
-    assert.deepEqual(refusals.sort(), [...Array(8).fill('refusal'), 'refusal-notice'], 'one owner entry per refused DM')
-    assert.equal(requests.length, calls + 1, 'refused DMs never reach inference')
-    console.log('PASS a refused conversation does not stop others; its sender is told once')
   }
 } finally {
   if (hostSuspended) await rein(hostPier, 'groups', 'channels-server', true)

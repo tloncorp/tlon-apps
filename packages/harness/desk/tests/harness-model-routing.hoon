@@ -3,6 +3,18 @@
     hj=harness-json, storage=harness-store, policy=harness-defaults, hl=harness,
     context=harness-model-context
 |%
+++  test-tool-result-images-require-the-verified-model-and-route
+  =/  cfg  builtin-config:policy
+  =.  model.cfg  'deepseek/deepseek-v4.1-flash-1017'
+  =.  url.cfg  'https://openrouter.ai/api/v1/chat/completions'
+  ;:  weld
+      (expect !>((images-in-tool-results:hp cfg)))
+      (expect !>(!(images-in-tool-results:hp cfg(model 'other'))))
+      (expect !>(!(images-in-tool-results:hp cfg(url 'https://api.openai.com/v1/responses'))))
+      (expect !>(!(images-in-tool-results:hp cfg(url 'https://api.anthropic.com/v1/messages'))))
+      (expect !>(!(images-in-tool-results:hp cfg(url 'connected://runner'))))
+  ==
+::
 ++  test-zdr-is-on-turns-and-checkpoints-and-is-absent-when-disabled
   =/  v  *view:h
   =/  cfg  builtin-config:policy
