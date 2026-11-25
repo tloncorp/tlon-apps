@@ -198,8 +198,8 @@ function NoteReferenceContent({ post }: { post: db.Post }) {
 
 const NoteBookReferenceContent = styled(View, {
   context: ReferenceContext,
-  padding: '$2xl',
-  gap: '$2xl',
+  padding: '$l',
+  gap: '$m',
   variants: {
     contentSize: {
       $s: {
