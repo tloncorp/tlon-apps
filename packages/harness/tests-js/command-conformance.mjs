@@ -5,6 +5,7 @@ import { text as readText } from 'node:stream/consumers'
 import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { readFileSync } from 'node:fs'
 import { Client, base, cookie } from './lib/ship-client.mjs'
 import { HandClient } from '../acp/hand-client.mjs'
 
@@ -47,7 +48,10 @@ try {
   await until('ACP command advertisement', () => client.updates.some((u) =>
     u.params?.sessionId === sid && u.params.update.sessionUpdate === 'available_commands_update'))
   const ad = client.updates.find((u) => u.params?.update?.sessionUpdate === 'available_commands_update')
-  assert.deepEqual(ad.params.update.availableCommands.map((c) => c.name), ['help', 'status', 'model', 'context', 'compact', 'memory', 'remember', 'forget', 'work', 'stop'])
+  // Messenger's static Harness list is checked against the same fixture
+  // (packages/shared/src/domain/runtimeCommandContract.test.ts).
+  const fixture = JSON.parse(readFileSync(new URL('../fixtures/commands.json', import.meta.url), 'utf8'))
+  assert.deepEqual(ad.params.update.availableCommands.map((c) => c.name), fixture.map((token) => token.slice(1)))
   for (const [text, reply] of [
     ['/help', /\/model default/], ['/status', /Tool grants: [1-9]\d* \(owner turn: saved grants do not limit it, except Run JS\)\nRecorded tokens: 0 input, 0 output/],
     ['/model', /fixture-model/], ['/model vendor\/other', /Model set to:.*vendor\/other/],
