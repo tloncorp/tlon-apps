@@ -79,9 +79,10 @@
       pattern  *pattern:c
       prompt  text.fields
       next  at.time
-      remaining  1
+      remaining  `1
     ==
-  ::  Model work either runs once at an exact time or follows a UTC pattern.
+  ::  Model work either runs once at an exact time or follows a pattern at
+  ::  UTC or a fixed offset.
   ?>  ?=(%o -.args)
   ?:  (~(has by p.args) 'at')
     =/  fields=[at=@t prompt=@t]
@@ -96,29 +97,48 @@
       pattern  *pattern:c
       prompt  prompt.fields
       next  at.time
-      remaining  1
+      remaining  `1
     ==
-  =/  fields=[schedule=@t timezone=@t prompt=@t runs=@t]
+  =/  fields=[schedule=@t timezone=@t prompt=@t]
     %.  args
     %-  ot:dejs:format
     :~  schedule+so:dejs:format
         timezone+so:dejs:format
         prompt+so:dejs:format
-        runs+so:dejs:format
     ==
-  ?>  =('UTC' timezone.fields)
+  =/  offset  (zone timezone.fields)
   ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) 4.096))
-  =/  runs  (number:calendar runs.fields)
-  ?>  &((gth runs 0) (lte runs 100))
+  ::  runs is optional: a count limits the job, and without one it repeats
+  ::  until it is cancelled.
+  =/  runs  (bind (~(get by p.args) 'runs') count)
   =/  pattern  (parse:calendar schedule.fields)
   %*  .  job
-    timezone  'UTC'
+    timezone  timezone.fields
     expression  schedule.fields
     pattern  pattern
     prompt  prompt.fields
-    next  (need (next:calendar pattern now))
+    next  (need (next-at-offset:calendar pattern offset now))
     remaining  runs
   ==
+::  A runs argument: a decimal string for a count from 1 to +max-runs.
+++  count
+  |=  value=json
+  ^-  @ud
+  =/  runs  (need (rush (so:dejs:format value) dem))
+  ?>  &((gth runs 0) (lte runs max-runs))
+  runs
+::  Listings give the count as a JSON number, which is exact only below
+::  2^53. This keeps it there; it is not a limit on recurring work, which
+::  without runs repeats until cancelled. Every minute, it lasts two years.
+++  max-runs  1.000.000
+::
+++  zone
+  |=  timezone=@t
+  ^-  [east=? delta=@dr]
+  ::  Recurring work keeps one fixed offset forever: UTC, or +HH:MM/-HH:MM
+  ::  as RFC3339 writes it. IANA names would imply daylight-saving rules.
+  ?:  =('UTC' timezone)  [& ~s0]
+  (offset:reminder timezone)
 ::
 ++  busy
   |=  [job=job:c ledger=indexed:hh]
@@ -203,7 +223,7 @@
   |=  [job=job:c ledger=indexed:hh]
   ^-  ?
   =*  db  db.ledger
-  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(0 remaining.job)))  |
+  ?.  |(=(%cancelled state.job) &(=(%complete state.job) =(`0 remaining.job)))  |
   ?:  (busy job ledger)  |
   ?~  last.job  =(%cancelled state.job)
   =/  last  (~(get by observations.db) u.last.job)
@@ -213,14 +233,17 @@
 ++  advance
   |=  [job=schedule:c input=@uv now=@da]
   ^-  schedule:c
-  ?>  &(=(%active state.job) (gth remaining.job 0))
+  ?>  =(%active state.job)
+  =/  left
+    %+  bind  remaining.job
+    |=(runs=@ud ?>((gth runs 0) (dec runs)))
   =.  job
     %*  .  job
-      remaining  (dec remaining.job)
+      remaining  left
       last  `input
     ==
-  ?:  =(0 remaining.job)  job(state %complete)
-  =/  next  (next:calendar pattern.job now)
+  ?:  =(`0 left)  job(state %complete)
+  =/  next  (next-at-offset:calendar pattern.job (zone timezone.job) now)
   ?~  next  job(state %complete)
   job(next (need next))
 ::
@@ -250,7 +273,7 @@
       ['destination' %s destination.job]
       ['prompt' %s prompt.job]
       ['next' %s (scot %da next.job)]
-      ['remaining' (numb:enjs:format remaining.job)]
+      ['remaining' ?~(remaining.job ~ (numb:enjs:format u.remaining.job))]
       ['state' %s state.job]
       ['reason' %s reason.job]
       ['lastInput' ?~(last.job ~ [%s (scot %uv u.last.job)])]

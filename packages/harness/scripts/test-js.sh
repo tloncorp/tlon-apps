@@ -286,6 +286,10 @@ function boot
   ) > "$logs/boot-$1.log" 2>&1
   then
     result "boot ~$1" "FAILED (see $logs/boot-$1.log)"
+    refusals "$logs/boot-$1.log"
+    # Stopped, the next run boots the ship afresh instead of reusing a ship
+    # that never started its agents.
+    stop_ship "$1"
     return 1
   fi
   # Eyre answers a wrong code with 400, which -f makes a failure.
@@ -313,7 +317,7 @@ function deploy
       pier=$piers/$ship
       update_desk mcp "$root/mcp/desk-out" && update_desk harness "$root/desk-out"
     ) > "$logs/deploy-$ship.log" 2>&1 ||
-      { echo "Failed to deploy to ~$ship; see $logs/deploy-$ship.log"; exit 1; }
+      { echo "Failed to deploy to ~$ship; see $logs/deploy-$ship.log"; refusals "$logs/deploy-$ship.log"; exit 1; }
   done
   sleep 5
 }
@@ -341,15 +345,14 @@ EOF
 }
 
 # Revive ~$1's %harness agents and wait, $2 times, for %harness-tlon, the last of
-# them to start. Fails if it has not.
+# them to start. Fails if it has not, printing the error if they did not build.
 function revive_harness
 {
-  $click -t 60 -i - -kp "$piers/$1" >> "$logs/reset-$1.log" 2>&1 <<EOF
-=/  m  (strand ,vase)  
-;<  our=ship  bind:m  get-our  
-;<  ~  bind:m  (poke [our %hood] kiln-revive+!>(%harness))  
-(pure:m !>(%test-revive-sent))  
-EOF
+  if ! (pier=$piers/$1; start_agents harness 'kiln-revive+!>(%harness)') >> "$logs/reset-$1.log" 2>&1
+  then
+    refusals "$logs/reset-$1.log"
+    return 1
+  fi
   for attempt in $(seq 1 $2)
   do
     result_line=$( $click -t 30 -i - -kp "$piers/$1" 2>/dev/null <<EOF
@@ -577,9 +580,11 @@ function upgrade
       if [ -n "$upgrade_dirty" ] && ! restore_head >> "$log" 2>&1
       then
         result "$1 (restore head)" "FAILED (see $log)"
+        refusals "$log"
         summarize
         exit 1
-      fi ;;
+      fi
+      refusals "$log" ;;
   esac
   [ -n "$passed" ] || reset_ship $current_ship
 }

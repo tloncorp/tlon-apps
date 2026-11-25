@@ -1,4 +1,4 @@
-/-  t=harness-tlon, h=harness
+/-  t=harness-tlon, h=harness, g=groups-ver
 /+  *test, p=harness-tlon-policy, c=harness-tlon-continuity, permissions=harness-tlon-permissions
 |%
 ++  policy
@@ -146,4 +146,28 @@
   =/  result  (chat-apply:permissions policy (need (de:json:html body)))
   ?>  ?=(%| -.result)
   (expect-eq !>(400) !>(status.p.result))
+::  groups' can-write answer is nothing for a ship without a seat or a
+::  banned one, else whether it is an admin and its roles.
+::
+++  test-the-bot-can-write-only-where-it-is-a-member-with-a-writer-role-or-admin
+  =/  seat
+    |=  [admin=? roles=(list @tas)]
+    ^-  (unit [admin=? roles=(set @tas)])
+    `[admin (silt roles)]
+  ;:  weld
+      ::  member, empty writers
+      (expect !>((writable:permissions ~ (seat | ~))))
+      ::  member without, and with, a writer role
+      (expect !>(!(writable:permissions (silt ~[%poster]) (seat | ~[%member]))))
+      (expect !>((writable:permissions (silt ~[%poster]) (seat | ~[%member %poster]))))
+      ::  admin
+      (expect !>((writable:permissions (silt ~[%poster]) (seat & ~))))
+  ==
+::  A banned bot keeps its seat, but groups answers nothing for it.
+::
+++  test-a-banned-bot-cannot-write-even-where-anyone-may
+  ;:  weld
+      (expect !>(!(writable:permissions ~ ~)))
+      (expect !>(!(writable:permissions (silt ~[%poster]) ~)))
+  ==
 --

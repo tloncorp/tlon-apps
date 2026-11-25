@@ -118,6 +118,36 @@
       search-requests=search-requests:h
       js-timeouts=(map session-id:h @dr)
   ==
+::  The head's shape before a recurring schedule's run count became
+::  optional. Persisted envelope accepted only by schedule migration.
++$  state-s0
+  $_  [%0 knowledge=*state:memory =>(*state-m0 +)]
+::  The schedule record saved by every shape before state-p0: remaining was a
+::  bare count. Frozen, so a change to the current record cannot change what
+::  an older save decodes as.
++$  job-s0
+  $:  kind=?(%prompt %reminder)
+      timezone=@t
+      destination=@t
+      sid=@t
+      run-sid=@t
+      expression=@t
+      pattern=pattern:cron
+      prompt=@t
+      tools=(list tool-grant:h)
+      next=@da
+      remaining=@ud
+      state=?(%active %paused %cancelled %complete)
+      reason=@t
+      last=(unit @uv)
+  ==
++$  schedule-s0
+  $:  binding=@t
+      actor=@t
+      hand=@t
+      fingerprint=@uvH
+      job-s0
+  ==
 ::  Persisted envelope accepted only by memory migration.
 +$  state-m0
   $:  %0
@@ -131,7 +161,7 @@
       project-clients=state:pc
       workspace-search=state:ws
       workspace-notes=state:hn
-      schedules=(map @uv schedule:cron)
+      schedules=(map @uv schedule-s0)
       schedule-wake=(unit @da)
       local-mcp-seen=@ud
       local-mcp=(map [session-id:h @t] local-mcp-progress:h)
@@ -184,7 +214,7 @@
       project-clients=state:pc
       workspace-search=state:ws
       workspace-notes=state:hn
-      schedules=(map @uv schedule:cron)
+      schedules=(map @uv schedule-s0)
       schedule-wake=(unit @da)
       local-mcp-seen=@ud
       local-mcp=(map [session-id:h @t] local-mcp-progress:h)
@@ -236,7 +266,7 @@
       project-clients=state:pc
       workspace-search=state:ws
       workspace-notes=state:hn
-      schedules=(map @uv schedule:cron)
+      schedules=(map @uv schedule-s0)
       schedule-wake=(unit @da)
       local-mcp-seen=@ud
       local-mcp=(map [session-id:h @t] local-mcp-progress:h)
@@ -289,7 +319,7 @@
       project-clients=state:pc
       workspace-search=state:ws
       workspace-notes=state:hn
-      schedules=(map @uv schedule:cron)
+      schedules=(map @uv schedule-s0)
       schedule-wake=(unit @da)
       local-mcp-seen=@ud
       local-mcp=(map [session-id:h @t] local-mcp-progress:h)

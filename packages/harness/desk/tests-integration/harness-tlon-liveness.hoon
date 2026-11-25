@@ -32,7 +32,7 @@
   =/  m  (mare ,(list contact:ct))
   =/  n  (mare ,(list card))
   ^-  form:m
-  =/  saved=state-3:t  *state-3:t
+  =/  saved=state-5:t  *state-5:t
   =.  saved
     %=  saved  owner-initialized  1  policy  [enabled `~zod ~ %mentions ~ ~]  watching  &
       activity-through  ~2026.10.1
@@ -53,6 +53,8 @@
     |=  =path
     ^-  (unit vase)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(?=(^ contact))
+    ::  harness-tlon-steward covers the Steward lease.
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %contacts @ %v1 %self %contact-1 ~] path)
       ?~(contact ~ `!>(u.contact))

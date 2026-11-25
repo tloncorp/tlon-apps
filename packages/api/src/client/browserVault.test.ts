@@ -85,6 +85,25 @@ describe('browser vault owner requests', () => {
     });
     expect(mocks.authorize).toHaveBeenCalledOnce();
   });
+  it('accepts the explicitly configured local viewer origin', async () => {
+    const origin = 'http://127.0.0.1:8787';
+    const localEndpoint = origin + new URL(endpoint).pathname;
+    vi.stubEnv('TLON_BROWSER_VIEWER_DEV_ORIGIN', origin);
+    try {
+      await expect(
+        authorizeBrowserLoginHandoff(localEndpoint)
+      ).resolves.toEqual({
+        grant: 'g'.repeat(43),
+        accounts: [account],
+      });
+      await expect(
+        authorizeBrowserLoginHandoff(localEndpoint.replace('8787', '8788'))
+      ).rejects.toThrow('trusted');
+      expect(mocks.authorize).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
   it.each([
     'http://browser-session-ovh-test-1.test.tlon.systems/viewer-authorize',
     'https://evil.example/viewer-authorize',

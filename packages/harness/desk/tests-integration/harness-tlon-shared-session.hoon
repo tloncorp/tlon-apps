@@ -14,8 +14,8 @@
 ::  ~nec owns the ship; ~bus is trusted with %web; ~dev may not read the room.
 ::
 ++  fixture
-  ^-  state-3:t
-  =/  s=state-3:t  *state-3:t
+  ^-  state-5:t
+  =/  s=state-5:t  *state-5:t
   =.  owner-initialized.s  1
   =.  activity-through.s  ~2026.9.9
   =.  policy.s
@@ -24,7 +24,7 @@
 ::  The room's shared session and ~bus's DM, both with ready routes.
 ::
 ++  ready
-  ^-  state-3:t
+  ^-  state-5:t
   =/  s  fixture
   %=  s
     identities  (my ~[[room room-sid] [bus-dm 'dm']])
@@ -63,6 +63,7 @@
   |=  [stream=stream:v10:a ledger=state:hh]
   |=  =path
   ^-  (unit vase)
+  ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] !=(~dev who)))
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
@@ -80,11 +81,11 @@
 ::  Load .saved, then deliver .speakers' posts through Activity catch-up.
 ::
 ++  admit
-  |=  [saved=state-3:t speakers=(list [@p @da])]
+  |=  [saved=state-5:t speakers=(list [@p @da])]
   (admit-stream saved (posts speakers))
 ++  admit-stream
-  |=  [saved=state-3:t stream=stream:v10:a]
-  =/  m  (mare ,[(list card) state-3:t])
+  |=  [saved=state-5:t stream=stream:v10:a]
+  =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m  head-connected
@@ -93,15 +94,15 @@
   ;<  ~  bind:m  head-connected
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-3:t vase))
+  (pure:m caz !<(state-5:t vase))
 ::  Load .saved, then save .next as the policy, as the settings page does.
 ::
 ++  configure
-  |=  [saved=state-3:t next=policy:t]
+  |=  [saved=state-5:t next=policy:t]
   (configure-with saved next hands)
 ++  configure-with
-  |=  [saved=state-3:t next=policy:t ledger=state:hh]
-  =/  m  (mare ,[(list card) state-3:t])
+  |=  [saved=state-5:t next=policy:t ledger=state:hh]
+  =/  m  (mare ,[(list card) state-5:t])
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now ~2026.9.10))
   ;<  ~  bind:m  head-connected
@@ -113,7 +114,7 @@
     %+  do-poke  %noun
     !>(`request:ad`['fixture' [%n '1'] 'harness/tlon/configure' `params])
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-3:t vase))
+  (pure:m caz !<(state-5:t vase))
 ::
 ++  pokes
   |=  [caz=(list card) mark=@tas]
@@ -144,7 +145,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-3:t]  bind:m
+  ;<  [caz=(list card) s=state-5:t]  bind:m
     (admit ready ~[[~bus ~2026.9.9..12.00.00] [~nec ~2026.9.9..12.00.01]])
   =/  bind
     `action:hh`[%bind 'binding-room' ['tlon' 'chat/~lux/test' room-sid ~['*'] &]]
@@ -159,7 +160,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-3:t]  bind:m
+  ;<  [* s=state-5:t]  bind:m
     (admit ready ~[[~bus ~2026.9.9..12.00.00] [~nec ~2026.9.9..12.00.01]])
   =/  second  (skim ~(tap by jobs.s) |=([* =job:t] =(~nec actor.input.job)))
   ?>  ?=([* ~] second)
@@ -184,7 +185,7 @@
     =/  at  ~2026.9.9..12.00.00
     =/  event=incoming-event:v8:a
       [%post [[~nec at] at] [%chat ~lux %test] [~lux %test] ~[[%inline content]] &]
-    ;<  [* s=state-3:t]  bind:m
+    ;<  [* s=state-5:t]  bind:m
       (admit-stream ready (put:on-stream:v10:a *stream:v10:a at [event | |]))
     =/  admitted  ~(tap by jobs.s)
     ?>  ?=([* ~] admitted)
@@ -203,7 +204,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-3:t]  bind:m  (admit fixture ~[[~bus ~2026.9.9..12.00.00]])
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (admit fixture ~[[~bus ~2026.9.9..12.00.00]])
   ;<  ~  bind:m  (ex-equal !>(lanes.s) !>((my ~[[room-sid [room 0 owner-defaults]]])))
   =/  created
     %+  murn  (head-acts caz)
@@ -222,7 +223,7 @@
   =/  start  ready
   =/  next  policy.start
   =.  trusted.next  (my ~[[~bus ~[%web %workspace]]])
-  ;<  [caz=(list card) s=state-3:t]  bind:m  (configure start next)
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure start next)
   ;<  ~  bind:m  (ex-equal !>((~(get by routes.s) room-sid)) !>(`['binding-room' %ready]))
   ;<  ~  bind:m  (ex-equal !>((~(get by lanes.s) room-sid)) !>(`[room 1 owner-defaults]))
   ;<  ~  bind:m  (ex-equal !>((disabled caz 'binding-room')) !>(|))
@@ -238,7 +239,7 @@
   =/  start  ready
   =/  next  policy.start
   =.  channels.next  (my ~[[[%chat ~lux %test] [%all &]]])
-  ;<  [caz=(list card) s=state-3:t]  bind:m  (configure start next)
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure start next)
   ;<  ~  bind:m  (ex-equal !>((~(has by lanes.s) room-sid)) !>(|))
   ;<  ~  bind:m  (ex-equal !>((~(has by routes.s) room-sid)) !>(|))
   ;<  ~  bind:m  (ex-equal !>((disabled caz 'binding-room')) !>(&))
@@ -250,7 +251,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  start  ready
-  ;<  [caz=(list card) s=state-3:t]  bind:m  (configure start policy.start(enabled |))
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure start policy.start(enabled |))
   ;<  ~  bind:m  (ex-equal !>(lanes.s) !>(*(map @t lane:t)))
   ;<  ~  bind:m  (ex-equal !>(routes.s) !>(*(map @t route:t)))
   ;<  ~  bind:m  (ex-equal !>((disabled caz 'binding-room')) !>(&))
@@ -275,7 +276,7 @@
     (my ~[[0v3 ['binding-room' 'running' '~bus' '~bus: hello' ~2026.9.9 %running]]])
   =/  next  policy.start
   =.  trusted.next  ~
-  ;<  [caz=(list card) s=state-3:t]  bind:m  (configure-with start next ledger)
+  ;<  [caz=(list card) s=state-5:t]  bind:m  (configure-with start next ledger)
   =/  fences
     %+  murn  (head-acts caz)
     |=  act=*

@@ -6,7 +6,7 @@
 /+  *test-agent, wp=harness-tlon-workspace-plan, ht=harness-tools
 /=  adapter  /app/harness-tlon
 |%
-+$  outcome  [cards=(list card) saved=state-3:t]
++$  outcome  [cards=(list card) saved=state-5:t]
 ++  now  ~2026.10.1..00.00.10
 ++  card-at  ~2026.10.1..00.00.02
 ++  message-at  ~2026.10.1..00.00.05
@@ -15,8 +15,8 @@
   ^-  plan:wp
   ['Lisbon Trip' 'Planning the May trip' ~[[%chat 'Planning' 'Day by day']] ~]
 ++  fixture
-  ^-  state-3:t
-  =/  s=state-3:t  *state-3:t
+  ^-  state-5:t
+  =/  s=state-5:t  *state-5:t
   %=  s  owner-initialized  1  policy  [& `~nec ~ %mentions ~ ~]  watching  &
     activity-through  ~2026.10.1
   ==
@@ -80,6 +80,7 @@
       ?~  dm  ~
       `!>((got:on:writs:v7:cv writs.u.dm message-at))
     ?:  ?=([@ @ %channels *] path)  ~
+    ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
     ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
     ?:  =(%$ (rear path))  `!>(&)
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>(~)
@@ -91,7 +92,7 @@
     ~
   ;<  caz=(list card)  bind:m  (do-load adapter `!>(fixture))
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-3:t vase))
+  (pure:m caz !<(state-5:t vase))
 ++  texts
   |=  out=outcome
   ^-  (list @t)

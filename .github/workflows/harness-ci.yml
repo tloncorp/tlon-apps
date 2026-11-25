@@ -22,6 +22,7 @@ on:
       - "desk/sur/presence.hoon"
       - "desk/sur/reel.hoon"
       - "desk/sur/steward.hoon"
+      - "desk/sur/steward/automation.hoon"
       - "desk/sur/steward/gateway.hoon"
       - "desk/sur/steward/lens.hoon"
       - "desk/sur/story.hoon"
@@ -66,6 +67,7 @@ on:
       - "desk/sur/presence.hoon"
       - "desk/sur/reel.hoon"
       - "desk/sur/steward.hoon"
+      - "desk/sur/steward/automation.hoon"
       - "desk/sur/steward/gateway.hoon"
       - "desk/sur/steward/lens.hoon"
       - "desk/sur/story.hoon"
@@ -158,7 +160,10 @@ jobs:
 
 
       - name: Run Hoon Tests
-        # docker is the runtime the other jobs use on these runners.
+        # docker is the runtime the other jobs use on these runners. The step
+        # stops short of the job's limit, so that a hang still leaves time for
+        # the summary and the upload of the logs.
+        timeout-minutes: 45
         env:
           CONTAINER_RUNTIME: docker
         run: just test-hoon

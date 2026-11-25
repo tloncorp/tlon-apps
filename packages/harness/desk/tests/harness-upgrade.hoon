@@ -34,7 +34,10 @@
       (my ~[['client-1' ['proj-1' 'CI' 0xfeed ~2026.10.8 ~2026.12.8 `~2026.11.1]]])
       workspace-search
       workspace-notes
-      (my ~[[0v7a active-schedule] [0v7b paused-schedule]])
+      %-  my
+      :~  [0v7a active-schedule]  [0v7b paused-schedule]
+          [0v7c complete-schedule]  [0v7d cancelled-schedule]
+      ==
       `~2026.11.7
       6
       (my ~[[['alpha' 'call-mcp'] [3 'docs' 0v4 200 'MCP body']]])
@@ -78,8 +81,40 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
+++  populated-5
+  ^-  state-5:t
+  =/  p  populated-4
+  :*  %5
+      :*  (my ~[[0v7a active-schedule]])
+          %-  my
+          :~  :-  0v7a
+              :^    `'America/Chicago'
+                  `[~h4 ~2026.10.1..02.15.30 '15 2,6,10,14,18,22 * * *']
+                `'Morning brief'
+              `'Weekday summary'
+          ==
+          %-  my
+          :~  :-  0v9e
+              :*  ~[[%cancel 0v7a]]
+                  [%created '0v7a']
+                  `[0v7a `'Asia/Kolkata' ~ `'Standup' `'Daily standup']
+                  ~
+                  ~nec
+              ==
+          ==
+          &
+      ==
+      +.p
+  ==
+::  The hand's browser-handoff shape: everything in +populated-5 but the
+::  Steward automation projection.
+++  populated-4
+  ^-  state-4:mt
+  =/  p  populated-3
+  [%4 (my ~[[0v8g [~2026.11.16 [%wait [%form 'https://browser.example/result']]]]]) +.p]
+::  The hand's last shape without browser handoffs.
 ++  populated-3
-  ^-  state-3:t
+  ^-  state-3:mt
   =/  p  populated-2
   :*  %3  lens.p  owner-initialized.p  sibling-moon-owners.p  sibling-owner-after.p
       activity-through.p  catching-up.p
@@ -128,6 +163,7 @@
           [0v8d (upload-receipt 'hosted')]
           [0v8e [['alpha' 4 ['call-send' 'tlon_send' '{}']] %sending '' ~2026.11.15]]
           [0v8f [['alpha' 5 ['call-read' 'tlon_read' '{}']] %done 'Read 3 messages.' ~2026.11.13]]
+          [0v8g [['alpha' 6 ['call-form' 'browser_secure_entry' '{}']] %sending '' ~2026.11.15]]
       ==
       (my ~[[/tlon/typing [~2026.10.10 (sy ~['tlon_send'])]]])
       :*  |  `~nec  (my ~[[~bus ~[%tlon]]])  %all  (sy ~[~bus])
@@ -150,8 +186,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-3:t
-  =/  s  *state-3:t
+  ^-  state-5:t
+  =/  s  *state-5:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -172,13 +208,27 @@
   ^-  state-p0
   =/  p  populated
   [%0 +>.p]
+::  Before runs became optional, every schedule held a bare count.
+++  project-s0
+  ^-  state-s0
+  =/  p  project-p0
+  =/  schedules
+    %-  ~(run by schedules.p)
+    |=  job=schedule:cron
+    ^-  schedule-s0
+    :*  binding.job  actor.job  hand.job  fingerprint.job
+        kind.job  timezone.job  destination.job  sid.job  run-sid.job  expression.job
+        pattern.job  prompt.job  tools.job  next.job  (need remaining.job)  state.job
+        reason.job  last.job
+    ==
+  p(schedules schedules)
 ++  project-before-maintenance
   ^-  state-before-maintenance:storage
-  =/  p  project-p0
+  =/  p  project-s0
   [%0 +.knowledge.p +>.p]
 ++  project-m0
   ^-  state-m0
-  =/  p  project-p0
+  =/  p  project-s0
   [%0 +>.p]
 ++  project-c0
   ^-  state-c0
@@ -190,7 +240,7 @@
   [%0 +>.c0]
 ++  project-le
   ^-  state-le
-  =/  p  populated
+  =/  p  project-s0
   :*  %0
       model-defaults-set.p  xai-auth.p  hosted.p  workspace.p  work-controls.p
       project-clients.p  workspace-search.p  workspace-notes.p  schedules.p  schedule-wake.p
@@ -245,7 +295,7 @@
   =.  cursors.db  (~(run by sessions.e) |=(s=session:h log.s))
   =/  imported
     %:  save:mem
-      db
+      everything:mem  db
       (import-name 'alpha' 'deploy')
       0
       [`'Ship on Fridays.' (words:index 'deploy') | & ['alpha' 0v4a 5 ~2026.10.30 '~nec']]
@@ -268,7 +318,7 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-3) *state-3:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-5) *state-5:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field
@@ -280,7 +330,8 @@
 ++  test-upgrade-keeps-the-composed-default-instructions
   =/  saved=(list [vase config:h])
     :~  [!>(project-p0) defaults:project-p0]
-        [!>(project-before-maintenance) defaults:project-p0]
+        [!>(project-s0) defaults:project-s0]
+        [!>(project-before-maintenance) defaults:project-s0]
         [!>(project-m0) defaults:project-m0]
         [!>(project-c0) defaults:project-c0]
         [!>(project-r0) defaults:project-r0]
@@ -305,6 +356,22 @@
   =/  p  project-p0
   =.  system.defaults.p  ''
   (expect-eq !>(*prompts:h) !>(prompts:(load:storage !>(p))))
+::  A save from before both upgrades takes each step once: every count
+::  becomes a limit and the default instructions become the AGENTS.md layer.
+++  test-state-s0-upgrade-wraps-each-count-adds-the-agents-layer-and-keeps-every-field
+  =/  loaded  (load:storage !>(project-s0))
+  ;:  weld
+      (expect-reload !>(project-s0) expected-p0)
+      %+  expect-eq
+        !>  ~[[0v7a `5] [0v7b `2] [0v7c `0] [0v7d `3]]
+      !>  %+  sort
+            %+  turn  ~(tap by schedules.loaded)
+            |=([id=@uv job=schedule:cron] [id remaining.job])
+          |=([a=[@uv *] b=[@uv *]] (lth -.a -.b))
+      %+  expect-eq
+        !>  (my ~[[%'AGENTS.md' system:(upgrade-config defaults:project-s0)]])
+      !>  prompts.loaded
+  ==
 ++  test-state-before-maintenance-upgrade-keeps-every-field
   (expect-reload !>(project-before-maintenance) expected-before-maintenance)
 ++  test-state-m0-upgrade-keeps-every-field
@@ -721,7 +788,7 @@
   :*  'web-1'  '~nec'  'web'  0v8
       :*  %reminder  'America/New_York'  'https://hook.example'  'alpha'  'alpha-run'
           '0 9 * * 1'  [(sy ~[0]) (sy ~[9]) (sy ~[1]) (sy ~[12]) (sy ~[1]) | |]
-          'Standup'  ~[%cron]  ~2026.12.1  5  %active  'Scheduled'  `0v3a
+          'Standup'  ~[%cron]  ~2026.12.1  `5  %active  'Scheduled'  `0v3a
       ==
   ==
 ++  paused-schedule
@@ -729,7 +796,25 @@
   :*  'web-1'  '~nec'  'web'  0v8.pause
       :*  %prompt  'Europe/Berlin'  'https://hook.example'  'alpha'  'beta-run'
           '30 18 * * 5'  [(sy ~[30]) (sy ~[18]) (sy ~[2]) (sy ~[11]) (sy ~[5]) | |]
-          'Weekly summary'  ~[%skills]  ~2026.11.20  2  %paused  'Paused by owner'  `0v3b
+          'Weekly summary'  ~[%skills]  ~2026.11.20  `2  %paused  'Paused by owner'  `0v3b
+      ==
+  ==
+::  A one-time prompt that ran: complete with no runs left.
+++  complete-schedule
+  ^-  schedule:cron
+  :*  'web-1'  '~nec'  'web'  0v8.ended
+      :*  %prompt  'UTC-05:00'  'https://hook.example'  'alpha'  'gamma-run'
+          '2026-10-20T09:00:00-05:00'  *pattern:cron
+          'Send the quote'  ~[%web]  ~2026.10.20..14.00.00  `0  %complete  ''  `0v3c
+      ==
+  ==
+::  A recurring prompt cancelled with runs left.
+++  cancelled-schedule
+  ^-  schedule:cron
+  :*  'web-1'  '~nec'  'web'  0v8.halts
+      :*  %prompt  '+05:30'  'https://hook.example'  'alpha'  'delta-run'
+          '0 7 * * *'  [(sy ~[0]) (sy ~[7]) (sy ~[3]) (sy ~[4]) (sy ~[6]) | |]
+          'Morning brief'  ~[%workspace]  ~2026.10.21  `3  %cancelled  'Cancelled by owner'  ~
       ==
   ==
 ++  peer-grant

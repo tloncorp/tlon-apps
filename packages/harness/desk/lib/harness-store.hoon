@@ -1,5 +1,5 @@
 ::  Gall persistence accepts the current tagged envelope.
-/-  *harness-store
+/-  *harness-store, cron=harness-cron
 /-  h=harness, c=harness-corpus
 /-  runner=harness-runner, memory=harness-memory
 /+  mem=harness-memory, policy=harness-defaults, index=harness-memory-index
@@ -139,6 +139,28 @@
   ^-  state-p0
   =/  current  (mole |.(!<(state-p0 saved)))
   ?^  current  u.current
+  (migrate-schedules (envelope-before-schedules saved))
+::  A saved count becomes a limit of that many runs. No save before this
+::  shape holds a schedule without one.
+++  migrate-schedules
+  |=  old=state-s0
+  ^-  state-p0
+  =/  schedules
+    %-  ~(run by schedules.old)
+    |=  job=schedule-s0
+    ^-  schedule:cron
+    =/  [binding=@t actor=@t hand=@t fingerprint=@uvH value=job-s0]  job
+    :*  binding  actor  hand  fingerprint
+        kind.value  timezone.value  destination.value  sid.value  run-sid.value
+        expression.value  pattern.value  prompt.value  tools.value  next.value
+        `remaining.value  state.value  reason.value  last.value
+    ==
+  old(schedules schedules)
+++  envelope-before-schedules
+  |=  saved=vase
+  ^-  state-s0
+  =/  current  (mole |.(!<(state-s0 saved)))
+  ?^  current  u.current
   =/  saved-memory  (mole |.(!<(state-before-maintenance saved)))
   ?^  saved-memory
     [%0 [maintenance:*state:memory knowledge.u.saved-memory] +>.u.saved-memory]
@@ -161,7 +183,7 @@
 ::  conversations receive distinct identities; forgotten notes stay absent.
 ++  migrate-memory
   |=  old=state-m0
-  ^-  state-p0
+  ^-  state-s0
   =/  db=state:memory  *state:memory
   =.  db
     %+  roll  ~(tap by sessions.old)
@@ -182,7 +204,7 @@
           (skip (trip (scot %uv (sham [sid name.event]))) |=(c=@tD =('.' c)))
         =/  result
           %:  save:mem
-            db  (cat 3 'imported-' identity)  0
+            everything:mem  db  (cat 3 'imported-' identity)  0
             :*  body.event  (words:index name.event)  |  &
                 (migrate-memory-source sid at t.events)
             ==

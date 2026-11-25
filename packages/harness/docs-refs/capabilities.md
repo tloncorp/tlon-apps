@@ -39,7 +39,7 @@ screen and `harness/session/config` show the saved list, not the tools an owner
 turn gets; `/status` reports the tools the turn can use.
 
 Long conversations are summarized automatically without deleting history.
-Relevant shared facts enter context automatically, and agents can search
+Relevant facts the conversation may see enter context automatically, and agents can search
 retained source material.
 You can choose separate models for summarization.
 
@@ -111,8 +111,8 @@ and [companion workflows](companion.md).
   Revocation cannot retract an external write.
 - Tlon hooks can continue after a conversation or grant ends. Public content
   can be copied or cached elsewhere.
-- Recurring schedules use UTC, not local-time/DST rules. Schedules and
-  operational records have capacity limits.
+- Recurring schedules use UTC or a fixed offset, not IANA zones or DST rules.
+  Schedules and operational records have capacity limits.
 - Local acknowledgement is not remote delivery or a read receipt. There is no
   cross-system exactly-once guarantee.
 

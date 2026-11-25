@@ -2,7 +2,7 @@
 /+  *test, c=harness-tlon-continuity
 |%
 ++  test-detached-route-keeps-receipts-and-starts-a-fresh-conversation
-  =/  saved=state-3:t  *state-3:t
+  =/  saved=state-5:t  *state-5:t
   =.  saved
     %=  saved  epoch  7  lanes  (my ~[['s' dm] ['other' dm]])  routes
         (my ~[['s' ['binding' %ready]] ['other' ['other-binding' %ready]]])  identities
@@ -52,6 +52,19 @@
   =/  policy  policy
   =/  next  policy(trusted (my ~[[~bud ~[%web %tlon %code]]]))
   (expect !>(&(!(actor-changed:c policy next ~bud) !(affected:c policy next dm))))
+++  test-adding-browser-grant-preserves-the-trusted-conversation
+  =/  policy  policy
+  =/  next  policy(trusted (my ~[[~bud ~[%web [%mcp 'kernel-browser']]]]))
+  =/  cuts  (cutoffs:c policy next ~ ~ (my ~[[~bud ~2026.9.5]]) ~2026.9.6)
+  ;:  weld
+      (expect !>(!(actor-changed:c policy next ~bud)))
+      (expect !>(!(affected:c policy next dm)))
+      (expect-eq !>(~2026.9.5) !>((~(got by cuts) ~bud)))
+  ==
+++  test-removing-browser-grant-fences-the-trusted-conversation
+  =/  policy  policy
+  =/  before  policy(trusted (my ~[[~bud ~[%web [%mcp 'kernel-browser']]]]))
+  (expect !>(&((actor-changed:c before policy ~bud) (affected:c before policy dm))))
 ++  test-removing-tlon-or-code-is-a-permission-change
   =/  policy  policy
   =/  tlon  policy(trusted (my ~[[~bud ~[%web %tlon]]]))

@@ -115,6 +115,8 @@
   =.  schedule-wake.e  `+(now)
   =.  corpus-wake.e  `(add now (div ~s1 10))
   =.  wake.knowledge.e  `(add now ~s1)
+  ::  Every load fences capture and compaction work sent before it.
+  =.  barrier.knowledge.e  +(barrier.knowledge.e)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now now)))
   ;<  ~  bind:m  live-only
   ;<  *  bind:m  (do-load head `!>(populated:up))

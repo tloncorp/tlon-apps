@@ -94,6 +94,37 @@ Unpermissioned senders are silently ignored.
 replaces the mount with the assembled desk, deleting anything stale.
 See [development and verification](docs-refs/development.md).
 
+## Install on a hosted moon
+
+Hosted moons install the desk from `~wannec-dozzod-marnus`. Once, in Dojo on
+that ship, create the desk and make it readable by other ships. It is not
+installed there, so its agents do not run on that ship:
+
+```text
+|new-desk %harness
+|public %harness
+```
+
+The [Deploy Harness](../../.github/workflows/deploy-harness.yml) workflow,
+run by hand from `develop` with a commit SHA, tag or branch, publishes that
+commit's desk there. It refuses a commit without a successful Harness CI run
+from a push to `develop`, and fails unless the ship ends up holding the commit.
+It never runs alongside the `%groups` deploy to that ship; a push to `develop`
+cancels it, and then it needs running again.
+
+On a moon, in Dojo:
+
+```text
+|install ~wannec-dozzod-marnus %harness
+```
+
+The moon then takes every commit the workflow publishes. The desk's
+`commit.txt` names the commit a ship holds:
+
+```text
+.^(wain %cx /=harness=/commit/txt)
+```
+
 ## Using a conversation
 
 Send `/help` for the shared command list. `/status` inspects the conversation,
@@ -103,7 +134,9 @@ undo an external action already performed.
 
 Use `/remember preference Keep replies short.` to pin a note,
 `/memory` to list notes and `/forget preference` to unpin one.
-Notes belong to that conversation and survive compaction verbatim. Search
+A note saved in a channel is seen in every conversation; one saved in a DM,
+only there and in the owner's DM. The owner's general preferences are
+recalled in every conversation. Notes survive compaction verbatim. Search
 content finds retained evidence; it does not fetch every other app's history.
 See [context and memory](docs-refs/context-and-memory.md).
 

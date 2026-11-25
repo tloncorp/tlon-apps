@@ -1,4 +1,4 @@
-/-  h=harness, m=harness-memory
+/-  h=harness, m=harness-memory, hh=harness-hand
 /+  *test, mem=harness-memory, api=harness-memory-json, hp=harness-provider,
     policy=harness-defaults, anthropic=harness-anthropic
 |%
@@ -10,14 +10,14 @@
   ^-  source:m
   ['first' 0v1 1 ~2026.10.7 '~zod']
 ++  saved
-  (command:api *state:m source 'remember' 'project Keep the project small.')
+  (command:api everything:mem *state:m source 'remember' 'project Keep the project small.')
 ++  test-commands-share-inspect-correct-and-forget
   =/  saved-result  saved
   =/  db  db.saved-result
-  =/  inspected  (command:api db source 'memory' 'project')
-  =/  edited  (command:api db source 'remember' 'project Keep the project modular.')
-  =/  forgotten  (command:api db.edited source 'forget' 'project')
-  =/  bad  (command:api db source 'forget' 'project extra')
+  =/  inspected  (command:api everything:mem db source 'memory' 'project')
+  =/  edited  (command:api everything:mem db source 'remember' 'project Keep the project modular.')
+  =/  forgotten  (command:api everything:mem db.edited source 'forget' 'project')
+  =/  bad  (command:api everything:mem db source 'forget' 'project extra')
   =/  found  (find "Keep the project small." (trip body.inspected))
   ;:  weld
       (expect !>(?=(^ edit.saved-result)))
@@ -27,10 +27,10 @@
       (expect-eq !>(db) !>(db.bad))
   ==
 ++  test-disabled-conversations-cannot-read-or-write
-  =/  off  (command:api db:saved source 'memory' 'off')
-  =/  read  (command:api db.off source 'memory' 'project')
-  =/  write  (command:api db.off source 'remember' 'second Another fact.')
-  =/  on  (command:api db.off source 'memory' 'on')
+  =/  off  (command:api everything:mem db:saved source 'memory' 'off')
+  =/  read  (command:api everything:mem db.off source 'memory' 'project')
+  =/  write  (command:api everything:mem db.off source 'remember' 'second Another fact.')
+  =/  on  (command:api everything:mem db.off source 'memory' 'on')
   ;:  weld
       (expect-eq !>(db.off) !>(db.read))
       (expect-eq !>(db.off) !>(db.write))
@@ -41,7 +41,7 @@
   |=(db=state:m (enabled:mem db 'first'))
 ++  test-memory-is-excluded-from-summary-but-counted-in-turn
   =/  v  fixture
-  =/  noted  v(memory (pack:mem db:saved ~['project'] 4.096))
+  =/  noted  v(memory (pack:mem everything:mem db:saved ~['project'] 4.096))
   %-  expect
   !>  ?&  =((payload:hp v %compaction ~) (payload:hp noted %compaction ~))
           (gth (est-tokens:hp noted ~ ~) (est-tokens:hp v ~ ~))
@@ -55,7 +55,7 @@
     ==
   |=  [url=@t failures=tang]
   =/  v  fixture
-  =.  v  v(url.config url, memory (pack:mem db:saved ~['project'] 4.096))
+  =.  v  v(url.config url, memory (pack:mem everything:mem db:saved ~['project'] 4.096))
   =/  body  (payload:hp v %turn ~)
   ?>  ?=(%o -.body)
   =/  input
@@ -82,7 +82,7 @@
         [%assistant 'earlier answer' ~]
         [%user 'latest question']
     ==
-  =.  v  v(url.config url, items history, memory (pack:mem db:saved ~['project'] 4.096))
+  =.  v  v(url.config url, items history, memory (pack:mem everything:mem db:saved ~['project'] 4.096))
   =/  body  (payload:hp v %turn ~)
   ?>  ?=(%o -.body)
   =/  input  (need (~(get by p.body) ?:(=('https://api.openai.com/v1/responses' url) 'input' 'messages')))
@@ -93,4 +93,35 @@
   =/  recall  (position "Relevant shared memories")
   =/  latest  (position "latest question")
   (weld failures (expect !>(&((lth answer recall) (lth recall latest)))))
+::  A channel and the owner's DM, both on the Tlon hand.
+::
+++  places
+  |=  sid=@t
+  %-  places:mem
+  %+  skim
+    ^-  (list binding:hh)
+    :~  ['tlon' 'chat/~zod/general' 'chan' ~['~nec'] &]
+        ['tlon' 'dm/~ten' 'owner-dm' ~['~ten'] &]
+    ==
+  |=(=binding:hh =(sid sid.binding))
+++  test-an-owner-save-onto-a-channel-fact-makes-it-private-and-says-so
+  =/  channel  `reach:mem`[| 'chan' places ~ nobody:mem]
+  =/  owner  `reach:mem`[& 'owner-dm' places ~ nobody:mem]
+  =/  in-channel=source:m  ['chan' 0v1 1 ~2026.10.7 '~nec']
+  =/  in-dm=source:m  ['owner-dm' 0v2 1 ~2026.10.8 '~ten']
+  =/  shared  (command:api channel *state:m in-channel 'remember' 'standup Standup is at nine.')
+  =/  same  (command:api owner db.shared in-dm 'remember' 'standup Standup is at nine.')
+  =/  moved  (command:api owner db.shared in-dm 'remember' 'standup Standup is at ten.')
+  =/  after  (command:api channel db.moved in-channel 'remember' 'standup Standup is at eleven.')
+  =/  read  (command:api channel db.moved in-channel 'memory' 'standup')
+  ;:  weld
+      (expect-eq !>('Memory saved.') !>(body.shared))
+      (expect-eq !>('Memory saved.') !>(body.same))
+      (expect-eq !>(db.shared) !>(db.same))
+      (expect-eq !>(private:api) !>(body.moved))
+      (expect-eq !>('owner-dm') !>(sid.source.value:(~(got by records.db.moved) 'standup')))
+      (expect-eq !>(unavailable:mem) !>(body.after))
+      (expect-eq !>(db.moved) !>(db.after))
+      (expect-eq !>('No matching shared memories.') !>(body.read))
+  ==
 --
