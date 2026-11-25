@@ -3308,6 +3308,8 @@
     |=  [[id=@uv job=job:t] engine=_cor]
     ?.  =(sid sid.job)  engine
     (refused:engine id job reason)
+  ::  A Steward create waiting on this conversation is answered too.
+  =.  cor  (fail-waiting sid reason)
   cor(lanes (~(del by lanes) sid), routes (~(del by routes) sid))
 ::
 ++  route-complete
