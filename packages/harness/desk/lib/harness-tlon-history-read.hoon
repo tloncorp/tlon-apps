@@ -68,12 +68,18 @@
     ^-  row:hp
     [at ?:(?=(%| -.value) ~ `(channel-post:hp +.value))]
   ==
-::  Whether a channel message's own author has a bot profile. ~ when local
-::  %channels lacks the channel, post, parent or reply: Activity rows outlive
-::  a left channel or a deletion, and the exact-message scries crash on a miss.
+::  Whether a channel message's own author has a bot profile.
 ++  bot-author
   |=  [to=destination:t id=@da]
   ^-  (unit ?)
+  (bind (written to id) |=([* =author:v9:dv] ?=(^ author)))
+::  A channel message's author, and whether it is still there or deleted. ~
+::  when local %channels lacks the channel, post, parent or reply: Activity
+::  rows outlive a left channel or a deletion, and the exact-message scries
+::  crash on a miss.
+++  written
+  |=  [to=destination:t id=@da]
+  ^-  (unit [live=? =author:v9:dv])
   ?.  ?=(%channel -.to)  ~
   ?.  .^(? %gu /(scot %p our.bowl)/channels/(scot %da now.bowl)/$)  ~
   ?.  .^(? %gu (channel:read-path %v4 nest.to))  ~
@@ -87,8 +93,8 @@
   =/  post  (get:on-posts:v9:dv posts.page top)
   ?~  post  ~
   ?~  parent.to
-    =/  =author:v9:dv  ?:(?=(%| -.u.post) author.u.post author:+.+.+.u.post)
-    `?=(^ author)
+    ?:  ?=(%| -.u.post)  `[| author.u.post]
+    `[& author:+.+.+.u.post]
   ::  A deleted parent's replies cannot be read without crashing.
   ?:  ?=(%| -.u.post)  ~
   =/  =replies:v9:dv
@@ -98,6 +104,6 @@
     ==
   =/  reply  (get:on-replies:v9:dv replies id)
   ?~  reply  ~
-  =/  =author:v9:dv  ?:(?=(%| -.u.reply) author.u.reply author:+.+.+.u.reply)
-  `?=(^ author)
+  ?:  ?=(%| -.u.reply)  `[| author.u.reply]
+  `[& author:+.+.+.u.reply]
 --

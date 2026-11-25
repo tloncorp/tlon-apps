@@ -1,8 +1,9 @@
 // The owner answers channel approval requests, on three real ships: the bot and two
 // others that take turns as its owner and as a ship on no list, in a channel on the
 // peer that the bot and the guest have joined. With the peer as owner, the guest
-// mentions the bot and the owner types /allow in its DM with the bot: the guest is then
-// answered in that channel and still not in a DM. With the guest as owner, the peer
+// mentions the bot and the owner types /allow in its DM with the bot: the guest's
+// waiting mention is then answered in that channel without its writing again, its next
+// mention is answered there too, and it is still not answered in a DM. With the guest as owner, the peer
 // mentions the bot and the owner posts /allow in the channel: that is an ordinary
 // message, answered as any slash text the head does not know, and grants nothing. The owner then types /reject in its
 // DM: the peer stays unanswered, with no request open. No DM command text is in a model
@@ -53,9 +54,15 @@ try {
   assert.deepEqual(allowed.policy.dmGrants, [], 'allow of a channel request gave DM access')
   console.log('PASS the owner\'s /allow gives the guest this channel only')
 
+  await until('the guest\'s waiting mention is answered without its writing again', async () => answered(await t.channelFromBot(start)))
+  assert.ok(t.seen(sentText(`${guest.ship.slice(1)}-first`)), 'the mention the guest asked with did not reach the model')
+  await sleep(3000)
+  assert.equal((await t.channelFromBot(start)).length, 1, 'the guest\'s waiting mention was answered more than once')
+  console.log('PASS the mention the guest asked with is answered once, without its writing again')
+
   await t.post(guest, sentText('after'))
-  await until('the guest\'s next mention is answered in the channel', async () => answered(await t.channelFromBot(start)))
-  assert.ok(!t.seen(sentText(`${guest.ship.slice(1)}-first`)), 'the mention the guest asked with reached the model')
+  await until('the guest\'s next mention is answered in the channel', async () => (await t.channelFromBot(start)).length === 2)
+  assert.ok(t.seen(sentText('after')))
   const direct = t.da(Date.now())
   await t.dm(guest, bot, sentText('direct'))
   await until('the guest sent its DM', async () => Object.values((await t.scry(guest, `chat/v4/dm/${bot.ship}/writs/newest/16/light`))?.writs || {})

@@ -1163,6 +1163,85 @@
   |=  [s=state-6:t nest=nest:dv]
   ^-  (set @p)
   (fall (~(get by channel-grants.policy.s) nest) ~)
+::  The turns admitted: speaker, destination and text.
+::
+++  admitted
+  |=  s=state-6:t
+  ^-  (list [@p destination:t @t])
+  %+  turn  ~(val by jobs.s)
+  |=(=job:t [actor to text]:input.job)
+::  ~dev's DM as local %chat holds it: .posts, each still there or deleted
+::
+++  dm-page
+  |=  posts=(list [at=@da text=@t live=?])
+  ^-  paged-writs:v7:cv
+  =/  w  *writ:v7:cv
+  :_  [~ ~ 0 0]
+  %+  gas:on:writs:v7:cv  ~
+  %+  turn  posts
+  |=  [at=@da text=@t live=?]
+  ^-  [@da (may:v7:cv writ:v7:cv)]
+  ?.  live  [at %| [~dev at] 1 at ~dev later]
+  :+  at  %&
+  [-.w(id [~dev at], time at) +.w(content ~[[%inline ~[text]]], author ~dev, sent at)]
+::  As +scries, with ~dev's DM holding .page and local %channels holding
+::  ~dev's posts .held in .room-nest, each still there or deleted
+::
+++  holding
+  |=  [events=stream:v10:a page=paged-writs:v7:cv held=(list [at=@da live=?])]
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %chat @ %v4 %dm %'~dev' %writs %newest *] path)  `!>(page)
+  =/  parts=(list @ta)  path
+  ?.  ?=([%gx @ %channels @ %v4 %chat %'~lux' %test %posts %older @ %'1' %outline %channel-posts-4 ~] path)
+    ((scries events) path)
+  ::  The exclusive upper bound names the one post read.
+  =/  top  (dec (slav %ud (snag 10 parts)))
+  =/  blank  *post:v9:dv
+  =/  posts=(list [@da (may:v9:dv post:v9:dv)])
+    %+  murn  held
+    |=  [at=@da live=?]
+    ?.  =(at top)  ~
+    ?.  live  `[at %| [at ~dev 1 later]]
+    `[at %& blank(id at, author ~dev)]
+  `!>(`paged-posts:v9:dv`[(gas:on-posts:v9:dv ~ posts) ~ ~ 0 0])
+::  Load .saved at .now, with local state as +holding has it, and deliver
+::  .events through Activity catch-up
+::
+++  admit-holding
+  |=  $:  saved=state-6:t  now=@da  events=(list [@da incoming-event:v8:a])
+          page=paged-writs:v7:cv  held=(list [at=@da live=?])
+      ==
+  =/  m  (mare ,[(list card) state-6:t])
+  ^-  form:m
+  =/  events  (stream events)
+  ;<  ~  bind:m  (boot saved now events)
+  ;<  ~  bind:m  (set-scry-gate (holding events page held))
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-6:t vase))
+::  %chat's acknowledgement of the bot's acceptance of ~dev's invitation, to
+::  the running adapter, which then catches up on the DM
+::
+++  ack-acceptance
+  =/  m  (mare ,state-6:t)
+  ^-  form:m
+  ;<  *  bind:m  (do-agent /invite/dm/(scot %p ~dev) [~zod %chat] [%poke-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m !<(state-6:t vase))
+++  one-at  ~2026.9.10..00.01.00
+++  two-at  ~2026.9.10..00.02.00
+++  three-at  ~2026.9.10..00.03.00
+::  ~dev's post in .room-nest that mentions the bot
+::
+++  mentioned
+  |=  [text=@t at=@da]
+  ^-  [@da incoming-event:v8:a]
+  [at (addressed ~dev room-nest text at)]
+++  mention-text
+  |=  text=@t
+  ^-  @t
+  (story-to-text:story ~[[%inline ~[[%ship ~zod] ' ' text]]])
 ::
 ++  test-allow-of-a-dm-request-grants-dm-access-only-and-accepts-the-pending-invitation
   %-  eval-mare
@@ -1186,9 +1265,7 @@
     ?.  ?=([%pass [%approval-reply @ ~] %agent * %poke %chat-dm-action-2 *] c)  ~
     `q.p.q:!<(action:dm:v7:cv q.cage.task.q.c)
   ;<  ~  bind:m  (ex-equal !>((levy stamps |=(at=@da (gth at later)))) !>(&))
-  ;<  ~  bind:m  (ex-equal !>(wake.s) !>(`(add start (add ~h48 ~m1))))
-  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
-  (ex-equal !>((turned caz)) !>(|))
+  (ex-equal !>(wake.s) !>(`(add start (add ~h48 ~m1))))
 ++  test-allow-of-a-channel-request-grants-that-channel-only
   %-  eval-mare
   =/  m  (mare ,~)
@@ -1208,6 +1285,136 @@
     ==
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   (ex-equal !>((turned caz)) !>(|))
+::  ~dev wrote once and waited. Allowed, it gets one turn, in its DM, on that
+::  message, and the catch-up once %chat has accepted the invitation answers
+::  it no second time.
+::
+++  test-allow-answers-a-waiting-dm-message-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  asked  later  ~[[told (said ~nec '/allow d0001' told)]]
+        (dm-page ~[[one-at 'may I ask?' &]])  ~
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal  !>((admitted s))
+    !>(`(list [@p destination:t @t])`~[[~dev [%dm ~dev ~] 'may I ask?']])
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'message')) !>(1))
+  ;<  w=state-6:t  bind:m  ack-acceptance
+  ;<  ~  bind:m  (ex-equal !>(jobs.w) !>(jobs.s))
+  (ex-equal !>((kinds w 'message')) !>(1))
+++  test-allow-answers-only-the-newest-of-three-waiting-dm-messages
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  asked  later  ~[[told (said ~nec '/allow d0001' told)]]
+        (dm-page ~[[one-at 'one' &] [two-at 'two' &] [three-at 'three' &]])  ~
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal  !>((admitted s))
+    !>(`(list [@p destination:t @t])`~[[~dev [%dm ~dev ~] 'three']])
+  ;<  w=state-6:t  bind:m  ack-acceptance
+  (ex-equal !>((admitted w)) !>((admitted s)))
+++  test-allow-answers-nothing-when-the-newest-dm-message-was-deleted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  asked  later  ~[[told (said ~nec '/allow d0001' told)]]
+        (dm-page ~[[one-at 'one' &] [two-at 'two' |]])  ~
+    ==
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  ~dev's DM grant was taken back at .two-at. What it wrote before then was
+::  past its cutoff, never an attempt of this request.
+::
+++  test-allow-answers-no-dm-message-from-before-the-requests-cutoff
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  place-cuts.saved  (~(put by place-cuts.saved) [~dev ~] two-at)
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  saved  later  ~[[told (said ~nec '/allow d0001' told)]]
+        (dm-page ~[[one-at 'before' &]])  ~
+    ==
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+++  test-allow-answers-a-waiting-channel-mention-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  asked  later
+        ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
+        (dm-page ~)  ~[[one-at &]]
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal  !>((admitted s))
+    !>  ^-  (list [@p destination:t @t])
+    ~[[~dev [%channel room-nest ~] (mention-text 'may I ask?')]]
+  (ex-equal !>((kinds s 'message')) !>(1))
+++  test-allow-answers-only-the-newest-of-three-waiting-channel-mentions
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  asked  later
+        :~  (mentioned 'one' one-at)
+            (mentioned 'two' two-at)
+            (mentioned 'three' three-at)
+            [told (said ~nec '/allow c0001' told)]
+        ==
+        (dm-page ~)  ~[[one-at &] [two-at &] [three-at &]]
+    ==
+  %+  ex-equal  !>((admitted s))
+  !>  ^-  (list [@p destination:t @t])
+  ~[[~dev [%channel room-nest ~] (mention-text 'three')]]
+::  Activity still holds the deleted mention; local %channels has its
+::  tombstone.
+::
+++  test-allow-answers-nothing-when-the-newest-channel-mention-was-deleted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  asked  later
+        ~[(mentioned 'one' one-at) (mentioned 'two' two-at) [told (said ~nec '/allow c0001' told)]]
+        (dm-page ~)  ~[[one-at &] [two-at |]]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~dev])))
+  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  A settings save that gives ~dev its DM accepts the invitation as an
+::  allow does, but leaves what ~dev wrote before unanswered.
+::
+++  test-a-settings-grant-answers-no-earlier-message
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  next  policy:asked
+  =.  dm-grants.next  (~(put in dm-grants.next) ~dev)
+  ;<  [caz=(list card) s=state-6:t]  bind:m  (configure asked next)
+  ;<  ~  bind:m  (ex-equal !>((accepted caz)) !>(`(list [@p ?])`~[[~dev &]]))
+  ;<  ~  bind:m  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+  ;<  w=state-6:t  bind:m  ack-acceptance
+  (ex-equal !>((admitted w)) !>(`(list [@p destination:t @t])`~))
+++  test-reject-answers-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  asked  later
+        ~[(mentioned 'hello' one-at) [told (said ~nec '/reject c0001' told)]]
+        (dm-page ~[[one-at 'hello' &]])  ~[[one-at &]]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+  ;<  [caz=(list card) s=state-6:t]  bind:m
+    %:  admit-holding  asked  later  ~[[told (said ~nec '/reject d0001' told)]]
+        (dm-page ~[[one-at 'hello' &]])  ~
+    ==
+  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
 ::  The ship can ask again: its next message opens a new request.
 ::
 ++  test-reject-of-a-dm-request-grants-nothing-and-declines-the-pending-invitation

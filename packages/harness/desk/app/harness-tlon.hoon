@@ -2017,8 +2017,11 @@
   ::  applies here as at admission.
   =/  cutoff  (speaker-cut u.speaker (place:p to.lane))
   =?  cutoff  (sibling:~(. ownership bowl) u.speaker)  (max cutoff sibling-owner-after)
+  ::  Input observed in the event of the change itself came after it: the
+  ::  change drops and fences the work admitted before it, and an allow
+  ::  admits the message it answers in that same event.
   ?&  ?=(^ (speaker-grants u.speaker to.lane ~))
-      (gth at.u.observation cutoff)
+      (gte at.u.observation cutoff)
   ==
 ::
 ++  read-profile
@@ -2846,6 +2849,13 @@
 ++  admit-message
   |=  event=incoming-event:v8:a
   ^+  cor
+  (admit event ~)
+::  +admit: admit .event as a turn, past .floor in place of the speaker's
+::  admission cutoff when one is given
+::
+++  admit
+  |=  [event=incoming-event:v8:a floor=(unit @da)]
+  ^+  cor
   =/  introduction=(unit @t)
     ?.  ?=(?(%dm-post %post) -.event)  ~
     ?.  (actor-owner p.id.key.event)  ~
@@ -2878,7 +2888,8 @@
       (review:workspace-plan u.posts our.bowl actor.u.input id.u.tapped)
     (cat 3 text.u.input (note:workspace-plan id.u.tapped create.u.tapped card))
   ::  All applicable authority cutoffs precede admission and identity updates.
-  ?:  (lte (posted-at:continuity event) (admission-cutoff actor.u.input to.u.input))  cor
+  =/  cutoff  ?^(floor u.floor (admission-cutoff actor.u.input to.u.input))
+  ?:  (lte (posted-at:continuity event) cutoff)  cor
   ::  A ready route does not recheck native read permission on its own.
   ?~  (speaker-grants actor.u.input to.u.input ~)  cor
   =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
@@ -3097,6 +3108,9 @@
   =/  address  (address:p (place-to:p [who place]:approval))
   ?-    action.order
       %allow
+    ::  The cutoff the request's attempts were judged by, before the grant
+    ::  moves it.
+    =/  floor  (admission-cutoff who.approval (place-to:p [who place]:approval))
     =/  granted=policy:t
       ?~  place.approval
         policy(dm-grants (~(put in dm-grants.policy) who.approval))
@@ -3110,6 +3124,7 @@
     =.  cor  (configure granted sibling-moon-owners)
     =.  approvals  (close:ask approvals id)
     =.  cor  (note 'approval-allowed' who.approval address id)
+    =.  cor  (answer-waiting who.approval place.approval floor)
     (answer-order to (confirmation:ask %allow who.approval (place-label place.approval)))
   ::
       %reject
@@ -3126,6 +3141,44 @@
     =/  =wire  /approval-ban/(scot %p who.approval)/[id]/(scot %uv (jam to))
     (emit (block:messenger wire who.approval))
   ==
+::  +answer-waiting: admit the newest message an allowed ship sent the bot
+::  in .place after .floor
+::
+::    The grant has just moved the ship's cutoff there past it, so it alone
+::    is admitted past .floor; the cutoff still stops every earlier message
+::    and a later catch-up of this one. A deleted message, or a channel the
+::    bot has left, gets no answer.
+::
+++  answer-waiting
+  |=  [who=@p =place:t floor=@da]
+  ^+  cor
+  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
+  ::  Activity reports no message of a pending invitation; read the DM.
+  ?~  place
+    =/  event  (newest-post:messenger who floor)
+    ?~(event cor (admit u.event `floor))
+  ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)  cor
+  ::  Activity holds each channel message as admission reads it, mention
+  ::  included.
+  =/  =stream:v10:a
+    .^(stream:v10:a %gx /(scot %p our.bowl)/activity/(scot %da now.bowl)/v6/all/noun)
+  =/  found
+    %^  latest:activity-read  stream  floor
+    |=  row:activity-read
+    =/  heard  (supported:activity-read event)
+    ?~  heard  |
+    ?&  =(`who (actor:continuity u.heard))
+        =(``u.place (event-place:p u.heard))
+        (gth (posted-at:continuity u.heard) floor)
+        ?=(^ (normalize-owned:p our.bowl policy u.heard actor-owner))
+    ==
+  ?~  found  cor
+  =/  event  (need (supported:activity-read event.u.found))
+  =/  heard  (need (normalize-owned:p our.bowl policy event actor-owner))
+  ::  Activity outlives a deleted message.
+  =/  held  (written:~(. history-read bowl) to.heard (posted-at:continuity event))
+  ?.  &(?=(^ held) live.u.held)  cor
+  (admit event `floor)
 ::  +banned: close a blocked ship's requests and take back its DM grant
 ::
 ++  banned

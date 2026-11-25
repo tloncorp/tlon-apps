@@ -140,6 +140,29 @@
     ~
   `[%dm-post [id:-.post time] [%ship who] content:+.post |]
 ::
+::  +newest-post: .who's newest DM post after .since, as +invitation-posts
+::  projects it; ~ when it was deleted
+::
+++  newest-post
+  |=  [who=@p since=@da]
+  ^-  (unit incoming-event:v8:a)
+  =/  page=paged-writs:v7:cv
+    .^  paged-writs:v7:cv  %gx
+      (weld (dm-writs:read-path who) /newest/64/light/chat-paged-writs-4)
+    ==
+  =/  theirs
+    %+  skim  (bap:on:writs:v7:cv writs.page)
+    |=  [time=@da item=(may:v7:cv writ:v7:cv)]
+    ?.  (gth time since)  |
+    ?:  ?=(%| -.item)  =(who p.id.item)
+    =/  post  +.item
+    &(=(who p.id:-.post) =(chat+/ kind:+.post))
+  ?~  theirs  ~
+  =/  [time=@da item=(may:v7:cv writ:v7:cv)]  i.theirs
+  ?:  ?=(%| -.item)  ~
+  =/  post  +.item
+  `[%dm-post [id:-.post time] [%ship who] content:+.post |]
+::
 ::  +dm-recent: the newest posts of a DM, oldest first, with their blobs.
 ::  Workspace cards and taps are read from here; nothing else records them.
 ::
