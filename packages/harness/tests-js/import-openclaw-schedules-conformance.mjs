@@ -1,6 +1,5 @@
 // The OpenClaw schedule import against fake ships. `~lux`, the bot's owner here,
-// opens a DM and a channel conversation with the bot by commands, which call no
-// model, and an export shaped like `openclaw cron list --json --all` is imported,
+// has sent no messages. An export shaped like `openclaw cron list --json --all` is imported,
 // rerun and dry-run. Its schedules fall in a month away from today, so none fires
 // during the run. It cancels the schedules it made and restores the Tlon policy;
 // the conversations stay, on a ship the runner resets before each script.
@@ -12,38 +11,22 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { Client, cookie } from './lib/ship-client.mjs'
-import { until } from './lib/reliability.mjs'
 import { conversationsOf, idOf, nextRun, offsetOf, parseCron, run, timeOf } from '../acp/import-openclaw-schedules.mjs'
 
 const peerUrl = process.env.PEER_URL, nest = process.env.TEST_NEST
 assert.ok(peerUrl && nest && process.env.PEER_COOKIE, 'Set PEER_URL, PEER_COOKIE and TEST_NEST')
 const row = (await readFile(process.env.PEER_COOKIE, 'utf8')).split('\n').find((r) => /\turbauth-~/.test(r)).split('\t')
-const peerCookie = `${row[5]}=${row[6]}`, owner = row[5].slice('urbauth-'.length)
+const owner = row[5].slice('urbauth-'.length)
 const script = fileURLToPath(new URL('../acp/import-openclaw-schedules.mjs', import.meta.url))
 const execute = promisify(execFile)
-const client = new Client(), ship = `~${client.ship}`
+const client = new Client()
 const marker = `schedules-${Date.now()}`
-let adds = 0, event = 0, policy, directory
+let adds = 0, policy, directory
 // Counts the creates the import sends, repeats included.
 const counted = { call: (method, params) => {
   if (method === 'harness/cron/add') adds++
   return client.call(method, params)
 } }
-
-// A message from the owner: in the DM, or in the channel mentioning the bot.
-async function send(text, inChannel) {
-  const stamp = Date.now()
-  const da = (((BigInt(stamp) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  const content = [{ inline: [...(inChannel ? [{ ship }, ' '] : []), text] }]
-  const essay = { content, author: owner, sent: stamp, blob: null, kind: '/chat', meta: null }
-  const json = inChannel ? { channel: { nest, action: { post: { add: essay } } } } : { ship, diff: { id: `${owner}/${da}`, delta: { add: { essay, time: null } } } }
-  const response = await fetch(`${peerUrl}/~/channel/${marker}`, {
-    method: 'PUT', headers: { cookie: peerCookie, 'content-type': 'application/json' },
-    body: JSON.stringify([{ id: ++event, action: 'poke', ship: owner.slice(1), app: inChannel ? 'channels' : 'chat', mark: inChannel ? 'channel-action-2' : 'chat-dm-action-2', json }]),
-    signal: AbortSignal.timeout(15_000),
-  })
-  assert.ok(response.ok, `send HTTP ${response.status}`)
-}
 
 const now = new Date()
 // A month that is never this one, so no schedule fires during the run.
@@ -112,13 +95,20 @@ try {
   await writeFile(join(directory, 'export.json'), JSON.stringify(exported))
   policy = (await client.call('harness/tlon')).policy
   await client.call('harness/tlon/configure', { enabled: true, owner, response: 'mentions', allowed: [], channels: [], trusted: [] })
-  await send('/memory', false)
-  await send('/memory', true)
-  const conversations = await until(async () => {
-    const found = await conversationsOf(client)
-    const dm = found.find(({ destination }) => destination === `dm/${owner}`), channel = found.find(({ destination }) => destination === nest)
-    return dm && channel && { [`dm/${owner}`]: dm.binding, [nest]: channel.binding }
-  }, 60_000, 'Harness admitting the owner\'s DM and channel messages')
+  const destinations = [`dm/${owner}`, nest]
+  const work = await conversationsOf(client)
+  assert.ok(destinations.every((address) => !work.some(({ destination }) => destination === address)))
+  const conversations = {}
+  async function inspect(address) {
+    return client.call('harness/tlon/schedule-destination', { owner, address, open: false })
+  }
+  await assert.rejects(client.call('harness/tlon/schedule-destination', { owner, address: 'dm/~nec', open: true }), /must go to the owner/)
+  await assert.rejects(client.call('harness/tlon/schedule-destination', { owner: '~nec', address: 'dm/~nec', open: true }), /owner changed/)
+  for (const address of destinations) {
+    const target = await inspect(address)
+    assert.equal(target.ready, false, address)
+    conversations[address] = target.binding
+  }
   const before = await schedules()
 
   console.log('--- dry run')
@@ -128,12 +118,14 @@ try {
   for (const name of imported) assert.match(line(dry.output, jobs[name].name), /\| would import/, name)
   assert.deepEqual(await schedules(), before, '--dry-run creates nothing')
 
+  for (const address of destinations) assert.equal((await inspect(address)).ready, false)
+
   console.log('--- first import')
   const first = await importing()
   quiet(first.output)
   assert.equal(first.code, 0)
   assert.equal(adds, imported.length)
-  assert.match(line(first.output, 'missing'), new RegExp(`refused: no conversation in chat/${owner}/no-such-channel yet; send the bot a message in it first`))
+  assert.match(line(first.output, 'missing'), /refused: .*no-such-channel/)
   assert.match(line(first.output, 'tools'), /refused: limited to 2 tools; .*--widen-tools/)
   assert.match(line(first.output, 'silent'), /refused: delivery is off \(mode none\); .*--none-to-owner-dm/)
   assert.match(line(first.output, 'off'), /disabled, not imported/)

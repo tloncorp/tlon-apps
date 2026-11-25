@@ -118,11 +118,9 @@ On a moon, in this order:
 
 1. Save the export while OpenClaw still runs.
 2. Stop OpenClaw, so that the two runtimes never both run a task.
-3. Start Harness with the owner set. Each task becomes a schedule of an
-   existing Tlon conversation, so the owner sends the bot a message in every
-   DM, channel and thread a task posts to. In a channel or thread the message
-   mentions the bot: by default the bot answers only mentions there, and a
-   message it does not answer starts no conversation.
+3. Start Harness with the owner set. The importer can open the owner's DM
+   and channels the bot may post in, even before the first message. A task
+   targeting a thread needs an existing conversation in that thread.
 4. Run with `--dry-run`, which creates nothing, and read what it prints.
 5. Run again without it.
 
@@ -140,8 +138,7 @@ Each task is mapped this way:
 - A delivery `to` naming the owner's ship (`~ship`, `dm/~ship`, `dm:~ship`,
   with or without `tlon:`) posts to the owner's DM; a nest such as
   `chat/~host/name`, `heap/…` or `diary/…`, with or without `tlon:`, `group:`
-  or `room:`, posts to that channel. The task is refused when the ship has no
-  conversation there yet.
+  or `room:`, posts to that channel. The hand checks its channel policy and posting permissions before opening a channel.
 - A task with a `threadId` posts to the existing conversation in that thread.
   With none, it is refused, unless `--threads-to-parent` sends it to the DM
   or channel instead.
