@@ -128,7 +128,8 @@ On a moon, in this order:
 
 Each task is mapped this way:
 
-- A cron task becomes a recurring prompt of 100 runs. Its timezone becomes the
+- A cron task becomes a recurring prompt with no run count, so it runs until
+  it is cancelled, as it did in OpenClaw. Its timezone becomes the
   zone's offset on the day of the import, such as `-05:00` for
   America/New_York in winter; a zone at UTC+0 is sent as `UTC`. The offset is
   fixed: a task imported in winter runs an hour off, in local time, while
@@ -178,23 +179,38 @@ are dropped too: the conversation's own settings run the schedule. Only the
 model is named on the line. A scheduled run gets no transcript, whatever
 session the task used.
 
-A recurring schedule stops after its hundredth run. For each new cron task
-the script prints the date of that run, worked out from the expression and
-the offset; when the four-year search runs out first, it prints the last run
-it finds. For an expression outside the grammar above it prints that the date
-is unknown; the head decides whether to accept it. For a schedule Harness
-already holds, the date comes from the schedule's next run and the runs it
-has left. Either way, a schedule that ends within 30 days is marked, so the
-operator can tell the owner.
+`--runs N`, a whole number from 1 to 1,000,000, gives every recurring task a
+count of N runs instead, after which it stops. A desk with optional run
+counts accepts any N up to 1,000,000; a desk from before them accepts only 1
+to 100, its own ceiling, and refuses a recurring schedule without one, with
+its general validation message; the script then adds "if this desk predates
+optional run counts, rerun with --runs 100" to the task's line, and a rerun
+with `--runs 100` imports those tasks. Nothing is retried on its own.
+
+For each new cron task the script prints "runs until cancelled", or with
+`--runs` the date of its last run, worked out from the expression and the
+offset; when the four-year search runs out first, it prints the last run it
+finds, and a date more than a hundred years away is not worked out: the line
+says it runs for more than a hundred years. For an expression outside the
+grammar above it says so; the head decides whether to accept it. For a
+schedule Harness already holds, the line comes from the schedule's next run
+and the runs it has left, or says it runs until cancelled when it has no
+count; a stopped schedule with no count shows only its state. A schedule that
+ends within 30 days is marked, so the operator can tell the owner.
 
 The schedule id is derived from the OpenClaw task's id, so a rerun repeats the
 same creates. The head answers each with the schedule it holds, and the script
 compares that schedule's timing, prompt, conversation and kind with the task:
 the same is reported as already there, and a schedule edited in Harness since
-the import as existing but different, left as it is. A rerun that would
-create a task differently is refused by the head. That happens after the
-zone's offset changes, after the conversation gets a new binding, or with a
-different choice of options.
+the import as existing but different, left as it is. A rerun without
+`--runs` over a task an earlier import made with a count, unchanged since,
+reports it as existing with a run limit and leaves it as it is, without
+sending its create; that is not a failure. With `--runs N`, a schedule that
+has no count or more than N runs left differs from the task, since an edit
+in Harness gave it that; fewer runs left are runs already used. A rerun that
+would create a task differently is refused by the head. That happens after
+the zone's offset changes, after the conversation gets a new binding, or with
+a different choice of options.
 
 The script prints one line per task, with its label, schedule, destination,
 outcome and notes, then totals. It prints no prompt. It exits non-zero when a
@@ -289,9 +305,10 @@ literal delivery, recursive-call denial and source revocation. It uses a local
 deterministic model, leaves marked conversation/receipt evidence and cancels its
 fixture schedules without changing global defaults or Tlon policy.
 `acp/import-openclaw-schedules.test.mjs` covers the import's mapping,
-refusals, ids, offsets and hundredth-run dates offline.
+refusals, ids, offsets, run counts and stop dates offline.
 `tests-js/import-openclaw-schedules-conformance.mjs` opens a DM and a channel
 conversation with the owner on fake ships, then checks a dry run, an import
 read back from `harness/cron`, a rerun that creates nothing, a task aimed at a
-missing conversation, `--widen-tools` and `--none-to-owner-dm`, and a rerun
-after an imported schedule is edited.
+missing conversation, `--widen-tools` and `--none-to-owner-dm`, a rerun
+after an imported schedule is edited, and an import with `--runs 100` followed
+by a rerun without it.
