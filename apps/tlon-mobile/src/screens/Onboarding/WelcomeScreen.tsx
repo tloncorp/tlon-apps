@@ -3,10 +3,10 @@ import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   ActionSheet,
+  Button,
   OnboardingButton,
   OnboardingInviteBlock,
   Pressable,
-  SatoWordmark,
   SizableText,
   TlonText,
   View,
@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCheckAppInstalled } from '../../hooks/analytics';
 import type { OnboardingStackParamList } from '../../types';
-import { WelcomeIcon } from './WelcomeIcon';
+import { SatoMark } from './SatoMark';
 
 export const Text = TlonText.Text;
 
@@ -30,16 +30,29 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
   const { isAuthenticated } = useShip();
   const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
 
   useCheckAppInstalled();
 
-  const handlePressSignup = useCallback(() => {
+  const handlePressSignup = useCallback(
+    (method?: 'email' | 'phone') => {
+      trackEvent(AnalyticsEvent.OnboardingPathSelected, {
+        path: 'signup',
+      });
+      setSignupOpen(false);
+      navigation.navigate('Signup', method ? { method } : undefined);
+    },
+    [navigation]
+  );
+
+  const handlePressInvite = useCallback(() => {
     trackEvent(AnalyticsEvent.OnboardingPathSelected, {
-      path: 'signup',
+      path: 'invite',
     });
-    navigation.navigate('Signup');
+    setSignupOpen(false);
+    navigation.navigate('PasteInviteLink');
   }, [navigation]);
 
   useEffect(() => {
@@ -62,19 +75,23 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   });
 
   return (
-    <View flex={1} backgroundColor={'$secondaryBackground'} paddingTop={top}>
-      <View flex={1} justifyContent="center" alignItems="center" gap={'$3.5xl'}>
-        <WelcomeIcon />
-        <View accessible role="heading" aria-label="Sato">
-          <SatoWordmark width={128} height={57} />
-        </View>
+    <View flex={1} backgroundColor={'$background'} paddingTop={top}>
+      <View
+        flex={1}
+        justifyContent="center"
+        alignItems="center"
+        gap={28}
+        paddingBottom={64}
+      >
+        <SatoMark />
+        <TlonText.Text size="$label/xl">It’s yours.</TlonText.Text>
       </View>
       <View
-        paddingBottom={bottom + 16}
+        paddingBottom={bottom + 6}
         justifyContent={'flex-end'}
         alignItems={'center'}
       >
-        <YStack gap="$4xl" paddingHorizontal="$2xl" width={'100%'}>
+        <YStack gap={4} paddingHorizontal="$2xl" width={'100%'}>
           <YStack gap="$2xl">
             {lureMeta ? (
               <Pressable
@@ -82,7 +99,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                 pressStyle={{
                   opacity: 0.5,
                 }}
-                onPress={handlePressSignup}
+                onPress={() => handlePressSignup()}
               >
                 <YStack
                   alignItems="stretch"
@@ -95,28 +112,20 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                 >
                   <OnboardingInviteBlock metadata={lureMeta} />
                   <OnboardingButton
-                    onPress={handlePressSignup}
+                    onPress={() => handlePressSignup()}
                     label="Join with new account"
                   />
                 </YStack>
               </Pressable>
             ) : (
-              <YStack gap="$l">
-                <OnboardingButton onPress={handlePressSignup} label="Sign up" />
-                <OnboardingButton
-                  secondary
-                  onPress={() => {
-                    trackEvent(AnalyticsEvent.OnboardingPathSelected, {
-                      path: 'invite',
-                    });
-                    navigation.navigate('PasteInviteLink');
-                  }}
-                  label="Join with an invite"
-                />
-              </YStack>
+              <OnboardingButton
+                onPress={() => setSignupOpen(true)}
+                label="Create account"
+                testID="welcome-create-account"
+              />
             )}
           </YStack>
-          <XStack justifyContent="center">
+          <XStack justifyContent="center" height={44} alignItems="center">
             <Pressable
               pressStyle={{
                 backgroundColor: '$transparent',
@@ -130,6 +139,60 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </XStack>
         </YStack>
       </View>
+      <ActionSheet open={signupOpen} onOpenChange={setSignupOpen} compact>
+        <ActionSheet.Content>
+          <ActionSheet.ContentBlock gap="$l">
+            <OnboardingButton
+              onPress={() => handlePressSignup('email')}
+              label="Use email"
+              testID="signup-with-email"
+            />
+            <Button
+              preset="hero"
+              size="medium"
+              fill="outline"
+              width="100%"
+              borderWidth={1}
+              borderColor="$border"
+              onPress={() => handlePressSignup('phone')}
+              label="Use phone number"
+              testID="signup-with-phone"
+            />
+            <XStack justifyContent="center" paddingTop="$s">
+              <Pressable
+                onPress={handlePressInvite}
+                testID="signup-with-invite"
+              >
+                <SizableText color="$secondaryText">
+                  I have an invite link
+                </SizableText>
+              </Pressable>
+            </XStack>
+            <XStack justifyContent="center" flexWrap="wrap">
+              <TlonText.Text size="$label/s" color="$tertiaryText">
+                By signing up you agree to the{' '}
+              </TlonText.Text>
+              <Pressable
+                onPress={() => {
+                  setSignupOpen(false);
+                  navigation.navigate('EULA');
+                }}
+              >
+                <TlonText.Text
+                  size="$label/s"
+                  color="$tertiaryText"
+                  textDecorationLine="underline"
+                >
+                  Terms of Service
+                </TlonText.Text>
+              </Pressable>
+              <TlonText.Text size="$label/s" color="$tertiaryText">
+                .
+              </TlonText.Text>
+            </XStack>
+          </ActionSheet.ContentBlock>
+        </ActionSheet.Content>
+      </ActionSheet>
       <ActionSheet open={open} onOpenChange={setOpen}>
         <ActionSheet.Content>
           <ActionSheet.ActionGroup accent="neutral">

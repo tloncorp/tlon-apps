@@ -93,11 +93,11 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
   });
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="Sato Login"
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>

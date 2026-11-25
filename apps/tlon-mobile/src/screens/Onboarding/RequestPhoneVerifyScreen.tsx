@@ -60,11 +60,11 @@ export const RequestPhoneVerifyScreen = ({
   });
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="Confirm"
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
         rightControls={
           <ScreenHeader.TextButton onPress={onSubmit} disabled={isSubmitting}>

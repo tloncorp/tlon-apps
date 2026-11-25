@@ -5,10 +5,9 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
-import { useIsDarkMode } from '../../../../hooks/useDarkMode';
 import { ScreenHeader } from '../../ScreenHeader';
 import { OnboardingButton } from '../OnboardingButton';
-import { LINE, LineRule } from './lineKit';
+import { LINE, LineOutline, LineRule } from './lineKit';
 
 /** Profile, Notifications, Setting up, then the five first-run screens. */
 export const ONBOARDING_STEP_COUNT = 8;
@@ -27,7 +26,7 @@ export const ART_TO_BULLETS_GAP = 34;
 /** And a boxed list, of models or services, this far. */
 export const ART_TO_BOX_GAP = 55;
 /** The main button at the foot of each screen, the welcome screen's. */
-export const LINE_BUTTON_HEIGHT = 72;
+export const LINE_BUTTON_HEIGHT = 56;
 /** A quiet button, its label alone, under the main one. */
 const QUIET_BUTTON_HEIGHT = 44;
 const QUIET_BUTTON_GAP = 4;
@@ -35,9 +34,8 @@ const QUIET_BUTTON_GAP = 4;
 const FOOT_GAP = 10;
 const FOOT_GAP_UNDER_QUIET = 2;
 
-/** The progress along the top: one short dash per step, the current one ink. */
+/** The progress along the top: one short dash per step, ink up to this one. */
 export function OnboardingStepDots({ step }: { step: number }) {
-  const isDark = useIsDarkMode();
   return (
     <XStack
       justifyContent="center"
@@ -51,9 +49,7 @@ export function OnboardingStepDots({ step }: { step: number }) {
           key={index}
           width={DASH_WIDTH}
           height={DASH_HEIGHT}
-          backgroundColor={
-            index + 1 === step ? '$primaryText' : isDark ? '#4A4646' : '#D6D6D6'
-          }
+          backgroundColor={index < step ? '$primaryText' : '$border'}
         />
       ))}
     </XStack>
@@ -95,7 +91,7 @@ export function LineButton({
     );
   }
   const inactive = disabled || loading;
-  const foreground = disabled ? '$secondaryText' : '$primaryText';
+  const foreground = disabled ? '$tertiaryText' : '$secondaryText';
   return (
     <Pressable
       onPress={() => {
@@ -116,9 +112,8 @@ export function LineButton({
         gap="$m"
       >
         <Text
-          fontSize={16}
-          lineHeight={22}
-          letterSpacing={-0.2}
+          size="$label/xl"
+          trimmed={false}
           color={foreground}
           numberOfLines={1}
         >
@@ -182,7 +177,7 @@ export function LineStepFrame({
   return (
     <View
       flex={1}
-      backgroundColor="$secondaryBackground"
+      backgroundColor="$background"
       paddingTop={insets.top + 2}
       paddingBottom={
         Math.max(insets.bottom, 14) +
@@ -222,9 +217,9 @@ export function LineStepFrame({
           marginTop={28}
           marginHorizontal={32}
           textAlign="center"
-          fontSize={30}
-          lineHeight={35}
-          letterSpacing={-0.6}
+          fontSize={26}
+          lineHeight={32}
+          letterSpacing={-0.5}
           color="$primaryText"
           accessibilityRole="header"
         >
@@ -232,12 +227,11 @@ export function LineStepFrame({
         </Text>
         {subtitle ? (
           <Text
-            marginTop={9}
-            marginHorizontal={40}
+            marginTop={10}
+            marginHorizontal={32}
             textAlign="center"
-            fontSize={15}
-            lineHeight={21}
-            letterSpacing={-0.1}
+            size="$label/xl"
+            trimmed={false}
             color="$secondaryText"
           >
             {subtitle}
@@ -303,30 +297,36 @@ export function LineTextLink({
   );
 }
 
-/** The bullet list under a drawing: per row, an icon, then one line. */
+/** An icon in a small outlined tile, as in the bullet and data lists. */
+export const LINE_ICON_TILE = 40;
+
+export function LineIconTile({ children }: { children: ReactNode }) {
+  return (
+    <View
+      width={LINE_ICON_TILE}
+      height={LINE_ICON_TILE}
+      flexShrink={0}
+      alignItems="center"
+      justifyContent="center"
+    >
+      {children}
+      <LineOutline radius={10} />
+    </View>
+  );
+}
+
+/** The bullet list under a drawing: per row, an icon in a tile, then text. */
 export function LineBulletList({
   items,
 }: {
   items: { icon: ReactNode; label: string }[];
 }) {
   return (
-    <YStack marginHorizontal="$2xl">
+    <YStack marginHorizontal={32} gap={22}>
       {items.map((item) => (
-        <XStack
-          key={item.label}
-          minHeight={56}
-          paddingHorizontal={4}
-          alignItems="center"
-          gap={14}
-        >
-          {item.icon}
-          <Text
-            flex={1}
-            fontSize={16}
-            lineHeight={22}
-            letterSpacing={-0.2}
-            color="$primaryText"
-          >
+        <XStack key={item.label} alignItems="center" gap={16}>
+          <LineIconTile>{item.icon}</LineIconTile>
+          <Text flex={1} size="$label/xl" trimmed={false} color="$primaryText">
             {item.label}
           </Text>
         </XStack>

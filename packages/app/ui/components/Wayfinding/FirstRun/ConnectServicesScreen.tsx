@@ -157,46 +157,47 @@ export function ConnectServicesScreen({
                 onCheckAgain={() => onCheckAgain(service.row.id)}
               />
             ))}
-            <Pressable
-              onPress={onAllServices}
-              accessibilityRole="button"
-              accessibilityLabel={
-                allServicesCount === null
-                  ? copy.allServices
-                  : `${copy.allServices}, ${allServicesCount}`
-              }
-              testID="first-run-all-services"
-            >
-              <XStack
-                height={52}
-                paddingHorizontal={14}
-                alignItems="center"
-                gap="$m"
-              >
-                {featured.length ? <LineRule /> : null}
-                <Text
-                  flex={1}
-                  fontSize={15}
-                  lineHeight={20}
-                  color="$primaryText"
-                >
-                  {copy.allServices}
-                </Text>
-                {allServicesCount === null ? null : (
-                  <Text
-                    fontFamily="$mono"
-                    fontSize={13}
-                    lineHeight={20}
-                    color="$secondaryText"
-                  >
-                    {allServicesCount}
-                  </Text>
-                )}
-                <AllServicesChevron />
-              </XStack>
-            </Pressable>
             <LineOutline radius={LINE_LIST_RADIUS} />
           </YStack>
+          <Pressable
+            onPress={onAllServices}
+            accessibilityRole="button"
+            accessibilityLabel={
+              allServicesCount === null
+                ? copy.allServices
+                : `${copy.allServices}, ${allServicesCount}`
+            }
+            testID="first-run-all-services"
+          >
+            <XStack
+              height={44}
+              marginTop={6}
+              marginHorizontal="$2xl"
+              paddingHorizontal={16}
+              alignItems="center"
+              gap="$m"
+            >
+              <Text
+                flex={1}
+                size="$label/xl"
+                trimmed={false}
+                color="$primaryText"
+              >
+                {copy.allServices}
+              </Text>
+              {allServicesCount === null ? null : (
+                <Text
+                  fontFamily="$mono"
+                  fontSize={13}
+                  lineHeight={20}
+                  color="$secondaryText"
+                >
+                  {allServicesCount}
+                </Text>
+              )}
+              <AllServicesChevron />
+            </XStack>
+          </Pressable>
         </>
       )}
     </LineStepFrame>
@@ -289,18 +290,12 @@ function ServiceRow({
         />
       </View>
       <YStack flex={1}>
-        <Text
-          fontSize={16}
-          lineHeight={22}
-          letterSpacing={-0.2}
-          color="$primaryText"
-        >
+        <Text size="$label/xl" trimmed={false} color="$primaryText">
           {row.displayName}
         </Text>
         <Text
-          fontSize={14}
-          lineHeight={20}
-          letterSpacing={-0.1}
+          size="$label/m"
+          trimmed={false}
           color={lineNeedsAttention ? '$primaryText' : '$secondaryText'}
           accessibilityLiveRegion="polite"
         >

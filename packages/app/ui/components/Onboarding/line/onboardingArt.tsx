@@ -30,7 +30,7 @@ export function SetupArt({ glyph }: { glyph: AvatarGlyphId }) {
       height={242}
       scale={0.6}
       foot={241}
-      label="Your Tlon computer, with your Tlonbot inside it, still being set up"
+      label="Your Sato’s computer, with your Sato inside it, still being set up"
     >
       <ArtSvg>
         <HatchedBox x={1} y={1} width={240} height={240} radius={16} />
@@ -42,11 +42,11 @@ export function SetupArt({ glyph }: { glyph: AvatarGlyphId }) {
   );
 }
 
-/** The three boxes on Meet your Tlonbot, from the top. */
+/** The three boxes on Meet Sato, from the top. */
 const MEET_BOXES = [1, 43, 85];
 
 /**
- * Meet your Tlonbot: arrows from the Tlonbot to chat lines, three people and
+ * Meet Sato: arrows from the Tlonbot to chat lines, three people and
  * a row of apps.
  */
 export function MeetArt({ glyph }: { glyph: AvatarGlyphId }) {
@@ -56,7 +56,7 @@ export function MeetArt({ glyph }: { glyph: AvatarGlyphId }) {
       height={118}
       foot={117}
       scale={1.2414}
-      label="Your Tlonbot, with straight arrows to chat lines, three people and a row of apps"
+      label="Your Sato, with straight arrows to chat lines, three people and a row of apps"
     >
       <ArtSvg>
         {MEET_BOXES.map((y) => (
@@ -111,7 +111,7 @@ export function PrivateArt({ glyph }: { glyph: AvatarGlyphId }) {
       width={234}
       height={146}
       foot={145}
-      label="Your Tlonbot inside your computer's thick walls, with dashed lines from outside stopping short of them"
+      label="Your Sato inside your computer's thick walls, with dashed lines from outside stopping short of them"
     >
       <ArtSvg>
         <HatchedBox x={45} y={1} width={144} height={144} radius={16} />
@@ -174,7 +174,7 @@ export function ConnectArt({
       width={200}
       height={span + 2}
       foot={span + 1}
-      label={`Your Tlonbot with a line to each service: dashed until you connect it, then solid. ${
+      label={`Your Sato with a line to each service: dashed until you connect it, then solid. ${
         services.filter((service) => service.connected).length
       } of ${count} connected.`}
     >
@@ -284,7 +284,7 @@ export function ModelArt({
       width={288}
       height={MODEL_TILE.y + MODEL_TILE.size + 1}
       foot={MODEL_TILE.y + MODEL_TILE.size}
-      label="Your Tlonbot with an arrow to each way to get a model, solid to the one you pick"
+      label="Your Sato with an arrow to each way to get a model, solid to the one you pick"
     >
       <ArtSvg>
         <BotTile glyph={glyph} x={116} y={1} size={56} />
@@ -389,7 +389,7 @@ export function WorkspaceArt({ glyph }: { glyph: AvatarGlyphId }) {
       width={266}
       height={146}
       foot={145}
-      label="A workspace in three panels: a chat, a row of shared files, and below them your Tlonbot, a friend and an open seat"
+      label="A workspace in three panels: a chat, a row of shared files, and below them your Sato, a friend and an open seat"
     >
       <ArtSvg>
         <ArtBox x={1} y={1} width={264} height={144} radius={16} />

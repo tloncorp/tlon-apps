@@ -62,7 +62,6 @@ export function FirstRunSheet({
           <Text
             fontSize={20}
             lineHeight={26}
-            fontWeight="600"
             letterSpacing={-0.3}
             color="$primaryText"
             accessibilityRole="header"
@@ -75,9 +74,9 @@ export function FirstRunSheet({
         <YStack paddingHorizontal="$xl" gap="$l">
           {intro ? (
             <Text
-              fontSize={16}
-              lineHeight={24}
-              color="$primaryText"
+              size="$label/xl"
+              trimmed={false}
+              color="$secondaryText"
               paddingHorizontal="$xs"
             >
               {intro}
@@ -85,7 +84,7 @@ export function FirstRunSheet({
           ) : null}
           {choices ?? null}
           <YStack
-            backgroundColor="$secondaryBackground"
+            backgroundColor="$background"
             borderRadius={22}
             paddingHorizontal="$xl"
           >
@@ -108,11 +107,15 @@ export function FirstRunSheet({
                     it shrink pulls it back to the row, so the text wraps. */}
                 <YStack flex={1} flexShrink={1} gap={2}>
                   {row.label ? (
-                    <Text fontSize={14} lineHeight={20} color="$secondaryText">
+                    <Text
+                      size="$label/m"
+                      trimmed={false}
+                      color="$secondaryText"
+                    >
                       {row.label}
                     </Text>
                   ) : null}
-                  <Text fontSize={16} lineHeight={22} color="$primaryText">
+                  <Text size="$label/xl" trimmed={false} color="$primaryText">
                     {row.title}
                   </Text>
                   {row.detail ? (
@@ -137,6 +140,7 @@ export function FirstRunSheet({
           <YStack gap="$l" marginTop="$xs">
             <Button
               preset="hero"
+              size="medium"
               label={primaryLabel}
               onPress={onPrimary}
               loading={primaryLoading}

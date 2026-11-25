@@ -79,6 +79,7 @@ export function ChooseModelScreen({
           title: row.name,
           meta: row.meta,
           detail: row.detail,
+          badge: row.row?.recommended ? copy.recommended : undefined,
           testID: `first-run-model-${row.id}`,
         }))}
         selectedId={pickedId}
@@ -211,9 +212,7 @@ function PlanChoices({
                 borderRadius={20}
                 alignItems="center"
                 justifyContent="center"
-                backgroundColor={
-                  selected ? '$primaryText' : '$secondaryBackground'
-                }
+                backgroundColor={selected ? '$primaryText' : '$background'}
               >
                 <Text
                   fontSize={15}

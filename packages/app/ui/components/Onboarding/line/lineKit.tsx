@@ -53,8 +53,8 @@ export function useLineColors() {
   return {
     ink: theme.primaryText?.val as string,
     // Onboarding sits on the welcome screen's ground, so a box's fill hides
-    // what's under it without showing as a white patch.
-    paper: theme.secondaryBackground?.val as string,
+    // what's under it without showing as a patch.
+    paper: theme.background?.val as string,
   };
 }
 

@@ -4,10 +4,11 @@ onFlowComplete:
   - runScript: scripts/handleSignupSuccess.js
 ---
 - runFlow: subflows/launch.yaml
-- assertVisible: 'Sign up'
+- assertVisible: 'Create account'
 
 # enter signup flow
-- tapOn: 'Join with an invite'
+- tapOn: 'Create account'
+- tapOn: 'I have an invite link'
 - assertVisible: 'SATO  or  join.tlon.io/0v4.pca...'
 
 # Use the onboarding short code so Hosting assigns a ship with the current

@@ -30,9 +30,9 @@ export const SetTelemetryScreen = (_: Props) => {
   }, [isEnabled, posthog, setFinishingSelfHostedLogin]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         title="Usage Statistics"
         rightControls={
           <ScreenHeader.TextButton onPress={handleNext}>

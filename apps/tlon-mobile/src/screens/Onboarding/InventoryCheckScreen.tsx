@@ -54,7 +54,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
       <ScreenHeader
         title="Welcome to Sato"
         loadingSubtitle={isChecking ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
       />
 
