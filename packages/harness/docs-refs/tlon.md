@@ -750,8 +750,8 @@ hand handles no message from its own ship.
   gets `No pending approval found for ID: #<id>`, or `No pending approval
   found.` with no id; ids are unique only among open requests and are not
   remembered once closed.
-- A message that holds inline code, a code block or a blockquote anywhere is
-  not an approval command, even when the command is outside them: a command
+- A message that holds inline code, a code block or a blockquote anywhere,
+  in a heading or a list as in prose, is not an approval command, even when the command is outside them: a command
   shown as code or quoted is talked about, not given, and the message is
   handled as any other. Harness's other slash commands are read as before.
 - A request's token is a hash of its id, ship, place and opening time, sent
@@ -1272,8 +1272,9 @@ apart, since the denial limit lets a ship ask once per five minutes.
 and channel requests, `/ban`'s block, its refusal and a second refused tap, unknown, closed and
 expired ids, an overdue request's id in a command caught up on reload, a button whose id was reused, by another ship or by the same
 ship in another place, or extended, a command with no id
-among one or several requests, a command in a DM thread, a command in code
-or a blockquote, a
+among one or several requests, a command in a DM thread, a command in
+inline code, in a blockquote, beside a code block, and in inline code in a
+heading or a list, a
 command from a trusted ship that is not the owner, and a command in a channel,
 the owner's included, handled as an ordinary message.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between

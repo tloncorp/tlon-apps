@@ -1496,26 +1496,36 @@
   ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
   ;<  ~  bind:m  (ex-equal !>((lent (answered caz))) !>(1))
   (ex-equal !>((turned caz)) !>(|))
-::  The owner shows the command rather than giving it: in inline code, in a
-::  blockquote and in a code block. None runs.
+::  The owner's DM post of .content, which shows a command rather than
+::  giving it: nothing runs and nothing is answered.
 ::
-++  test-a-command-in-code-or-a-blockquote-does-not-run
-  %-  eval-mare
+++  runs-nothing
+  |=  content=story:v9:dv
   =/  m  (mare ,~)
   ^-  form:m
-  =/  shown
-    |=  [content=story:v9:dv at=@da]
-    ^-  incoming-event:v8:a
-    [%dm-post [[~nec at] at] [%ship ~nec] content |]
-  ;<  [caz=(list card) s=state-6:t]  bind:m
-    %^  admit  asked  later
-    :~  [told (shown ~[[%inline ~[[%inline-code '/allow c0001']]]] told)]
-        [(add told ~s1) (shown ~[[%inline ~[[%blockquote ~['/allow c0001']]]]] (add told ~s1))]
-        [(add told ~s2) (shown ~[[%block %code '/allow c0001' '']] (add told ~s2))]
-    ==
+  =/  =incoming-event:v8:a  [%dm-post [[~nec told] told] [%ship ~nec] content |]
+  ;<  [caz=(list card) s=state-6:t]  bind:m  (admit asked later ~[[told incoming-event]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
   (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+++  test-a-command-in-inline-code-does-not-run
+  %-  eval-mare
+  (runs-nothing ~[[%inline ~[[%inline-code '/allow c0001']]]])
+++  test-a-command-in-a-blockquote-does-not-run
+  %-  eval-mare
+  (runs-nothing ~[[%inline ~[[%blockquote ~['/allow c0001']]]]])
+::  The command is outside the code block, and its text comes first.
+::
+++  test-a-command-beside-a-code-block-does-not-run
+  %-  eval-mare
+  (runs-nothing ~[[%inline ~['/allow c0001']] [%block %code 'echo' '']])
+++  test-a-command-in-inline-code-in-a-heading-does-not-run
+  %-  eval-mare
+  (runs-nothing ~[[%block %header %h2 ~[[%inline-code '/allow c0001']]]])
+++  test-a-command-in-inline-code-in-a-list-does-not-run
+  %-  eval-mare
+  %-  runs-nothing
+  ~[[%block %listing [%list %unordered ~[[%item ~[[%inline-code '/allow c0001']]]] ~]]]
 ::  A stale card's button: its request closed and a later request got its
 ::  id, ~wes's or ~dev's own in another channel, or its id begins a longer
 ::  open id. None acts.
