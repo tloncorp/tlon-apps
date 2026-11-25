@@ -1,7 +1,7 @@
 // ~zod is the bot, the peer (~lux) its owner and the host of TEST_NEST, and the
 // guest (~nec) an allowed ship. The owner is heard without a mention in a
 // channel it hosts while the channel has no rule of its own; a guest is not.
-// A local provider records each turn's input and instructions, can hold turns,
+// A local provider records each turn's input, instructions and quiet line, can hold turns,
 // answers NO_REPLY to the steps it is told to and rejects the requests for
 // others. Restores defaults and policy; test messages remain.
 import assert from 'node:assert/strict'
@@ -22,7 +22,7 @@ owner.ship = name(owner.cookie); guest.ship = name(guest.cookie)
 const client = new Client(), ship = `~${client.ship}`, marker = `heard-${randomUUID().slice(0, 8)}`
 assert.equal(new Set([ship, owner.ship, guest.ship]).size, 3, 'The bot, owner and guest are three ships')
 assert.equal(nest.split('/')[1], owner.ship, 'The owner hosts TEST_NEST')
-const failures = [], inputs = [], references = [], systems = [], held = [], silent = new Set(), rejected = new Set()
+const failures = [], inputs = [], references = [], systems = [], hinted = [], held = [], silent = new Set(), rejected = new Set()
 let event = 0, holding = () => false, defaults, policy
 
 // Each turn answers every step its new input names. A held turn waits until
@@ -30,13 +30,17 @@ let event = 0, holding = () => false, defaults, policy
 // not, so it is not part of the input.
 const words = (content) => typeof content === 'string' ? content : JSON.stringify(content ?? '')
 const reference = /^(Recent public channel activity|Public thread reference) captured at admission/
+// An unmentioned turn's quiet line is user context before its input, in the
+// message recalled memory uses when there is one, so it is not part of the input.
+const instruction = 'The latest message in this channel does not mention you. If it is not meant for you and needs nothing from you, reply with exactly NO_REPLY and nothing else.'
 const stepsIn = (text) => [...text.matchAll(new RegExp(`${marker}-(\\w+)`, 'g'))].map((m) => m[1])
 const server = createServer(async (req, res) => {
   try {
     const body = JSON.parse(await readText(req))
     const last = body.messages.findLastIndex((m) => m.role === 'assistant')
     const added = body.messages.slice(last + 1).filter((m) => m.role === 'user').map((m) => words(m.content))
-    const input = added.filter((text) => !reference.test(text)).join('\n')
+    hinted.push(added.some((text) => text.includes(instruction)))
+    const input = added.map((text) => text.replace(instruction, '')).filter((text) => text.trim() && !reference.test(text)).join('\n')
     const steps = stepsIn(input)
     inputs.push(input)
     references.push(added.filter((text) => reference.test(text)).join('\n'))
@@ -61,6 +65,8 @@ function release() {
 const requested = (step) => inputs.some((input) => stepsIn(input).includes(step))
 // The instructions of the model request for .step's turn.
 const instructions = (step) => systems[inputs.findIndex((input) => stepsIn(input).includes(step))]
+// Whether the model request for .step's turn carries the quiet line.
+const quietFor = (step) => hinted[inputs.findIndex((input) => stepsIn(input).includes(step))]
 
 async function poke(who, app, mark, json) {
   const res = await fetch(`${who.url}/~/channel/${marker}-${who.ship.slice(1)}`, { method: 'PUT', headers: { cookie: who.cookie, 'content-type': 'application/json' },
@@ -205,8 +211,8 @@ try {
   // The owner's unmentioned remark is answered NO_REPLY: its run completes,
   // its publication is abandoned and nothing is posted, and the next message
   // is answered. The same answer to a mention is posted. Only the
-  // unmentioned turn's request tells the model it may stay quiet.
-  const instruction = 'The latest message in this channel does not mention you. If it is not meant for you and needs nothing from you, reply with exactly NO_REPLY and nothing else.'
+  // unmentioned turn's request tells the model it may stay quiet, and both
+  // requests have the same system message.
   silent.add('quiet1'); silent.add('quiet2')
   const quietBaseline = new Set((await botPosts()).map(([id]) => id))
   await post(owner, [`${marker}-quiet1 a remark for someone else`])
@@ -226,8 +232,10 @@ try {
   await post(owner, [{ ship }, ` ${marker}-quiet2`])
   await until('NO_REPLY to a mention is posted', async () => (await botPosts())
     .some(([id, text]) => !quietBaseline.has(id) && text.includes('NO_REPLY')))
-  assert.ok(instructions('quiet1').includes(instruction), 'the unmentioned turn is told it may stay quiet')
-  assert.ok(!instructions('quiet2').includes(instruction), 'the mentioned turn is not told it may stay quiet')
+  assert.equal(quietFor('quiet1'), true, 'the unmentioned turn is told it may stay quiet')
+  assert.equal(quietFor('quiet2'), false, 'the mentioned turn is not told it may stay quiet')
+  assert.equal(instructions('quiet1'), instructions('quiet2'), 'mention status does not change the system message')
+  assert.ok(!instructions('quiet1').includes(instruction), 'the quiet line is not in the system message')
   console.log('PASS only the unmentioned turn is told it may stay quiet')
 
   // A provider error on the owner's unmentioned remark is not posted: the

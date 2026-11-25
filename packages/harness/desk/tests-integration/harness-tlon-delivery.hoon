@@ -251,7 +251,7 @@
 ::  Silence. The owner (~nec) said something the bot (~zod) answers with
 ::  .body; the bot holds the claim on that reply at attempt 1. Only for a
 ::  channel message heard without a mention, outside a schedule, a failure
-::  notice, or a reply whose text is empty or exactly NO_REPLY, is left
+::  notice, or a reply that is empty or only the NO_REPLY token, is left
 ::  unsent, by abandoning the claim. A later reply to the room, 0v2, waits
 ::  behind it.
 ::
@@ -440,13 +440,32 @@
   ;<  ~  bind:m  (silent room '')
   ;<  ~  bind:m  (silent room ' \0a\09 ')
   ;<  ~  bind:m  (silent thread 'NO_REPLY')
-  (silent thread '')
+  ;<  ~  bind:m  (silent thread '')
+  ;<  ~  bind:m  (silent room 'NO_REPLY.')
+  ;<  ~  bind:m  (silent room '`NO_REPLY`')
+  ;<  ~  bind:m  (silent room '"NO_REPLY"')
+  ;<  ~  bind:m  (silent room '**NO_REPLY**')
+  ;<  ~  bind:m  (silent room 'no_reply')
+  ;<  ~  bind:m  (silent room 'NO_REPLY NO_REPLY')
+  (silent room ' "No_Reply \0a NO_REPLY". ')
+::  Text beside the token, a near spelling and punctuation alone are a reply.
+::
 ++  test-an-unaddressed-reply-with-more-than-no-reply-is-published
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* out=claimed]  bind:m  (claim-said [room heard %reply 'NO_REPLY and more'] ~)
-  (ex-sent out)
+  =/  sent
+    |=  body=@t
+    =/  n  (mare ,~)
+    ^-  form:n
+    ;<  [* out=claimed]  bind:n  (claim-said [room heard %reply body] ~)
+    (ex-sent out)
+  ;<  ~  bind:m  (sent 'NO_REPLY and more')
+  ;<  ~  bind:m  (sent 'Sure. NO_REPLY')
+  ;<  ~  bind:m  (sent 'NO_REPLYX')
+  ;<  ~  bind:m  (sent 'NO REPLY')
+  ;<  ~  bind:m  (sent '?')
+  (sent '...')
 ::  A mention, a DM, a scheduled run, a reminder, a task reply and a Lens
 ::  retry are always answered. The DM and the scheduled run carry the
 ::  unaddressed prefix so that only their lane or schedule decides.

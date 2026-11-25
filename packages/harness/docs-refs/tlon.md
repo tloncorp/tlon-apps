@@ -692,10 +692,21 @@ messaging the sender.
   conversation's first route is still being set up, it is dropped and Activity
   reading moves on.
 - A channel message heard without a mention, by the owner rule or in a
-  channel whose rule is `all`, may be left unanswered. Its turn tells the
-  model so, and a reply that is empty or exactly `NO_REPLY`, ignoring
-  surrounding whitespace, is not posted: the hand claims it and abandons it
-  with the reason "The bot chose not to reply." A mention, a reply under the
+  channel whose rule is `all`, may be left unanswered. Each request for its
+  turn tells the model so in a line of user context just before the message,
+  where recalled memory goes, so whether a message mentions the bot does not
+  change the system prompt. The line is not kept in the conversation, and a
+  newer message's request does not carry it. A reply that says nothing is
+  not posted: the hand claims it and abandons it with the reason "The bot
+  chose not to reply." A reply says nothing when, without surrounding
+  whitespace, it is empty, or when, also without ASCII punctuation (quotes,
+  backticks, asterisks, periods and the rest) at either end, it is the token
+  `NO_REPLY` in any letter case, once or repeated with whitespace between:
+  `NO_REPLY.`, `**no_reply**` and `NO_REPLY NO_REPLY` are silent.
+  Punctuation alone, and a reply with any other text, such as
+  `Sure. NO_REPLY`, are posted as written. The rule is narrower than
+  OpenClaw's, which also strips Unicode punctuation and finds the token
+  inside a JSON string or envelope. A mention, a reply under the
   bot's post, channel setup, a DM, a schedule, a reminder, a task reply and a
   Lens retry are always answered, whatever the text. The owner sees nothing
   in the channel; the run is finished, and Context Lens shows its delivery as
@@ -1299,7 +1310,8 @@ does not stop a running turn and reaches the model as the owner's words, that a
 burst of unmentioned owner lines does not delay a DM from the guest and lines that
 found no room are never answered, that an unmentioned remark answered `NO_REPLY` is
 abandoned with no post while the same answer to a mention is posted, and only the
-unmentioned turn is told it may stay quiet, that a provider error on an unmentioned
+unmentioned turn is told it may stay quiet, outside the system message, which both
+turns share, that a provider error on an unmentioned
 remark is abandoned with no post and kept in the run report while the same error on
 a mention is posted, and that `harness/tlon/channel/configure` with a
 `mentions` rule changes only that channel, after which the owner needs a mention

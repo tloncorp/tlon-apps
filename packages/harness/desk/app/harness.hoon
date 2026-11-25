@@ -5377,6 +5377,7 @@
         %compaction
         visible
         `(request-data:memory-capture (memory-reach sid) knowledge u.capture)
+        |
       ==
     ?:  %+  gth
           (div (add 3 (met 3 (en:json:html payload))) 4)
@@ -5580,20 +5581,19 @@
     ?.  ?=(%hand -.source.u.input)  |
     ?&  =('tlon' hand.source.u.input)
         ?=(~ (for-session:schedule-lib schedules sid))
-        =('unaddressed/' (end [3 12] event.source.u.input))
+        (unaddressed:hd event.source.u.input)
     ==
   =.  view
     %:  identify:hp
       view  kind  our.bowl
       ?.(moon:~(. ownership bowl) ~ `(sein:title our.bowl now.bowl our.bowl))
-      unaddressed
     ==
   =/  payload=json
     =/  capture  (~(get by compactions.maintenance.knowledge) sid)
     =/  evidence=(unit @t)
       ?.  &(?=(^ capture) =(%compaction kind) =(req id.u.capture))  ~
       `(request-data:memory-capture (memory-reach sid) knowledge u.capture)
-    (payload-with-capture:hp view kind (skills-visible sid skills) evidence)
+    (payload-with-capture:hp view kind (skills-visible sid skills) evidence unaddressed)
   =?  payload  =(%turn kind)
     (attach-browser-image sid config.view payload)
   =/  body=@t  (en:json:html payload)

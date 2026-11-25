@@ -1,6 +1,6 @@
 /-  t=harness-tlon, h=harness, a=activity-ver, ct=contacts, ad=harness-adapter,
     dv=channels-ver, cv=chat-ver, cr=harness-cron, hh=harness-hand, d=story
-/+  *test, p=harness-tlon-policy, story=harness-tlon-story, ht=harness-tools,
+/+  *test, p=harness-tlon-policy, story=harness-tlon-story, ht=harness-tools, hd=harness-hand,
     profile=harness-tlon-profile, presence=harness-tlon-presence, clock=harness-tlon-clock,
     io=harness-tlon-io, publication=harness-tlon-publication, defaults=harness-defaults
 |%
@@ -453,10 +453,10 @@
   %-  expect
   !>  ?&  =((cat 3 'unaddressed/' mentioned) owner)
           =((cat 3 'unaddressed/' all-mentioned) all)
-          (unaddressed:p owner)  (unaddressed:p all)
-          !(unaddressed:p mentioned)  !(unaddressed:p all-mentioned)
-          !=('' replied)  !(unaddressed:p replied)
-          !=('' direct)  !(unaddressed:p direct)
+          (unaddressed:hd owner)  (unaddressed:hd all)
+          !(unaddressed:hd mentioned)  !(unaddressed:hd all-mentioned)
+          !=('' replied)  !(unaddressed:hd replied)
+          !=('' direct)  !(unaddressed:hd direct)
       ==
 ::  A channel's session is the destination's, whoever speaks; its threads and
 ::  grant epochs still separate. It can never equal an earlier per-speaker id,

@@ -1121,8 +1121,10 @@
   ;<  ~  bind:m  (ex-equal !>((shown working)) !>(&))
   (ex-equal !>((shown failed)) !>(|))
 ::  A turn for a channel message heard without a mention tells the model it
-::  may answer NO_REPLY. The line is added as each request is sent, never
-::  saved, so a conversation that existed before reaches it too.
+::  may answer NO_REPLY. The line is added as each request for that input is
+::  sent, as user context just before its latest message, never saved, so a
+::  conversation that existed before reaches it too and a newer input does
+::  not carry it.
 ::
 ++  quiet-line
   %+  rap  3
@@ -1130,29 +1132,67 @@
       'meant for you and needs nothing from you, reply with exactly NO_REPLY '
       'and nothing else.'
   ==
-::  The first model request among .cards carries the line.
+::  The roles and texts of the first model request among .cards
+::
+++  request-messages
+  |=  cards=(list card)
+  ^-  (list [role=@t text=@t])
+  =/  sent  (model-requests cards)
+  ?>  ?=(^ sent)
+  =/  messages
+    ((ot:dejs:format ~[messages+(ar:dejs:format same)]) (need (de:json:html body.i.sent)))
+  %+  turn  messages
+  |=  message=json
+  ?>  ?=(%o -.message)
+  =/  role  (~(get by p.message) 'role')
+  =/  content  (~(get by p.message) 'content')
+  :-  ?.(?=([~ %s *] role) '' p.u.role)
+  ?.(?=([~ %s *] content) '' p.u.content)
+::  Whether the first model request among .cards carries the line. Where it
+::  does, the line is in one user message, the one just before the latest
+::  user message; anywhere else fails the test.
 ::
 ++  told
   |=  cards=(list card)
   ^-  ?
-  (mentions cards quiet-line)
+  =/  messages  (request-messages cards)
+  =/  carrying
+    %+  skim  (gulf 0 (dec (lent messages)))
+    |=(at=@ud ?=(^ (find (trip quiet-line) (trip text:(snag at messages)))))
+  ?~  carrying  |
+  ?>  ?=(~ t.carrying)
+  ?>  =('user' role:(snag i.carrying messages))
+  =/  rest  (slag +(i.carrying) messages)
+  ?>  ?=(^ rest)
+  ?>  =('user' role.i.rest)
+  ?>  !(lien t.rest |=([role=@t *] =('user' role)))
+  &
 ::  .conversations with history in the room, so /compact has work to do.
 ::
-++  talked
+++  talked  (chatted defaults:conversations '~nec: The release is on Friday.' 'Noted.')
+++  chatted
+  |=  [cfg=config:h question=@t reply=@t]
   ^-  state-0
   =/  saved  conversations
-  =/  cfg  defaults.saved
   =/  log=(list event:h)
     :~  [%config-replaced cfg]
         :-  %input-received
         :*  0v1  [%hand 'room' 'tlon' 'chat/~lux/test' '0v1' '~nec']  `~nec  `[%hand 'room']  t0
-            [%user '~nec: The release is on Friday.']
+            [%user question]
         ==
         [%llm-requested 0 %turn]
         [%llm-routed 0 cfg]
-        [%llm-completed 0 %stop [1 1] [%assistant 'Noted.' ~]]
+        [%llm-completed 0 %stop [1 1] [%assistant reply ~]]
     ==
   saved(sessions (~(put by sessions.saved) 'room' [(flop log) 1]))
+::  Whether .log holds the line anywhere. The control is text it does hold.
+::
+++  kept
+  |=  log=(list event:h)
+  ^-  [line=? control=?]
+  =/  printed  (noah !>(log))
+  :-  ?=(^ (find (trip quiet-line) printed))
+  ?=(^ (find "see you all then" printed))
 ++  test-an-unmentioned-channel-turn-of-an-existing-conversation-is-told-it-may-stay-quiet
   %-  eval-mare
   =/  m  (mare ,~)
@@ -1160,9 +1200,110 @@
   ;<  ~  bind:m  (load talked lane-scry)
   ;<  heard=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v2' '~nec: see you all then')
   ;<  after=state-0  bind:m  get-state
-  =/  kept  system.config:(play:hl log:(~(got by sessions.after) 'room'))
   ;<  ~  bind:m  (ex-equal !>((told heard)) !>(&))
-  (ex-equal !>(?=(^ (find (trip quiet-line) (trip kept)))) !>(|))
+  (ex-equal !>((kept log:(~(got by sessions.after) 'room'))) !>([| &]))
+::  For the same history and text, an unmentioned turn's request equals a
+::  mentioned one's but for the line's message: the system message and all
+::  before the latest message are the same, so a provider's prompt cache
+::  serves both.
+::
+++  test-mention-status-changes-only-the-quiet-line-of-a-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  body
+    |=  cards=(list card)
+    ^-  (map @t json)
+    =/  sent  (model-requests cards)
+    ?>  ?=(^ sent)
+    =/  jon  (need (de:json:html body.i.sent))
+    ?>  ?=(%o -.jon)
+    p.jon
+  ;<  ~  bind:m  (load talked lane-scry)
+  ;<  quiet=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v2' '~nec: see you all then')
+  ;<  ~  bind:m  (load talked lane-scry)
+  ;<  plain=(list card)  bind:m  (hear 'room' '~nec' '0v2' '~nec: see you all then')
+  =/  quiet-messages  (request-messages quiet)
+  =/  plain-messages  (request-messages plain)
+  ;<  ~  bind:m  (ex-equal !>((told quiet)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((told plain)) !>(|))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((snag 0 quiet-messages))
+    !>((snag 0 plain-messages))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((into plain-messages (dec (lent plain-messages)) ['user' quiet-line]))
+    !>(quiet-messages)
+  %+  ex-equal  !>((~(del by (body quiet)) 'messages'))
+  !>((~(del by (body plain)) 'messages'))
+::  The line belongs to its input's requests only: a newer input in the same
+::  conversation is not told for the older one, the log keeps no line, and a
+::  newer unmentioned input is told once.
+::
+++  test-a-newer-input-after-an-unmentioned-turn-is-not-told-for-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (load talked lane-scry)
+  ;<  heard=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v2' '~nec: see you all then')
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests heard)) (answer 'NO_REPLY' ~))
+  ;<  newer=(list card)  bind:m  (hear 'room' '~nec' '0v3' '~nec: what is on Friday?')
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests newer)) (answer 'The release.' ~))
+  ;<  after=state-0  bind:m  get-state
+  ;<  latest=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v4' '~nec: thanks all')
+  ;<  ~  bind:m  (ex-equal !>((told heard)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((told newer)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((kept log:(~(got by sessions.after) 'room'))) !>([| &]))
+  (ex-equal !>((told latest)) !>(&))
+::  A fallback is the same input, so its request is told too.
+::
+++  test-a-fallback-for-an-unmentioned-turn-is-told
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  cfg  defaults:conversations
+  =.  fallbacks.cfg  ~[['openrouter' 'backup']]
+  =/  overloaded=sign-arvo
+    =/  body  '{"error":"overloaded"}'
+    [%iris %http-response %finished [503 ~] `['application/json' (as-octs:mimes:html body)]]
+  ;<  ~  bind:m  (load (chatted cfg '~nec: The release is on Friday.' 'Noted.') lane-scry)
+  ;<  heard=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v2' '~nec: see you all then')
+  ;<  retried=(list card)  bind:m  (do-arvo wire:(snag 0 (model-requests heard)) overloaded)
+  =/  model
+    %.  (need (de:json:html body:(snag 0 (model-requests retried))))
+    (ot:dejs:format ~[model+so:dejs:format])
+  ;<  ~  bind:m  (ex-equal !>((told heard)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>(model) !>('backup'))
+  (ex-equal !>((told retried)) !>(&))
+::  A size rejection compacts and resumes the same input: the compaction
+::  request is not told, the resumed turn is.
+::
+++  test-the-turn-resumed-after-size-recovery-is-told-and-its-compaction-is-not
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved
+    %^  chatted  defaults:conversations
+      (rap 3 (reap 40 '~nec: Earlier question with project detail. '))
+    (rap 3 (reap 40 'Earlier answer with project detail. '))
+  =/  too-large=sign-arvo
+    =/  body
+      '{"error":{"message":"This request exceeds the model\'s maximum context length.","type":"invalid_request_error","code":"context_length_exceeded"}}'
+    [%iris %http-response %finished [400 ~] `['application/json' (as-octs:mimes:html body)]]
+  =/  kind
+    |=  cards=(list card)
+    =/  =wire  wire:(snag 0 (model-requests cards))
+    (rear wire)
+  ;<  ~  bind:m  (load saved lane-scry)
+  ;<  heard=(list card)  bind:m  (hear 'room' '~nec' 'unaddressed/0v2' '~nec: see you all then')
+  ;<  compacting=(list card)  bind:m  (do-arvo wire:(snag 0 (model-requests heard)) too-large)
+  ;<  resumed=(list card)  bind:m
+    (do-arvo wire:(snag 0 (model-requests compacting)) (answer 'Short checkpoint.' ~))
+  ;<  ~  bind:m  (ex-equal !>((told heard)) !>(&))
+  ;<  ~  bind:m  (ex-equal !>((kind compacting)) !>(%compaction))
+  ;<  ~  bind:m  (ex-equal !>((told compacting)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((kind resumed)) !>(%turn))
+  (ex-equal !>((told resumed)) !>(&))
 ::  A mention, a DM and a Lens retry are always answered.
 ::
 ++  test-a-mention-a-dm-and-a-lens-retry-are-not-told-they-may-stay-quiet

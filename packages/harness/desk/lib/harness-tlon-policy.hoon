@@ -4,7 +4,7 @@
 ::  each speaker's authority is decided per turn.
 /-  t=harness-tlon, h=harness, a=activity-ver,
     cr=harness-cron, hh=harness-hand, c=channels
-/+  ht=harness-tools, hj=harness-json,
+/+  ht=harness-tools, hj=harness-json, hd=harness-hand,
     story=harness-tlon-story, input=harness-tlon-input
 |%
 ::
@@ -202,7 +202,8 @@
   ::  The adapter may leave a channel message heard without a mention
   ::  unanswered; its event id is how the adapter and the head tell.
   =/  id=@t  (event-id to.u.item key.u.item)
-  =?  id  &(?=(%channel -.to.u.item) !addressed.u.item)  (cat 3 'unaddressed/' id)
+  =?  id  &(?=(%channel -.to.u.item) !addressed.u.item)
+    (cat 3 unaddressed-prefix:hd id)
   `[[actor.u.item id to.u.item text] unaddressed]
 ::  +event-id: the hand's name for one native message at one destination
 ::
@@ -210,19 +211,6 @@
   |=  [to=destination:t key=message-key:a]
   ^-  @t
   (scot %uv (sham [to key]))
-::  Whether an admitted event was a channel message heard without a mention.
-::
-++  unaddressed
-  |=  event=@t
-  ^-  ?
-  =('unaddressed/' (end [3 12] event))
-::  +message-event: an admitted event's id as +event-id names its message
-::
-++  message-event
-  |=  event=@t
-  ^-  @t
-  ?.  (unaddressed event)  event
-  (rsh [3 12] event)
 ::
 ++  policy-json
   |=  policy=policy:t

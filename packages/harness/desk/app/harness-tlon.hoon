@@ -2423,7 +2423,7 @@
           ==
         ~
       `event.u.seen
-    message-event:p
+    message-event:hd
   =/  render
     |=  [parent=(unit message:history-page) rows=(list row:history-page)]
     (render:public-context to parent rows events nickname:messenger)
@@ -3910,8 +3910,8 @@
 ::
 ++  no-reply  'no-reply'
 ::  A publication the bot may leave unsent, for a channel message heard
-::  without a mention, outside a schedule: a failure notice, or a reply with
-::  no text or exactly NO_REPLY.
+::  without a mention, outside a schedule: a failure notice, or a reply that
+::  says nothing.
 ::
 ++  silent
   |=  [hands=state:hh publication=publication:hh lane=lane:t]
@@ -3920,14 +3920,41 @@
   ?&  ?=(%channel -.to.lane)
       ?=(~ (scheduled sid.publication))
       ?=(^ observation)
-      (unaddressed:p event.u.observation)
+      (unaddressed:hd event.u.observation)
       ?|  =(%failure kind.publication)
-          ?&  =(%reply kind.publication)
-              =/  body  (trim:command (trip body.publication))
-              |(=(~ body) =("NO_REPLY" body))
-          ==
+          &(=(%reply kind.publication) (says-nothing body.publication))
       ==
   ==
+::  Whether .body is empty, or only the NO_REPLY token in any letter case,
+::  repeated with whitespace between, inside ASCII punctuation at either
+::  edge. Punctuation alone is not the token.
+::
+++  says-nothing
+  |=  body=@t
+  ^-  ?
+  =/  text  (trim:command (trip body))
+  ?~  text  &
+  =/  punctuation
+    |=  c=@tD
+    ?|  &((gte c 0x21) (lte c 0x2f))
+        &((gte c 0x3a) (lte c 0x40))
+        &((gte c 0x5b) (lte c 0x60))
+        &((gte c 0x7b) (lte c 0x7e))
+    ==
+  =/  strip
+    |=  chars=tape
+    |-  ^-  tape
+    ?~  chars  ~
+    ?.  (punctuation i.chars)  chars
+    $(chars t.chars)
+  =/  words=tape  (trim:command (flop (strip (flop (strip text)))))
+  ?:  =(~ words)  |
+  |-  ^-  ?
+  ?.  =("no_reply" (cass (scag 8 words)))  |
+  =/  after  (slag 8 words)
+  ?~  after  &
+  ?.  (whitespace:command i.after)  |
+  $(words (trim:command after))
 ::
 ++  abandon
   |=  [id=@uv attempt=@ud kind=?(%reply %failure %cancelled)]

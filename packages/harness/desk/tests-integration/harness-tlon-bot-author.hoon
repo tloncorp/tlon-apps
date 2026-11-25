@@ -333,7 +333,7 @@
   =/  events
     |=  out=outcome
     ^-  (list ?)
-    (turn ~(val by jobs.saved.out) |=(=job:t (unaddressed:policy event.input.job)))
+    (turn ~(val by jobs.saved.out) |=(=job:t (unaddressed:hd event.input.job)))
   ;<  setup=outcome  bind:m
     (run fixture setup-event `[& & message-at ~[(setup-post ~nec)] ~])
   ;<  heard=outcome  bind:m
@@ -1165,7 +1165,7 @@
   =/  event=incoming-event:v8:a
     [%post [[~nec at] at] nest [~nec %home] ~[[%inline ~['hello']]] |]
   =/  input  (need (normalize:policy ~zod now policy:fixture event))
-  ?>  (unaddressed:policy event.input)
+  ?>  (unaddressed:hd event.input)
   input
 ::  The room's reference while .waiting jobs are here, the head's ledger is
 ::  .ledger and local %channels holds .posts at the top level.
