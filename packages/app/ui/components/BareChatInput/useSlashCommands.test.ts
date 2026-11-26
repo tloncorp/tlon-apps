@@ -223,6 +223,7 @@ describe('rankSlashCommands', () => {
         '/ban',
         '/banned',
         '/unban',
+        '/revoke',
       ]);
     });
   });
