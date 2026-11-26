@@ -9,19 +9,19 @@
 ::
 ++  load
   |=  saved=vase
-  =/  m  (mare ,[(list card) state-7:t])
+  =/  m  (mare ,[(list card) state-8:t])
   ^-  form:m
   ;<  ~                bind:m  (jab-bowl |=(b=bowl b(now ~2026.9.6)))
   ;<  ~                bind:m  (set-scry-gate |=(path `!>(|)))
   ;<  caz=(list card)  bind:m  (do-load adapter `saved)
   ;<  =vase            bind:m  get-save
-  (pure:m caz !<(state-7:t vase))
+  (pure:m caz !<(state-8:t vase))
 ::
 ++  reload
   |=  phase=?(%fetch %put %grant %hosted-put)
-  =/  m  (mare ,state-7:t)
+  =/  m  (mare ,state-8:t)
   ^-  form:m
-  =/  state=state-7:t  *state-7:t
+  =/  state=state-8:t  *state-8:t
   =.  uploads.state
     %-  my
     :~  :*  0v1
@@ -32,14 +32,14 @@
   =.  tool-receipts.state
     %-  my
     ~[[0v1 `tool-receipt:t`[['s' 1 ['call' 'tlon_upload_image' '{}']] %sending '' ~2026.9.6]]]
-  ;<  [caz=(list card) loaded=state-7:t]  bind:m  (load !>(state))
+  ;<  [caz=(list card) loaded=state-8:t]  bind:m  (load !>(state))
   ::  Reload may cancel the old duct and publish a result, never request HTTP.
   ;<  ~  bind:m
     (ex-equal !>((lien caz |=(c=card ?=([%pass * %arvo %i %request *] c)))) !>(|))
   (pure:m loaded)
 ::
 ++  test-reload-retains-pending-browser-form-without-publishing-its-url
-  =/  state  *state-7:t
+  =/  state  *state-8:t
   =.  enabled.policy.state  |
   =/  deadline  (add ~2026.9.6 ~s10)
   =/  form=browser-entry:t  [deadline [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]
@@ -65,7 +65,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) loaded=state-7:t]  bind:m  (load saved)
+  ;<  [caz=(list card) loaded=state-8:t]  bind:m  (load saved)
   ;<  watched=(list card)  bind:m  (do-watch /tools/0v1)
   ;<  ~  bind:m  (ex-equal !>(watched) !>(~))
   ;<  ~  bind:m  (ex-equal !>(automation.loaded) !>(*automation:t))
@@ -79,7 +79,7 @@
   =/  old  *state-3:migrate
   =.  enabled.policy.old  |
   =.  next-notice.old  17
-  ;<  [caz=(list card) saved=state-7:t]  bind:m  (load !>(old))
+  ;<  [caz=(list card) saved=state-8:t]  bind:m  (load !>(old))
   ;<  ~  bind:m  (ex-equal !>(=(~ browser-entries.saved)) !>(&))
   ;<  ~  bind:m  (ex-equal !>(automation.saved) !>(*automation:t))
   (ex-equal !>(next-notice.saved) !>(17))
@@ -88,7 +88,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-7:t  bind:m  (reload %fetch)
+  ;<  state=state-8:t  bind:m  (reload %fetch)
   =/  receipt  (~(got by tool-receipts.state) 0v1)
   %+  ex-equal
     !>  ?&  =(~ uploads.state)  =(%done stage.receipt)
@@ -99,7 +99,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-7:t  bind:m  (reload %grant)
+  ;<  state=state-8:t  bind:m  (reload %grant)
   =/  receipt  (~(got by tool-receipts.state) 0v1)
   %+  ex-equal
     !>  ?&  =(~ uploads.state)  =(%uncertain stage.receipt)
@@ -110,7 +110,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  state=state-7:t  bind:m  (reload %hosted-put)
+  ;<  state=state-8:t  bind:m  (reload %hosted-put)
   %+  ex-equal
     !>(&(=(~ uploads.state) =(%uncertain stage:(~(got by tool-receipts.state) 0v1))))
   !>(&)
@@ -132,7 +132,7 @@
       lanes  (my ~[['room' [~bus room 4 ~]] ['dm' [~bus dm 4 ~]]])
       routes  (my ~[['room' ['binding-room' %ready]] ['dm' ['binding-dm' %ready]]])
     ==
-  ;<  [caz=(list card) loaded=state-7:t]  bind:m  (load !>(old))
+  ;<  [caz=(list card) loaded=state-8:t]  bind:m  (load !>(old))
   =/  pokes=(list [@tas *])
     %+  murn  caz
     |=  c=card
@@ -156,24 +156,29 @@
 ::  Each upload is retired into its receipt, and the wake is the unfinished
 ::  send's timeout. The hand is disabled, so no other deadline applies.
 ++  test-reload-keeps-populated-state
-  (expect-populated-reload !>(populated-7:up) populated-7:up)
+  (expect-populated-reload !>(populated-8:up) populated-8:up)
+::  A populated %7 keeps every field and every request, each for its place.
+::
+++  test-version-seven-upgrade-keeps-populated-state
+  =/  e  populated-8:up
+  (expect-populated-reload !>(populated-7:up) e(approvals approvals-from-7:up))
 ::  A populated %6 keeps every field and starts with no approval request.
 ::
 ++  test-version-six-upgrade-keeps-populated-state
-  =/  e  populated-7:up
+  =/  e  populated-8:up
   (expect-populated-reload !>(populated-6:up) e(approvals *approvals:t))
 ::  A populated %5 keeps every field and starts with no per-place grant or
 ::  approval request.
 ::
 ++  test-version-five-upgrade-keeps-populated-state
-  =/  e  populated-7:up
+  =/  e  populated-8:up
   %+  expect-populated-reload  !>(populated-5:up)
   e(approvals *approvals:t, place-cuts ~, dm-grants.policy ~, channel-grants.policy ~)
 ::  A populated %4 keeps every field and starts with no automation, per-place
 ::  grant or approval request.
 ::
 ++  test-version-four-upgrade-keeps-populated-state
-  =/  e  populated-7:up
+  =/  e  populated-8:up
   %+  expect-populated-reload  !>(populated-4:up)
   %=  e
     approvals  *approvals:t
@@ -185,13 +190,13 @@
 ::  The reload retires uploads that were in flight; every other field stays.
 ::
 ++  expect-populated-reload
-  |=  [saved=vase e=state-7:t]
+  |=  [saved=vase e=state-8:t]
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  retire
-    |=  [s=state-7:t id=@uv stage=?(%done %uncertain) body=@t]
-    ^-  state-7:t
+    |=  [s=state-8:t id=@uv stage=?(%done %uncertain) body=@t]
+    ^-  state-8:t
     =/  receipt  (~(got by tool-receipts.s) id)
     s(tool-receipts (~(put by tool-receipts.s) id receipt(stage stage, body body)))
   =.  e
@@ -212,7 +217,7 @@
     ==
   =.  uploads.e  ~
   =.  wake.e  `(add at:(~(got by tool-receipts.e) 0v8e) ~m1)
-  ;<  [* loaded=state-7:t]  bind:m  (load saved)
+  ;<  [* loaded=state-8:t]  bind:m  (load saved)
   (ex-same:up !>(loaded) !>(e))
 ::  A moon with no explicit owner takes its parent as owner on the first load
 ::  only, and cuts off the owner's history before then. An owner cleared

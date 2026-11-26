@@ -19,8 +19,8 @@
 ::  have no ship-wide access, ~bus holds a DM grant, and the bot blocks ~bel.
 ::
 ++  fixture
-  ^-  state-7:t
-  =/  s=state-7:t  *state-7:t
+  ^-  state-8:t
+  =/  s=state-8:t  *state-8:t
   =.  owner-initialized.s  1
   =.  activity-through.s  ~2026.9.9
   =.  policy.s  [& `~nec ~ %mentions (silt ~[~wes]) ~ (silt ~[~bus]) ~]
@@ -28,7 +28,7 @@
 ::  ~dev's request for .club, opened at .start
 ::
 ++  asked
-  ^-  state-7:t
+  ^-  state-8:t
   =/  s  fixture
   s(approvals (open:ask *approvals:t 'g0001' [~dev [%group club] start]))
 ::  The group the bot was invited to and has joined: .room-nest, whose
@@ -111,7 +111,7 @@
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
   ~
 ++  boot
-  |=  [saved=state-7:t now=@da events=stream:v10:a held=(list [flag:g @p])]
+  |=  [saved=state-8:t now=@da events=stream:v10:a held=(list [flag:g @p])]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now, eny (shax 'groups')))
@@ -123,26 +123,26 @@
 ::  with ~dev's invite to .club on the ship
 ::
 ++  admit
-  |=  [saved=state-7:t now=@da events=(list [@da incoming-event:v8:a])]
+  |=  [saved=state-8:t now=@da events=(list [@da incoming-event:v8:a])]
   (admit-held saved now events dev-invite)
 ::  As +admit, with the invites in .held on the ship
 ::
 ++  admit-held
-  |=  $:  saved=state-7:t  now=@da  events=(list [@da incoming-event:v8:a])
+  |=  $:  saved=state-8:t  now=@da  events=(list [@da incoming-event:v8:a])
           held=(list [flag:g @p])
       ==
-  =/  m  (mare ,[(list card) state-7:t])
+  =/  m  (mare ,[(list card) state-8:t])
   ^-  form:m
   ;<  ~  bind:m  (boot saved now (stream events) held)
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
-  (pure:m caz !<(state-7:t vase))
+  (pure:m caz !<(state-8:t vase))
 ::  %groups' acknowledgement, with .ack, of the one join or decline in .caz,
 ::  while the invites in .held are on the ship
 ::
 ++  ack-groups
   |=  [caz=(list card) ack=(unit tang) held=(list [flag:g @p])]
-  =/  m  (mare ,[(list card) state-7:t])
+  =/  m  (mare ,[(list card) state-8:t])
   ^-  form:m
   =/  wires
     %+  murn  caz
@@ -153,7 +153,7 @@
   ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a held))
   ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %groups] [%poke-ack ack])
   ;<  =vase  bind:m  get-save
-  (pure:m out !<(state-7:t vase))
+  (pure:m out !<(state-8:t vase))
 ::  %chat's acknowledgement of the one block in .caz
 ::
 ++  ack-block
@@ -163,7 +163,7 @@
 ::
 ++  ack-block-with
   |=  [caz=(list card) ack=(unit tang)]
-  =/  m  (mare ,[(list card) state-7:t])
+  =/  m  (mare ,[(list card) state-8:t])
   ^-  form:m
   =/  wires
     %+  murn  caz
@@ -173,7 +173,7 @@
   ?>  ?=([* ~] wires)
   ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ack])
   ;<  =vase  bind:m  get-save
-  (pure:m out !<(state-7:t vase))
+  (pure:m out !<(state-8:t vase))
 ::  The cards sent: to whom, their text and their blob.
 ::
 ++  sent
@@ -230,11 +230,11 @@
   ^-  ?
   (lien caz |=(c=card ?=([%pass * %agent [@ %harness] %poke %harness-hand *] c)))
 ++  kinds
-  |=  [s=state-7:t kind=@t]
+  |=  [s=state-8:t kind=@t]
   ^-  @ud
   (lent (skim notices.s |=(n=notice:t =(kind kind.n))))
 ++  requests
-  |=  s=state-7:t
+  |=  s=state-8:t
   ^-  (list approval:t)
   ~(val by by-id.approvals.s)
 ++  dig
@@ -264,7 +264,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~dev)]])
   ;<  ~  bind:m  (ex-equal !>((requests s)) !>(`(list approval:t)`~[[~dev [%group club] start]]))
   ;<  ~  bind:m  (ex-equal !>((cut 3 [0 1] (head ~(tap in ~(key by by-id.approvals.s))))) !>('g'))
@@ -285,10 +285,10 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [* s=state-7:t]  bind:m
+  ;<  [* s=state-8:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~dev)]])
   ;<  ~  bind:m  (ex-equal !>((lent (requests s))) !>(1))
-  ;<  [caz=(list card) w=state-7:t]  bind:m
+  ;<  [caz=(list card) w=state-8:t]  bind:m
     %:  admit-held  s  later
       :~  [~2026.9.10..00.06.00 (invite ~dev)]
           [~2026.9.10..00.07.00 (invite ~bus)]
@@ -302,12 +302,12 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit-held fixture start ~[[~2026.9.9..12.00.00 (invite ~wes)]] ~[[club ~wes]])
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~[club]))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(`(list [@p @t @t])`~))
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit-held fixture start ~[[~2026.9.9..12.00.00 (invite ~nec)]] ~[[club ~nec]])
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~[club]))
   (ex-equal !>(approvals.s) !>(*approvals:t))
@@ -323,9 +323,9 @@
     :~  [~2026.9.9..12.00.00 (invite ~wes)]
         [~2026.9.9..12.00.01 (invite ~nec)]
     ==
-  ;<  [caz=(list card) s=state-7:t]  bind:m  (admit-held fixture start events dev-invite)
+  ;<  [caz=(list card) s=state-8:t]  bind:m  (admit-held fixture start events dev-invite)
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
-  ;<  [caz=(list card) s=state-7:t]  bind:m  (admit-held fixture start events ~)
+  ;<  [caz=(list card) s=state-8:t]  bind:m  (admit-held fixture start events ~)
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
   (ex-equal !>(approvals.s) !>(*approvals:t))
 ::  ~bus's invite is reported, but the ship holds only ~dev's: no request
@@ -335,7 +335,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~bus)]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(`(list [@p @t @t])`~))
@@ -344,7 +344,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     %:  admit-held  fixture  start
       :~  [~2026.9.9..12.00.00 (invite ~bel)]
           [~2026.9.9..12.00.01 (invite comet)]
@@ -363,12 +363,12 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit asked later ~[[told (said ~nec '/allow g0001' told)]])
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~[club]))
   ;<  ~  bind:m  (ex-equal !>(by-id.approvals.s) !>(by-id.approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
-  ;<  [out=(list card) s=state-7:t]  bind:m  (ack-groups caz ~ ~)
+  ;<  [out=(list card) s=state-8:t]  bind:m  (ack-groups caz ~ ~)
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
   ;<  ~  bind:m  (ex-equal !>((turned out)) !>(|))
@@ -378,7 +378,7 @@
     !>  ^-  (list [@t @t])
     ~[['dm/~nec' (rap 3 'Approved group invite from ~dev to ' label '. Joining group...' ~)]]
   =/  next  ~2026.9.10..00.20.00
-  ;<  [caz=(list card) w=state-7:t]  bind:m
+  ;<  [caz=(list card) w=state-8:t]  bind:m
     %^  admit  s  (add next ~s1)
     :~  [next (mention ~dev next)]
         [(add next ~s1) (mention ~bus (add next ~s1))]
@@ -394,9 +394,9 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit asked later ~[[told (said ~nec '/allow g0001' told)]])
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-join-failed')) !>(1))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-allowed')) !>(0))
@@ -414,7 +414,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     %^  admit  asked  later
     :~  [told (said ~nec '/reject g0001' told)]
         [(add told ~s1) (said ~nec '/allow g0001' (add told ~s1))]
@@ -429,7 +429,7 @@
     :~  ['dm/~nec' 'Request #g0001 is already being answered; wait for its result.']
         ['dm/~nec' 'Request #g0001 is already being answered; wait for its result.']
     ==
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz ~ ~)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups caz ~ ~)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   (ex-equal !>((kinds w 'approval-rejected')) !>(1))
 ::  Nothing changes until %groups has the decline.
@@ -438,12 +438,12 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit asked later ~[[told (said ~nec '/reject g0001' told)]])
   ;<  ~  bind:m  (ex-equal !>((turn (declines caz) tail)) !>(`(list flag:g)`~[club]))
   ;<  ~  bind:m  (ex-equal !>(by-id.approvals.s) !>(by-id.approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz ~ ~)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups caz ~ ~)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>(policy.w) !>(policy:asked))
   ;<  ~  bind:m  (ex-equal !>((joins out)) !>(`(list flag:g)`~))
@@ -457,9 +457,9 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit asked later ~[[told (said ~nec '/reject g0001' told)]])
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-decline-failed')) !>(1))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-rejected')) !>(0))
@@ -475,16 +475,16 @@
   ^-  form:m
   =/  saved  asked
   =.  dm-grants.policy.saved  (~(put in dm-grants.policy.saved) ~dev)
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit saved later ~[[told (said ~nec '/ban g0001' told)]])
   ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list @p)`~[~dev]))
   ;<  ~  bind:m  (ex-equal !>(by-id.approvals.s) !>(by-id.approvals.saved))
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block caz)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
   ;<  ~  bind:m  (ex-equal !>((turn (declines out) tail)) !>(`(list flag:g)`~[club]))
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.w) !>((silt ~[~bus])))
   ;<  ~  bind:m  (ex-equal !>(by-id.approvals.w) !>(by-id.approvals.saved))
   ;<  ~  bind:m  (ex-equal !>((answered out)) !>(`(list [@t @t])`~))
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups out ~ ~)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups out ~ ~)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>((joins out)) !>(`(list flag:g)`~))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-banned')) !>(1))
@@ -498,10 +498,10 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit asked later ~[[told (said ~nec '/ban g0001' told)]])
   ;<  [out=(list card) *]  bind:m  (ack-block caz)
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups out `~[leaf+"no"] dev-invite)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups out `~[leaf+"no"] dev-invite)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-decline-failed')) !>(1))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-banned')) !>(0))
@@ -520,7 +520,7 @@
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list @p)`~))
   ;<  ~  bind:m  (ex-equal !>((turn (declines caz) tail)) !>(`(list flag:g)`~[club]))
-  ;<  [out=(list card) u=state-7:t]  bind:m  (ack-groups caz ~ ~)
+  ;<  [out=(list card) u=state-8:t]  bind:m  (ack-groups caz ~ ~)
   ;<  ~  bind:m  (ex-equal !>(approvals.u) !>(*approvals:t))
   %+  ex-equal  !>((answered out))
   !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
@@ -533,7 +533,7 @@
   ^-  form:m
   =/  den  `flag:g`[~lux %den]
   =/  held  `(list [flag:g @p])`~[[club ~dev] [den ~dev] [[~lux %other] ~bus]]
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit-held asked later ~[[told (said ~nec '/ban g0001' told)]] held)
   ;<  [out=(list card) *]  bind:m  (ack-block caz)
   %+  ex-equal  !>((silt (turn (declines out) tail)))
@@ -552,14 +552,14 @@
     |=(b=bowl b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4])))
   ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
   ;<  =vase  bind:m  get-save
-  =/  w  !<(state-7:t vase)
+  =/  w  !<(state-8:t vase)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-expired')) !>(1))
   ;<  ~  bind:m  (ex-equal !>((turn (declines caz) tail)) !>(`(list flag:g)`~[club]))
   ;<  [out=(list card) *]  bind:m  (ack-groups caz ~ ~)
   ;<  ~  bind:m  (ex-equal !>((answered out)) !>(`(list [@t @t])`~))
   =/  again  (add due ~m5)
-  ;<  [caz=(list card) u=state-7:t]  bind:m  (admit w (add again ~s1) ~[[again (invite ~dev)]])
+  ;<  [caz=(list card) u=state-8:t]  bind:m  (admit w (add again ~s1) ~[[again (invite ~dev)]])
   ;<  ~  bind:m  (ex-equal !>((requests u)) !>(`(list approval:t)`~[[~dev [%group club] (add again ~s1)]]))
   (ex-equal !>((lent (sent caz))) !>(1))
 ::  The request is gone, so the owner, who could no longer reject it, is
@@ -575,7 +575,7 @@
     %-  jab-bowl
     |=(b=bowl b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4])))
   ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-decline-failed')) !>(1))
   %+  ex-equal  !>((answered out))
@@ -594,9 +594,9 @@
   =/  saved  asked
   =.  approvals.saved  (open:ask approvals.saved 'd0001' [~bus [%place ~] start])
   =/  held  `(list [flag:g @p])`~[[club ~dev] [club ~bus]]
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit-held saved later ~[[told (said ~nec '/ban d0001' told)]] held)
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block caz)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
   ;<  ~  bind:m  (ex-equal !>((declines out)) !>(`(list [wire flag:g])`~))
   (ex-equal !>(~(key by by-id.approvals.w)) !>((silt ~['g0001'])))
 ::  ~dev's request closed and its id went to ~wes's, in flight, while the
@@ -608,12 +608,12 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  den  `flag:g`[~lux %den]
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit asked later ~[[told (said ~nec '/ban g0001' told)]])
   =/  moved  s(approvals (open:ask (close:ask approvals.s 'g0001') 'g0001' [~wes [%group den] later]))
   =.  busy.approvals.moved  (silt ~['g0001'])
   ;<  ~  bind:m  (boot moved later *stream:v10:a ~)
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block caz)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.moved))
   ;<  ~  bind:m  (ex-equal !>((declines out)) !>(`(list [wire flag:g])`~))
   %+  ex-equal  !>((answered out))
@@ -625,12 +625,12 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  den  `flag:g`[~lux %den]
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit asked later ~[[told (said ~nec '/ban g0001' told)]])
   =/  moved  s(approvals (open:ask (close:ask approvals.s 'g0001') 'g0001' [~wes [%group den] later]))
   =.  busy.approvals.moved  (silt ~['g0001'])
   ;<  ~  bind:m  (boot moved later *stream:v10:a ~)
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block-with caz `~[leaf+"no"])
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block-with caz `~[leaf+"no"])
   (ex-equal !>(approvals.w) !>(approvals.moved))
 ::  ~dev withdrew its invite before the owner tapped Allow: nothing is
 ::  joined, the request closes and the owner is told.
@@ -639,7 +639,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit-held asked later ~[[told (said ~nec '/allow g0001' told)]] ~)
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
@@ -659,7 +659,7 @@
   =/  saved  asked
   =.  approvals.saved  (open:ask approvals.saved 'd0001' [~bus [%place ~] (add start ~m1)])
   =.  busy.approvals.saved  (silt ~['g0001'])
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     %^  admit  saved  later
     :~  [told (said ~nec '/pending' told)]
         [(add told ~s1) (said ~nec '/reject' (add told ~s1))]
@@ -686,7 +686,7 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit asked later ~[[told (said ~nec '/pending' told)]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   %+  ex-equal  !>((answered caz))

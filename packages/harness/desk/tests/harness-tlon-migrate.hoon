@@ -44,7 +44,7 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(%8) !>(-.new))
       (expect-eq !>(*approvals:t) !>(approvals.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
@@ -175,7 +175,7 @@
   =/  three  (two-to-three:migrate every-field)
   =/  new  (load:migrate !>(three))
   ;:  weld
-      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(%8) !>(-.new))
       (expect !>(&(?=(^ trusted.policy.three) ?=(^ allowed.policy.three))))
       (expect !>(?=(^ channels.policy.three)))
       (expect-eq !>(trusted.policy.three) !>(trusted.policy.new))
@@ -197,7 +197,7 @@
     (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
   =/  new  (load:migrate !>(four))
   ;:  weld
-      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(%8) !>(-.new))
       (expect-eq !>(browser-entries.four) !>(browser-entries.new))
       (expect !>(&(?=(^ trusted.policy.four) ?=(^ allowed.policy.four))))
       (expect !>(?=(^ channels.policy.four)))
@@ -224,7 +224,7 @@
   =.  place-cuts.six  (my ~[[[~bus ~] ~2026.1.13]])
   =/  new  (load:migrate !>(six))
   ;:  weld
-      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(%8) !>(-.new))
       (expect-eq !>(*approvals:t) !>(approvals.new))
       (expect-eq !>(+.six) !>(+>.new))
       (expect-eq !>(~) !>((dropped:migrate !>(six))))
@@ -239,7 +239,7 @@
   =.  names.automation.five  (my ~[[0v1 [`'UTC' ~ `'Brief' ~]]])
   =/  new  (load:migrate !>(five))
   ;:  weld
-      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(%8) !>(-.new))
       (expect-eq !>(automation.five) !>(automation.new))
       (expect !>(&(?=(^ trusted.policy.five) ?=(^ allowed.policy.five))))
       (expect !>(?=(^ channels.policy.five)))
@@ -300,4 +300,24 @@
   =/  current  (load:migrate !>(pending-browser-handoff))
   =.  projected.automation.current  &
   (expect-eq !>(current) !>((load:migrate !>(current))))
+::  A %7 holds only DM and channel requests; each loads as the same request
+::  for its place, and none waits on %groups.
+::
+++  test-a-version-seven-loads-its-requests-as-place-requests
+  =/  room=place:t  `[%chat ~lux %test]
+  =/  old  *state-7:migrate
+  =.  approvals.old
+    :-  (my ~[['d0001' [~dev ~ ~2026.1.1]] ['c0001' [~dev room ~2026.1.2]]])
+    (my ~[[[~dev ~] 'd0001'] [[~dev room] 'c0001']])
+  =/  new  (load:migrate !>(old))
+  ;:  weld
+      (expect-eq !>(%8) !>(-.new))
+      %+  expect-eq
+        !>  ^-  approvals:t
+        :+  (my ~[['d0001' [~dev [%place ~] ~2026.1.1]] ['c0001' [~dev [%place room] ~2026.1.2]]])
+          (my ~[[[~dev %place ~] 'd0001'] [[~dev %place room] 'c0001']])
+        ~
+      !>(approvals.new)
+      (expect-eq !>(+>.old) !>(+>.new))
+  ==
 --

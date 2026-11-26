@@ -5,8 +5,8 @@
 |%
 ::
 ++  detach-routes
-  |=  [saved=state-7:t hands=state:hh]
-  ^-  state-7:t
+  |=  [saved=state-8:t hands=state:hh]
+  ^-  state-8:t
   ::  Disabled bindings cannot authorize new input. Keep send receipts, but
   ::  start a fresh conversation so late results cannot enter its new history.
   =/  detached

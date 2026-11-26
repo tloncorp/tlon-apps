@@ -107,8 +107,8 @@
       edits=(map @uv task-edit)
       projected=$~(| ?)
   ==
-+$  state-7
-  $:  %7
++$  state-8
+  $:  %8
       =approvals
       automation=automation
       browser-entries=(map @uv browser-entry)
