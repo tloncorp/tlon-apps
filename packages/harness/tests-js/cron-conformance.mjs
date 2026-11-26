@@ -93,6 +93,14 @@ try {
   assert.equal(cancelled.clearable, true)
   await hand.clearSchedule(cancelled.id); schedules.delete(cancelled.id)
 
+  const endless = await hand.schedule(source, { id: id(), actor: 'alice', kind: 'prompt', schedule: '0 9 1 1 *', timezone: 'UTC', prompt: `${marker}-until-cancelled` })
+  schedules.add(endless.id); bindings.push(endless.runSessionId)
+  assert.equal(endless.state, 'active'); assert.equal(endless.remaining, null, 'a recurring job without runs repeats until cancelled')
+  await hand.cancelSchedule(endless.id)
+  const stopped = (await hand.schedules(source)).find((job) => job.id === endless.id)
+  assert.equal(stopped.state, 'cancelled'); assert.equal(stopped.clearable, true)
+  await hand.clearSchedule(endless.id); schedules.delete(endless.id)
+
   const literal = await add({ at: future(5_000), text: '/cancel is literal, not a command' })
   const before = calls.length
   const literalOutput = await until('literal reminder delivery intent', async () => (await hand.outbox()).find((effect) => effect.sessionId === literal.job.runSessionId))
@@ -120,7 +128,7 @@ try {
   await hand.cancelSchedule(modelJob.id)
   await hand.clearSchedule(modelJob.id); schedules.delete(modelJob.id)
   assert.ok(runCalls >= 2, 'scheduled task completed its rejected-recursion tool turn')
-  console.log(JSON.stringify({ ok: true, checks: ['non-Tlon model scheduling', 'native/ACP parity', 'idempotent creation', 'actor and destination validation', 'literal no-inference reminder', 'bounded isolated inference', 'no recursive schedules', 'exclusive hand delivery', 'uncertainty blocks clear', 'source revocation', 'no automatic resurrection'], retainedFixture: source }, null, 2))
+  console.log(JSON.stringify({ ok: true, checks: ['non-Tlon model scheduling', 'native/ACP parity', 'idempotent creation', 'runs until cancelled without a count', 'actor and destination validation', 'literal no-inference reminder', 'bounded isolated inference', 'no recursive schedules', 'exclusive hand delivery', 'uncertainty blocks clear', 'source revocation', 'no automatic resurrection'], retainedFixture: source }, null, 2))
 } finally {
   for (const job of schedules) await hand.cancelSchedule(job).catch((error) => console.error(`Fixture schedule ${job}: ${error.message}`))
   for (const binding of bindings) await hand.enable(binding, false).catch(() => {})

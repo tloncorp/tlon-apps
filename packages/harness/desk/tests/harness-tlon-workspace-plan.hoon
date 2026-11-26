@@ -332,6 +332,8 @@
           (find-sub:ht 'chat/~zod/trip already opens with your answer' result)
           (find-sub:ht 'Notes (notebook) notebook ~zod/notes: Bookings' result)
           (find-sub:ht 'cron_add: the schedule and prompt you gave this task' result)
+          (find-sub:ht 'without runs, so it repeats until cancelled' result)
+          !(find-sub:ht 'runs "' result)
           (find-sub:ht 'Start the prompt with "[Fare check]"' result)
           !(find-sub:ht 'already opens' (created:wp sample [~zod %trip] nests |))
       ==

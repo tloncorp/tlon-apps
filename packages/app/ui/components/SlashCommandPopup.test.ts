@@ -85,7 +85,7 @@ describe('static command lists', () => {
   ) as (keyof typeof STATIC_MANIFESTS)[];
 
   it('covers every harness', () => {
-    expect(harnesses).toEqual(['openclaw', 'hermes']);
+    expect(harnesses).toEqual(['openclaw', 'hermes', 'harness']);
   });
 
   it.each(harnesses)('every %s icon resolves to a real glyph', (harness) => {
