@@ -251,13 +251,18 @@ opt-outs apply to both capture paths.
   tools: the turn answers the speaker whose message started it, and only a
   speaker without a tool ceiling, the owner, a sibling moon the owner check
   counts, or the operator, may write. A subagent answers for its root
-  turn's speaker. A message that arrives while another speaker's turn runs
-  waits for its own turn and changes neither. A scheduled run answers for
-  its schedule's actor, who on Tlon is the owner, since only the owner may
-  schedule there, so the owner's runs still write. In a conversation bound
-  to the Tlon hand, a turn while the hand runs no speaker's message there
-  cannot write either: a failed turn the operator retries, the owner's
-  included (the owner sends the message again instead), and local ACP or
+  turn's speaker while the call that started it is outstanding; a subagent
+  retried after that call settled answers no turn and cannot write. A
+  message that arrives while another speaker's turn runs waits for its own
+  turn and changes neither. A scheduled run answers for its schedule's
+  actor, who on Tlon is the owner, since only the owner may schedule there,
+  so the owner's runs still write. Steward's run **Retry** and a
+  schedule's **Retry failed run** admit the run again for its original
+  speaker or the schedule's actor, and follow the same rule. In a
+  conversation bound to the Tlon hand, a turn while the hand runs no
+  speaker's message there cannot write either: a failed turn resumed with
+  the native `retry` action, the owner's included (the owner sends the
+  message again instead), and local ACP or
   poke prompts, webhook text, peer calls and timers delivered into that
   conversation. Both refusals change nothing. A save or forget the place
   rule below refuses gets that refusal instead. Conversations with no Tlon
@@ -451,8 +456,8 @@ corrections, opt-out, source validation, persistence and who sees a fact.
 owner's DM, a channel, a subagent, a fork and a peer session, and that a
 guest's or a DM partner's turn and its subagents cannot save or forget while
 the owner's can, also when the two speak in one channel at once, that the
-owner's scheduled run writes, that a retried turn and a local prompt in a
-Tlon conversation cannot, and that a conversation without a Tlon binding
+owner's scheduled run writes, that a retried turn, a retried subagent and a
+local prompt in a Tlon conversation cannot, and that a conversation without a Tlon binding
 can; and
 `tests-js/tlon-memory-conformance.mjs` checks it through native Tlon. The native integration
 suite `harness-memory-worker.hoon` drives dreaming alongside an active reply

@@ -919,12 +919,15 @@ hand handles no message from its own ship.
 - The same speakers' turns cannot save or forget with the `memory` tool;
   search and read still work. The head decides it from the authority of the
   speaker whose message started the turn: only a speaker without a ceiling
-  may write. A subagent answers for its root turn, and the owner's
-  scheduled run for the owner. A turn in a Tlon conversation while the hand
-  runs no speaker's message there cannot write: a failed turn the operator
-  retries, whoever it answered, the owner included (the owner sends the
-  message again instead), and webhook, peer, local and timer input into the
-  conversation.
+  may write. A subagent answers for its root turn while the call that
+  started it is outstanding; one retried after that call settled cannot
+  write. The owner's scheduled run answers for the owner. Steward's run
+  **Retry** and a schedule's **Retry failed run** admit the run again for
+  its original speaker or the schedule's actor, so the same rule applies.
+  A turn in a Tlon conversation while the hand runs no speaker's message
+  there cannot write: a failed turn resumed with the native `retry` action,
+  whoever it answered, the owner included, and webhook, peer, local and
+  timer input into the conversation.
 
 Authority is decided per speaker. For each turn the head asks the adapter about
 the actor of the conversation's running input, and for scheduled work about the
@@ -1560,4 +1563,5 @@ stores nothing. `desk/tests-integration/harness-hand.hoon` covers each
 settings command and the `memory` tool's save and forget through the head, in
 a DM and in a channel, for the owner and for anyone else, for a subagent,
 for a guest who speaks during the owner's turn, for the owner's scheduled
-run, and for a retried turn and a local prompt in a Tlon conversation.
+run, and for a retried turn, a retried subagent and a local prompt in a Tlon
+conversation.

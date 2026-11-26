@@ -1341,27 +1341,96 @@
     |=  who=@t
     =/  m  (mare ,@t)
     ^-  form:m
-    =/  saved  owned
-    =.  sessions.saved
-      %+  ~(put by sessions.saved)  'room-child'
-      :_  2
-      :~  [%input-received [0v1 [%subagent 'room' 'call'] ~ ~ t0 [%user 'Child work']]]
-          [%config-replaced defaults.saved]
-      ==
-    ;<  ~  bind:m  (load saved ceiling-scry)
-    ;<  *  bind:m  (hear 'room' who 'ask' 'Start a subagent.')
-    ;<  sent=(list card)  bind:m
-      (do-poke %harness-action !>(`action:h`[%send 'room-child' 'Write a short note.']))
-    ;<  *  bind:m
-      %+  do-arvo  wire:(snag 0 (model-requests sent))
-      %+  answer  ''
-      ~[['save-1' 'memory' '{"operation":"save","name":"child-note","text":"Noted.","revision":"0"}']]
+    ;<  ~  bind:m  (load owned subagent-scry)
+    ;<  [child=@t sent=(list card)]  bind:m  (spawn-child who)
+    ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests sent)) child-note)
     ;<  after=state-0  bind:m  get-state
-    (pure:m (tool-result log:(~(got by sessions.after) 'room-child')))
+    (pure:m (tool-result log:(~(got by sessions.after) child)))
   ;<  guest=@t  bind:m  (child-save '~bus')
   ;<  owner=@t  bind:m  (child-save '~nec')
   ;<  ~  bind:m  (ex-equal !>(guest) !>((cat 3 'error: ' refused-memory:command)))
   (ex-equal !>(=('error: ' (end [3 7] owner))) !>(|))
+::  A guest's subagent fails and the guest's turn finishes. The operator
+::  retries the subagent, and the owner speaks in the channel before its
+::  model answers. The subagent's parent call has settled, so it answers no
+::  running turn, the owner's included, and cannot save.
+::
+++  test-a-retried-subagent-cannot-save-during-the-owners-turn
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (load owned subagent-scry)
+  ;<  before=state-0  bind:m  get-state
+  ;<  [child=@t sent=(list card)]  bind:m  (spawn-child '~bus')
+  ;<  resumed=(list card)  bind:m
+    (do-arvo wire:(snag 0 (model-requests sent)) [%iris %http-response %finished [401 ~] ~])
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests resumed)) (answer 'Done.' ~))
+  ;<  settled=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.settled) 'room')) !>(|))
+  ;<  again=(list card)  bind:m  (do-poke %harness-action !>(`action:h`[%retry child]))
+  ;<  *  bind:m  (hear 'room' '~nec' 'owner' 'Hello.')
+  ;<  owner=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((running-speaker owner 'room')) !>(`(unit @t)``'~nec'))
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests again)) child-note)
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m
+    %+  ex-equal  !>((tool-result log:(~(got by sessions.after) child)))
+    !>((cat 3 'error: ' refused-memory:command))
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.before))
+::  The actor of the hand's running input in .sid.
+::
+++  running-speaker
+  |=  [saved=state-0 sid=@t]
+  ^-  (unit @t)
+  =/  current  (~(get by active.hands.saved) sid)
+  ?~  current  ~
+  `actor:(~(got by observations.hands.saved) u.current)
+::  .ceiling-scry, but a guest's ceiling also grants subagents.
+::
+++  subagent-scry
+  |=  =path
+  ^-  (unit vase)
+  =/  parts=(list @ta)  path
+  ?.  ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] parts)  (ceiling-scry path)
+  =/  owner  =('~nec' i.t.t.t.t.t.t.parts)
+  `!>(`hand-authority:adapter`[& ?:(owner ~ `~[%subagents %tlon-read %tlon-write])])
+::  .who asks in the channel and the model starts a subagent; the
+::  subagent's session and the cards that start it.
+::
+++  spawn-child
+  |=  who=@t
+  =/  m  (mare ,[@t (list card)])
+  ^-  form:m
+  ;<  asked=(list card)  bind:m  (hear 'room' who 'ask' 'Start a subagent.')
+  ;<  called=(list card)  bind:m
+    %+  do-arvo  wire:(snag 0 (model-requests asked))
+    (answer '' ~[['call-1' 'run_subagent' '{"prompt":"Write a short note."}']])
+  =/  spawn=cage
+    %+  snag  0
+    %+  murn  called
+    |=  c=card
+    ^-  (unit cage)
+    ?.  ?=([%pass * %agent *] c)  ~
+    ?.  ?=([%spawn *] p.c)  ~
+    ?.  ?=(%poke -.task.q.c)  ~
+    `cage.task.q.c
+  ;<  sent=(list card)  bind:m  (do-poke p.spawn q.spawn)
+  ;<  after=state-0  bind:m  get-state
+  =/  child
+    %+  snag  0
+    %+  murn  ~(tap by sessions.after)
+    |=  [sid=@t =session:h]
+    ^-  (unit @t)
+    =/  link  (delegation:hl log.session)
+    ?.  &(?=(^ link) =('room' parent.u.link))  ~
+    `sid
+  (pure:m [child sent])
+::  The subagent's model saves a new fact.
+::
+++  child-note
+  ^-  sign-arvo
+  %+  answer  ''
+  ~[['save-1' 'memory' '{"operation":"save","name":"child-note","text":"Noted.","revision":"0"}']]
 ::  The channel facts a multi-term search ranks: five fillers' worth of
 ::  common terms, and two facts that tie when no private count is used.
 ::  .private adds an owner fact that shares one of the terms.
