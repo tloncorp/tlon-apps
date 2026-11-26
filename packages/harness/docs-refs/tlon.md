@@ -830,8 +830,9 @@ hand handles no message from its own ship.
   post is not read; the answer is to the text Activity reported.
   It is let past the cutoff the grant sets, which still stops every earlier
   message and a later catch-up of this one. If the ship wrote several times,
-  only the newest is answered; if the newest was deleted, or the bot has
-  left the channel, nothing is. A grant made by a settings save, `/reject`
+  only the newest is answered; if the newest was deleted, or is itself an
+  approval command, which is the owner's alone, or the bot has left the
+  channel, nothing is. A grant made by a settings save, `/reject`
   and `/ban` answer nothing. The reply is `Approved DM access for ~ship. They will be able
   to message the bot.` or `Approved ~ship for <channel>. They will be able to
   interact in this channel.`, where the channel is named `Title in Group
