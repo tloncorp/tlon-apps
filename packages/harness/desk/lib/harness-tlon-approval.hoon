@@ -420,14 +420,14 @@
 ::
 ::    .named is the channel's title, or its .name when untitled, and its
 ::    group's title, as the adapter's +approval-channel reads them. The nest
-::    is cut as a title is, for a host names the channel.
+::    is cut in its middle by +squeezed, for a host names the channel.
 ::
 ++  channel-label
   |=  [nest=@t name=@t named=(unit [channel=@t group=(unit @t)])]
   ^-  @t
-  =/  shown  (bounded nest)
+  =/  shown  (squeezed nest)
   ?~  named  shown
-  =/  titled  !=((bounded name) channel.u.named)
+  =/  titled  !=((squeezed name) channel.u.named)
   ?~  group.u.named
     ?.  titled  shown
     (rap 3 channel.u.named ' (' shown ')' ~)
@@ -509,36 +509,54 @@
 ++  preview
   |=  text=@t
   ^-  @t
-  (fall (clip text 100) text)
-::  +bounded: a channel's or a group's title, or a nest, cut to eighty
-::  characters, the last three an ellipsis, as OpenClaw bounds a group's
-::  title
+  =/  starts  (leads text)
+  ?:  (lte (lent starts) 100)  text
+  (end [3 (snag 100 starts)] text)
+::  +bounded: a channel's or a group's title cut to eighty characters, the
+::  last three an ellipsis, as OpenClaw bounds a group's title
 ::
-::    A host sets them, and they go into cards and replies whose text
+::    A host sets the title, and it goes into cards and replies whose text
 ::    Messenger limits.
 ::
 ++  bounded
   |=  text=@t
   ^-  @t
-  ?~  (clip text 80)  text
-  (cat 3 (need (clip text 77)) '...')
-::  +clip: .text cut to its first .max characters, or ~ when it has no more
+  =/  starts  (leads text)
+  ?:  (lte (lent starts) 80)  text
+  (cat 3 (end [3 (snag 77 starts)] text) '...')
+::  +squeezed: a nest or an untitled channel's name in eighty characters,
+::  its start and its end around an ellipsis
+::
+::    A host names its channels, often alike at the start: two that differ
+::    only at the end still read apart.
+::
+++  squeezed
+  |=  text=@t
+  ^-  @t
+  =/  starts  (leads text)
+  =/  count  (lent starts)
+  ?:  (lte count 80)  text
+  %+  rap  3
+  :~  (end [3 (snag 38 starts)] text)
+      '...'
+      (rsh [3 (snag (sub count 39) starts)] text)
+  ==
+::  +leads: the offset of each character's first byte in .text
 ::
 ::    Counted on the bytes, as the UTF-8 decoder crashes on a tab, another
 ::    control character or a malformed sequence, which another ship may
-::    send: every byte but a continuation byte begins a character, so the
-::    cut falls on a character boundary.
+::    send: every byte but a continuation byte begins a character, so a cut
+::    at one of these offsets falls on a character boundary.
 ::
-++  clip
-  |=  [text=@t max=@ud]
-  ^-  (unit @t)
+++  leads
+  |=  text=@t
+  ^-  (list @ud)
   =/  len  (met 3 text)
-  =|  [at=@ud count=@ud]
-  |-  ^-  (unit @t)
-  ?:  =(at len)  ~
+  =|  [at=@ud found=(list @ud)]
+  |-  ^-  (list @ud)
+  ?:  =(at len)  (flop found)
   ?:  =(2 (rsh [0 6] (cut 3 [at 1] text)))  $(at +(at))
-  ?:  =(count max)  `(end [3 at] text)
-  $(at +(at), count +(count))
+  $(at +(at), found [at found])
 ::  +card: the notice text and the card for a request
 ::
 ::    .where is the channel's name and group, or ~ for a DM.

@@ -831,7 +831,11 @@ hand handles no message from its own ship.
   ship's newest top-level post is the one answered. The edited text of a channel
   post is not read; the answer is to the text Activity reported.
   It is let past the cutoff the grant sets, which still stops every earlier
-  message and a later catch-up of this one. If the ship wrote several times,
+  message and a later catch-up of this one, so it could not be read again:
+  catch-up carries out an `/allow` only when that conversation has room in
+  the head's queues, eight inputs per conversation and 128 across the head,
+  as it admits a message only then, and otherwise waits before it and
+  tries again. If the ship wrote several times,
   only the newest is answered; if the newest was deleted, or is itself an
   approval command, which is the owner's alone, or the bot has left the
   channel, or the ship is blocked on Tlon since it wrote, nothing is. A grant made by a settings save, `/reject`
@@ -841,8 +845,10 @@ hand handles no message from its own ship.
   (chat/~host/name)`, or with what of the titles it has. Wherever a card, a
   reply or `/pending` names a channel, each title over 80 characters is cut
   to 77 and `...`, as OpenClaw cuts a group's, since the host sets it and
-  Messenger limits a card's text; so are the nest and an untitled channel's
-  name shown there, though a button still sends the request's own id. The
+  Messenger limits a card's text. The nest and an untitled channel's name
+  shown there are cut to 80 characters in the middle instead, keeping their
+  first 38 and last 39 around `...`, so channels alike but for their ends
+  read apart; a button still sends the request's own id. The
   cut counts characters on the bytes, so a tab or a malformed byte in a
   title cannot stop the request from opening.
 - `/reject` closes the request and gives nothing, so the ship can ask again.
