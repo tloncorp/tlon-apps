@@ -8,6 +8,7 @@ import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { text as readText } from 'node:stream/consumers'
 import { Client, base, cookie } from './lib/ship-client.mjs'
 import { authorShip, assertBotAuthor } from './lib/author.mjs'
 
@@ -23,8 +24,7 @@ let event = 0, stamp = 0, originals
 // asking the bot to remember is answered by a memory save, then a reply.
 const requests = [], saves = []
 const server = createServer(async (req, res) => {
-  let body = ''
-  for await (const chunk of req) body += chunk
+  const body = await readText(req)
   const messages = JSON.parse(body || '{}').messages ?? []
   if (!body.includes(`${marker}-ask`)) {
     requests.push(req.url)
