@@ -1489,6 +1489,65 @@
   =/  w  !<(state-8:t vase)
   ;<  ~  bind:m  (ex-equal !>(jobs.w) !>(`(map @uv job:t)`~))
   (ex-equal !>((kinds w 'message')) !>(1))
+::  .s with eight of ~bus's messages queued in .nest's conversation, a full
+::  lane
+::
+++  full-lane
+  |=  [s=state-7:t nest=nest:dv]
+  ^-  state-7:t
+  =/  to  `destination:t`[%channel nest ~]
+  =/  sid  (identity:continuity to)
+  %=  s
+    identities  (my ~[[to sid]])
+    lanes  (my ~[[sid [to 1 ~[%web]]]])
+    routes  (my ~[[sid ['binding-full' %ready]]])
+    jobs
+      %-  malt
+      %+  turn  (gulf 1 8)
+      |=  n=@ud
+      ^-  [@uv job:t]
+      [`@uv`n [[~bus (scot %ud n) to 'hi'] sid %bind '']]
+  ==
+::  The allow hands ~dev's mention on to .room-nest, whose lane is full:
+::  the head would refuse it there, behind the cutoff the grant moves. The
+::  allow waits as a message without room does, then runs once there is
+::  room, and the mention is answered.
+::
+++  test-an-allow-waits-for-room-where-it-hands-on-its-message
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
+  =/  saved  (full-lane asked room-nest)
+  =.  activity-through.saved  one-at
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding saved later events (dm-page ~) ~[[one-at &]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>(`(set @p)`~))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
+  ;<  [caz=(list card) w=state-7:t]  bind:m
+    (admit-holding s(jobs ~) later events (dm-page ~) ~[[one-at &]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
+  %+  ex-equal  !>((admitted w))
+  !>  ^-  (list [@p destination:t @t])
+  ~[[~dev [%channel room-nest ~] (mention-text 'may I ask?')]]
+::  A full lane elsewhere does not hold back an allow whose message goes
+::  where there is room.
+::
+++  test-a-full-lane-elsewhere-does-not-delay-an-allow
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
+  =/  saved  (full-lane asked all-nest)
+  =.  activity-through.saved  one-at
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding saved later events (dm-page ~) ~[[one-at &]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~dev])))
+  %+  ex-equal  !>((skim (admitted s) |=([who=@p *] =(~dev who))))
+  !>  ^-  (list [@p destination:t @t])
+  ~[[~dev [%channel room-nest ~] (mention-text 'may I ask?')]]
 ++  test-allow-answers-only-the-newest-of-three-waiting-channel-mentions
   %-  eval-mare
   =/  m  (mare ,~)
@@ -2345,7 +2404,7 @@
   ?>  ?=([* ~] cards)
   (ex-equal !>((says blob.i.cards (cat 3 'Group: ' (crip "Lux\09group")))) !>(&))
 ::  An untitled channel is named by its nest, which a host may make long:
-::  the card's row names it cut as a title is, within Messenger's limit.
+::  the card's row names it by its start and end, within Messenger's limit.
 ::
 ++  test-pending-cuts-a-long-nest-in-its-card
   %-  eval-mare
@@ -2355,7 +2414,7 @@
   =/  saved  fixture
   =.  approvals.saved  (open:ask approvals.saved 'c0001' [~dev [%place `long] start])
   ;<  [caz=(list card) *]  bind:m  (admit saved later ~[[told (said ~nec '/pending' told)]])
-  =/  shown  (cat 3 (crip (weld "chat/~lux/" (reap 67 'a'))) '...')
+  =/  shown  (rap 3 (crip (weld "chat/~lux/" (reap 28 'a'))) '...' (crip (reap 39 'a')) ~)
   =/  cards  (carded caz)
   ?>  ?=([[~ @] ~] cards)
   ;<  ~  bind:m  (ex-equal !>((says u.i.cards (cat 3 'Channel: ' shown))) !>(&))
@@ -2953,9 +3012,9 @@
   ;<  ~  bind:m  (boot (change s) now *stream:v10:a)
   ;<  [out=(list card) w=state-8:t]  bind:m  (ack-card caz ack)
   (pure:m (waiting out) w)
-::  The acknowledgement names its request by id and opening time, so a
-::  request that closed, expired or gave its id to another meanwhile is
-::  told nothing.
+::  The acknowledgement names its request by its button token, so a request
+::  that closed, expired or gave its id to another meanwhile is told
+::  nothing.
 ::
 ++  test-a-card-acknowledged-after-its-request-closed-expired-or-gave-up-its-id-tells-nothing
   %-  eval-mare

@@ -247,4 +247,19 @@
       (expect-eq !>('a\09b') !>((bounded:ask 'a\09b')))
       (expect-eq !>('a\09b') !>((preview:ask 'a\09b')))
   ==
+::  Two untitled channels on one host, alike but for their ends, are named
+::  apart, by the start and the end of their nests.
+::
+++  test-long-nests-that-differ-at-the-end-get-different-labels
+  =/  stem  (reap 200 'a')
+  =/  one  (crip (weld "chat/~lux/" (snoc stem 'b')))
+  =/  two  (crip (weld "chat/~lux/" (snoc stem 'c')))
+  =/  label  |=(nest=@t (channel-label:ask nest nest ~))
+  ;:  weld
+      (expect-eq !>(|) !>(=((label one) (label two))))
+      (expect-eq !>(80) !>((met 3 (label one))))
+      %+  expect-eq
+        !>((rap 3 (crip (weld "chat/~lux/" (reap 28 'a'))) '...' (crip (snoc (reap 38 'a') 'b')) ~))
+      !>((label one))
+  ==
 --
