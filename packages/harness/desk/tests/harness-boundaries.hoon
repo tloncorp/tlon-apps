@@ -27,7 +27,7 @@
   =.  corpus.saved
     corpus.saved(names (my ~[['fixture' 0v1c]]), next 0v33, scopes (my ~[[0v1c source]]))
   =.  provider-keys.saved  (my ~[['openai' 'fixture-api'] ['openai-device' 'fixture-subscription']])
-  =/  out  (load:storage !>(saved))
+  =/  out  (load:storage !>((layered saved)))
   =/  v  (play:hl log:(~(got by sessions.out) 'fixture'))
   ;:  weld
       (expect-eq !>('https://api.openai.com/v1/responses') !>(url.defaults.out))
@@ -62,6 +62,7 @@
   =.  search-config.saved  [%searxng 'https://search.example']
   =.  search-requests.saved  (my ~[[['fixture' 'pending-call'] %searxng]])
   =.  sessions.saved  (my ~[['fixture' [~[[%config-replaced defaults.saved]] 37]]])
+  =.  saved  (layered saved)
   (expect-eq !>(saved) !>((load:storage !>(saved))))
 ++  test-current-store-retains-workspace-evidence
   =/  saved=state-0  current-store
@@ -87,6 +88,12 @@
         ==
     ==
   (expect-eq !>(saved) !>((load:storage !>(saved))))
+::  A save holds its default instructions as layers, and the load derives the
+::  inherited text from them.
+++  layered
+  |=  saved=state-0
+  ^-  state-0
+  saved(prompts (put-prompt:policy ~ %'AGENTS.md' system.defaults.saved))
 ++  test-saved-tool-policy-is-not-replaced-by-bootstrap-defaults
   =/  saved=state-0  current-store
   =/  cfg  builtin-config:policy
@@ -94,6 +101,7 @@
   =.  sessions.saved  (my ~[['fixture' [~[[%config-replaced defaults.saved]] 0]]])
   =.  skills.saved  (my ~[['existing' ['Keep me' 'Explicit owner instructions']]])
   =.  staged.saved  skills.saved
+  =.  saved  (layered saved)
   (expect-eq !>(saved) !>((load:storage !>(saved))))
 ++  test-config-and-view-share-one-redacted-projection
   =/  cfg=config:h  builtin-config:policy

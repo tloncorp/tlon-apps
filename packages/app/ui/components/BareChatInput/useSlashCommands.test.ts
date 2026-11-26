@@ -13,6 +13,7 @@ import {
 
 const openclaw = getStaticSlashCommandManifest('openclaw').commands;
 const hermes = getStaticSlashCommandManifest('hermes').commands;
+const harness = getStaticSlashCommandManifest('harness').commands;
 // A list shaped like neither static one, to keep the ranking assertions about
 // the pure function rather than about today's curated lists.
 const other: SlashCommandOption[] = [
@@ -201,6 +202,21 @@ describe('rankSlashCommands', () => {
         '/stop',
         '/usage',
         '/model',
+      ]);
+    });
+
+    test('harness ranks in its advertised order', () => {
+      expect(commandNames(rankSlashCommands(harness, ''))).toEqual([
+        '/help',
+        '/status',
+        '/model',
+        '/context',
+        '/compact',
+        '/memory',
+        '/remember',
+        '/forget',
+        '/work',
+        '/stop',
       ]);
     });
   });
