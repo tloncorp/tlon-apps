@@ -72,4 +72,8 @@
         !>(/~nec/groups/~2026.10.2/v2/groups/~bud/club/channels/can-read/noun)
       !>((group-can-read:~(. paths [~nec ~2026.10.2]) [~bud %club]))
   ==
+++  test-group-can-write-names-the-group-the-channel-and-the-ship
+  %+  expect-eq
+    !>(/~lux/groups/~2026.10.1/v2/groups/~nec/club/channels/chat/~bud/general/can-write/~lux/noun)
+  !>((group-can-write:~(. paths [~lux ~2026.10.1]) [~nec %club] [%chat ~bud %general] ~lux))
 --

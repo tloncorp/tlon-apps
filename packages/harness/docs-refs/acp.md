@@ -113,7 +113,10 @@ read bodies; **Search content** uses the separate indexed corpus methods below.
   Settings exposes these shared instructions in a themed plain-text editor;
   attributed shared facts remain a separate resource.
 - `harness/defaults`
-- `harness/defaults/configure`
+- `harness/defaults/configure` — here and in `harness/defaults`, `system` is
+  the `AGENTS.md` layer of the default instructions, not the composition new
+  conversations inherit; see
+  [Soul and shared skills](hosting-contract.md#soul-and-shared-skills).
 - `harness/summary-models` — `{compaction: config|null, lcm: config|null}`.
 - `harness/summary-models/configure` — accepts `{models: {compaction, lcm}}`;
   null follows the current global default. Credentials use the existing store.
