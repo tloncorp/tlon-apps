@@ -3660,11 +3660,13 @@
 ::    is admitted past .floor; the cutoff still stops every earlier message
 ::    and a later catch-up of this one. A deleted message, an approval
 ::    command, which +activity drops from anyone but the owner, or a channel
-::    the bot has left, gets no answer.
+::    the bot has left, gets no answer, nor does a ship blocked since it
+::    wrote.
 ::
 ++  answer-waiting
   |=  [who=@p =place:t floor=@da]
   ^+  cor
+  ?:  (blocked:messenger who)  cor
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
   =/  event  (waiting-attempt who place floor)
   ?~  event  cor
