@@ -2353,7 +2353,7 @@
   ^-  form:m
   =/  long  `nest:dv`[%chat ~lux (crip (reap 300 'a'))]
   =/  saved  fixture
-  =.  approvals.saved  (open:ask approvals.saved 'c0001' [~dev `long start])
+  =.  approvals.saved  (open:ask approvals.saved 'c0001' [~dev [%place `long] start])
   ;<  [caz=(list card) *]  bind:m  (admit saved later ~[[told (said ~nec '/pending' told)]])
   =/  shown  (cat 3 (crip (weld "chat/~lux/" (reap 67 'a'))) '...')
   =/  cards  (carded caz)

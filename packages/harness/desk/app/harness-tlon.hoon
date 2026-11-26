@@ -3615,7 +3615,7 @@
   =/  told  (bind (waiting-to event) |=(to=destination:t [u.owner to]))
   %-  emit
   %:  publish:messenger
-    /approval/[id]/(scot %uv (button-token:ask id [who place now.bowl]))/(scot %uv (jam told))
+    /approval/[id]/(scot %uv (button-token:ask id approval))/(scot %uv (jam told))
     [%dm u.owner ~]
     text
     last-sent
