@@ -96,7 +96,7 @@
             [[~lus %place `[%chat ~bus %general]] 'c3c4d']
             [[~lus %group ~bus %club] 'g5e6f']
         ==
-      ~
+      (silt ~['g5e6f'])
       +.p
   ==
 ::  The hand's last shape without approval requests.
