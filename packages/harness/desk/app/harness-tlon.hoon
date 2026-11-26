@@ -3652,7 +3652,11 @@
     (configure policy(dm-grants (~(del in dm-grants.policy) who)) sibling-moon-owners)
   =.  cor  (decline-invitation who)
   =.  cor  (note 'approval-banned' who address id)
+  ::  A block refused earlier is no longer the hand's state once one took.
+  =?  error  =(error block-refused)  ''
   (answer-order to (confirmation:ask %ban who ~))
+::
+++  block-refused  'Messenger rejected a block; inspect the ship log.'
 ::
 ++  agent-approval-ban
   |=  [=wire =sign:agent:gall]
@@ -3668,7 +3672,7 @@
   ?:  (blocked:messenger who)  (banned who id to)
   %-  (slog 'harness-tlon: block rejected' u.p.sign)
   =.  cor  (emit (crash:observe bowl %approval-ban u.p.sign))
-  =.  error  'Messenger rejected a block; inspect the ship log.'
+  =.  error  block-refused
   =.  cor  (note 'approval-ban-failed' who (scot %p who) id)
   (answer-order to (block-failed:ask who))
 ::  +answer-order: the owner's reply to an approval command, outside a turn
