@@ -1408,6 +1408,25 @@
     ==
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
   (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  The owner blocked ~dev in Tlon after it wrote, then taps the old card's
+::  Allow: the grant is made, and ~dev's message is answered with nothing.
+::
+++  test-allow-answers-nothing-from-a-ship-blocked-since-it-wrote
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  (stream ~[[told (said ~nec '/allow d0001' told)]])
+  ;<  ~  bind:m  (boot asked later events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>((silt ~[~bel ~dev]))
+    ((holding events (dm-page ~[[one-at 'may I ask?' &]]) ~) path)
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  =/  s  !<(state-7:t vase)
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
 ::  ~dev's newest DM message is an approval command, which only the owner
 ::  gives. As a deleted newest message, it is answered with nothing.
 ::
@@ -2527,6 +2546,35 @@
   ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after reused start ~)
   ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
   (ex-equal !>(told) !>(`(list [@t @t])`~))
+::  In one catch-up, ~dev's mention opens a request, the owner's bare
+::  /reject closes it, and ~bus's mention opens another with the same id
+::  and opening time. ~dev's card's acknowledgement tells nobody; ~bus's
+::  tells ~bus once.
+::
+++  test-a-card-acknowledged-after-its-id-and-time-went-to-another-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  one  ~2026.9.9..12.00.00
+  =/  two  ~2026.9.9..12.00.01
+  =/  three  ~2026.9.9..12.00.02
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  fixture  start
+    :~  [one (mention ~dev room-nest one)]
+        [two (said ~nec '/reject' two)]
+        [three (mention ~bus room-nest three)]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.s)) !>(1))
+  =/  wires
+    %+  murn  caz
+    |=(c=card ?.(?=([%pass [%approval @ @ *] %agent [@ %chat] *] c) ~ `p.c))
+  ;<  ~  bind:m  (ex-equal !>((lent wires)) !>(2))
+  ?>  ?=([* * ~] wires)
+  ;<  first=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
+  ;<  second=(list card)  bind:m  (do-agent i.t.wires [~zod %chat] [%poke-ack ~])
+  =/  waits  '~bus: I need approval from my owner, ~nec, before I can respond in this channel — I\'ve sent them the request.'
+  %+  ex-equal  !>((weld (waiting first) (waiting second)))
+  !>(`(list [@t @t])`~[['chat/~lux/test' waits]])
 ::  The reply would name the owner now; the card went to the one before.
 ::
 ++  test-a-card-acknowledged-after-the-owner-changed-tells-nothing
