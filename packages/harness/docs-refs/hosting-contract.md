@@ -48,12 +48,63 @@ Eyre session cookie and a JSON object body. Both return the hosted envelope
 The hosted capabilities response advertises `soul: true` and `skills: true`.
 These are owner-authorized configuration operations, not public content APIs.
 
-`hosted-soul` exposes the default system instructions as a text body, not a
+The default system instructions are seven named layers, the files Tlon's System
+Prompts screen edits: `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`,
+`USER.md`, `BOOTSTRAP.md` and `MEMORY.md`. Each is a text; an empty layer is
+not stored. A new conversation inherits the non-empty layers joined in the
+order `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`,
+`BOOTSTRAP.md`, with one blank line between layers and nothing else added, so
+a lone layer is inherited byte for byte. `MEMORY.md` is never part of that
+text: every conversation inherits it, shared channels and other ships' DMs
+included, and `MEMORY.md` is the owner's private memory. It is stored, read and
+set like the other layers and appears on their scry and feed. `USER.md` is
+inherited, as OpenClaw gives it to group sessions too.
+
+The inherited text is at most 131,072 bytes, the composed layers together.
+A write of a layer, through any surface below, that would make it longer than
+that and longer than it was is refused and changes nothing. `MEMORY.md` does
+not count toward it. Upgrading a ship moves its earlier single text into
+`AGENTS.md`, leaving the other layers empty, so its new conversations inherit
+the same text as before; an earlier text over the limit loads as it was, and
+may then shrink. Each load derives the inherited text from the layers.
+
+A layer change, like any change to the defaults, does not rewrite an existing
+conversation, with one exception: a conversation serving a peer ship takes the
+peer base configuration on each ask it accepts, and with no peer base set that
+is the defaults, so it takes the new text on its next ask.
+
+`hosted-soul`, ACP `harness/defaults` and `harness/defaults/configure`
+(`system`) and the Settings editor all read and write the `AGENTS.md` layer.
+`harness/defaults/configure` sets no limit on the layer itself, but answers
+error `-32602` when the inherited text would pass its limit. The scry
+`/defaults.json`, which the Tlon hand creates its conversations from, returns
+the composed text in `system` instead.
+
+A same-ship agent reads all seven with the scry `/x/v1/prompts`, which
+returns mark `%harness-prompts-1` (`mar/harness/prompts-1.hoon`): a
+`prompts:harness`, the `(map prompt-name @t)` holding the non-empty layers.
+Scry it as `/v1/prompts/harness-prompts-1`, or `/v1/prompts/noun` for the same
+noun. It sets one with the `%harness-action` poke `[%prompt-set name body]`;
+empty text clears the layer. A name outside the seven, a text over 65,536
+bytes or a set that would pass the limit on the inherited text is refused
+with a nack, as is a `[%defaults config]` poke that would; a set that leaves
+the layer as it was
+changes nothing. To follow changes, it watches `/v1/prompt-events` on
+`%harness`: the new subscriber alone first receives one `%harness-prompts-1`
+fact holding the whole layer map, and after any event that changes a layer,
+whichever surface wrote it, every subscriber receives one fact with the new
+map. Each fact replaces the subscriber's copy; after a kick it watches again
+and replaces its copy from the fresh map that watch gives. A change to the
+map's shape would come as a new mark on a new path version, leaving these as
+they are. Foreign ships cannot read, set or watch the layers.
+
+`hosted-soul` exposes the `AGENTS.md` layer as a text body, not a
 separate filesystem copy. Send `{}` to read `{body, revision}`; send
 `{body, revision}` to replace it using the revision just read. Empty text is
-allowed. The result includes the saved text and revision. This changes the
-instructions inherited by new conversations, not existing conversation
-configurations, provider settings, or tool grants.
+allowed. The result includes the saved text and revision. A text over 65,536
+bytes, or one that would pass the limit on the inherited text, returns status
+400 and changes nothing. A write changes the instructions conversations
+inherit, as above, not provider settings or tool grants.
 
 `hosted-skills` operates on the same shared skills as the Harness skill editor:
 

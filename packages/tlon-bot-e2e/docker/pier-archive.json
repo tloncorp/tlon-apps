@@ -1,10 +1,10 @@
 {
-  "generation": 54,
-  "sourceSha": "25c02133fd5fa2c6b9dacfbcb516c0ce1dc8070e",
-  "deskTreeNoGlob": "7532c59123263ea7ebab178b6c78cae0afbd53ca",
+  "generation": 55,
+  "sourceSha": "0ad0b225953521d8d8ca664ddac08179c4980150",
+  "deskTreeNoGlob": "2dbc0ac294e6f332dd4c4ea24fdb141f23b3d533",
   "deskDepsBlob": "080cccf7f5573b70de8b83e33ee4441a8a75a233",
   "justfileBlob": "03face9ab4ef064e8012366c3d993cd71398c80d",
   "fetchDepsBlob": "e9ae2b9fedf2f6edaaff5fe0d4a81ead8677aac5",
   "vere": "urbit 4.6",
-  "producedAt": "2026-11-20T09:24:36Z"
+  "producedAt": "2026-11-25T09:18:53Z"
 }

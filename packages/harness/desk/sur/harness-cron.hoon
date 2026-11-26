@@ -21,7 +21,9 @@
       prompt=@t
       tools=(list tool-grant:h)
       next=@da
-      remaining=@ud
+      ::  Runs left; ~ for a recurring job with no limit, which repeats
+      ::  until it is cancelled.
+      remaining=(unit @ud)
       state=?(%active %paused %cancelled %complete)
       reason=@t
       last=(unit @uv)

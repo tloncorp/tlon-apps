@@ -113,7 +113,7 @@ try {
     return current?.display.text === 'Fetching a page' && current
   })
   assert.deepEqual(JSON.parse(toolPresence.display.blob), {
-    protocol: 'tlon.computing-status.v1', thinking: false,
+    protocol: 'tlon.computing-status.v1', thinking: true,
     toolCalls: [{ toolName: 'http_fetch', label: 'Fetching a page' }],
   })
   assert.ok(!JSON.stringify(toolPresence).includes(url), 'presence does not expose tool arguments')
