@@ -3658,8 +3658,9 @@
 ::
 ::    The grant has just moved the ship's cutoff there past it, so it alone
 ::    is admitted past .floor; the cutoff still stops every earlier message
-::    and a later catch-up of this one. A deleted message, or a channel the
-::    bot has left, gets no answer.
+::    and a later catch-up of this one. A deleted message, an approval
+::    command, which +activity drops from anyone but the owner, or a channel
+::    the bot has left, gets no answer.
 ::
 ++  answer-waiting
   |=  [who=@p =place:t floor=@da]
@@ -3667,6 +3668,7 @@
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
   =/  event  (waiting-attempt who place floor)
   ?~  event  cor
+  ?^  (approval-order u.event)  cor
   =/  heard  (normalize-owned:p our.bowl policy u.event actor-owner)
   ?~  heard  cor
   ::  A settings save drops the cutoff of a ship that lost its access and

@@ -1411,6 +1411,22 @@
     ==
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
   (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  ~dev's newest DM message is an approval command, which only the owner
+::  gives. As a deleted newest message, it is answered with nothing.
+::
+++  test-allow-answers-nothing-when-the-newest-dm-message-is-an-approval-command
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %:  admit-holding  asked  later  ~[[told (said ~nec '/allow d0001' told)]]
+        (dm-page ~[[one-at 'one' &] [two-at '/allow d0001' &]])  ~
+    ==
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  ;<  ~  bind:m  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  ~[['dm/~nec' 'Approved DM access for ~dev. They will be able to message the bot.']]
 ::  ~dev's DM grant was taken back at .two-at. What it wrote before then was
 ::  past its cutoff, never an attempt of this request.
 ::
