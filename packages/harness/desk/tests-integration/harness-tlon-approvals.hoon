@@ -2182,9 +2182,9 @@
   ;<  ~  bind:m  (boot (change s) now *stream:v10:a)
   ;<  [out=(list card) w=state-7:t]  bind:m  (ack-card caz ack)
   (pure:m (waiting out) w)
-::  The acknowledgement names its request by id and opening time, so a
-::  request that closed, expired or gave its id to another meanwhile is
-::  told nothing.
+::  The acknowledgement names its request by its button token, so a request
+::  that closed, expired or gave its id to another meanwhile is told
+::  nothing.
 ::
 ++  test-a-card-acknowledged-after-its-request-closed-expired-or-gave-up-its-id-tells-nothing
   %-  eval-mare
