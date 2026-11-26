@@ -1333,6 +1333,33 @@
   %+  ex-equal  !>((answered out))
   !>  ^-  (list [@t @t])
   ~[['dm/~nec' 'Could not block ~dev: block failed. Request stays pending, try again.']]
+::  Two taps on Block: the first block is refused, the second takes. Status
+::  must not keep the refusal once the owner has been told the ship is
+::  blocked.
+::
+++  test-a-ban-that-takes-after-a-refused-block-clears-the-refusal-from-status
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  asked  later
+    =/  tap  (rap 3 '/ban c0001 ' (token asked 'c0001') ~)
+    :~  [told (said ~nec tap told)]
+        [(add told ~s1) (said ~nec tap (add told ~s1))]
+    ==
+  =/  wires  (turn (blocks caz) head)
+  ?>  ?=([* * ~] wires)
+  ;<  first=(list card)  bind:m
+    (do-agent i.wires [~zod %chat] [%poke-ack `~[leaf+"no"]])
+  ;<  refused=vase  bind:m  get-save
+  ;<  ~  bind:m
+    %+  ex-equal  !>(error:!<(state-7:t refused))
+    !>('Messenger rejected a block; inspect the ship log.')
+  ;<  second=(list card)  bind:m  (do-agent i.t.wires [~zod %chat] [%poke-ack ~])
+  ;<  taken=vase  bind:m  get-save
+  ;<  ~  bind:m  (ex-equal !>(error:!<(state-7:t taken)) !>(''))
+  %+  ex-equal  !>((answered second))
+  !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
 ::  %chat crashes on a block it already has, so none is asked for.
 ::
 ++  test-ban-of-a-ship-already-blocked-asks-no-block-and-closes-its-requests
@@ -1417,6 +1444,10 @@
         [(add told ~s1) (said ~wes '/ban c0002' (add told ~s1))]
         [(add told ~s2) (said ~ryd '/allow c0001' (add told ~s2))]
         [(add told ~s3) (said ~bel '/reject d0001' (add told ~s3))]
+        :-  (add told ~s4)
+        :*  %dm-reply  [[~bus (add told ~s4)] (add told ~s4)]  [[~zod told] told]
+            [%ship ~bus]  ~[[%inline ~['/allow c0001']]]  |
+        ==
     ==
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))

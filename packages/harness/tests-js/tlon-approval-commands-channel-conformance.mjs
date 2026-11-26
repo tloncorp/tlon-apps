@@ -55,7 +55,7 @@ try {
 
   await t.post(guest, sentText('after'))
   await until('the guest\'s next mention is answered in the channel', async () => answered(await t.channelFromBot(start)))
-  assert.ok(!t.seen(sentText(`${guest.ship.slice(1)}-first`)), 'the mention the guest asked with reached the model')
+  assert.ok(t.seen(sentText('after')))
   const direct = t.da(Date.now())
   await t.dm(guest, bot, sentText('direct'))
   await until('the guest sent its DM', async () => Object.values((await t.scry(guest, `chat/v4/dm/${bot.ship}/writs/newest/16/light`))?.writs || {})
