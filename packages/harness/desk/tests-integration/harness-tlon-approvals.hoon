@@ -2270,6 +2270,70 @@
   =/  cards  (carded caz)
   ?>  ?=([[~ @] ~] cards)
   (ex-equal !>((lent (tappable u.i.cards))) !>(12))
+::  Channel and group titles longer than a card's or a listing's room, and
+::  what they are cut to
+::
+++  long-channel  (crip (reap 100 'c'))
+++  long-group  (crip (reap 90 'g'))
+++  cut-channel  (cat 3 (crip (reap 77 'c')) '...')
+++  cut-group  (cat 3 (crip (reap 77 'g')) '...')
+::  As +admit, with .room-nest and its group titled .long-channel and
+::  .long-group
+::
+++  admit-titled
+  |=  [saved=state-7:t now=@da events=(list [@da incoming-event:v8:a])]
+  =/  m  (mare ,[(list card) state-7:t])
+  ^-  form:m
+  =/  events  (stream events)
+  =/  group  room-group
+  =.  title.meta.group  long-group
+  =.  channels.group
+    %+  ~(jab by channels.group)  room-nest
+    |=(=channel:v9:g channel(title.meta long-channel))
+  ;<  ~  bind:m  (boot saved now events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  &(?=([%gx *] path) (lien path |=(part=@ta =(%groups part))))
+      `!>((my ~[[[~lux %test] group]]))
+    ((scries events) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-7:t vase))
+++  test-a-card-cuts-a-long-channel-and-group-title
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  at  ~2026.9.9..12.00.00
+  ;<  [caz=(list card) *]  bind:m  (admit-titled fixture start ~[[at (mention ~dev room-nest at)]])
+  =/  cards  (sent caz)
+  ?>  ?=([* ~] cards)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((says blob.i.cards (rap 3 'Let the bot reply to ~dev in ' cut-channel '?' ~)))
+    !>(&)
+  ;<  ~  bind:m  (ex-equal !>((says blob.i.cards (cat 3 'Channel: ' cut-channel))) !>(&))
+  (ex-equal !>((says blob.i.cards (cat 3 'Group: ' cut-group))) !>(&))
+++  test-pending-cuts-a-long-channel-and-group-title-in-its-text-and-card
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m  (admit-titled asked later ~[[told (said ~nec '/pending' told)]])
+  =/  label  (rap 3 cut-channel ' in ' cut-group ' (chat/~lux/test)' ~)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    :~  :-  'dm/~nec'
+        %+  rap  3
+        :~  'Pending requests (3):'
+            '\0a  #d0001 - DM from ~dev'
+            '\0a  #c0001 - Mention in '  label  ' by ~dev'
+            '\0a  #c0002 - Mention in '  label  ' by ~wes'
+            pending-tail
+        ==
+    ==
+  =/  cards  (carded caz)
+  ?>  ?=([[~ @] ~] cards)
+  (ex-equal !>((says u.i.cards (cat 3 'Channel: ' label))) !>(&))
 ++  test-banned-lists-the-blocked-ships
   %-  eval-mare
   =/  m  (mare ,~)

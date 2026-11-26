@@ -3894,8 +3894,8 @@
   ^-  (unit @t)
   ?~  place  ~
   `(channel-label:ask (address:p [%channel u.place ~]) name.u.place (approval-channel place))
-::  +approval-channel: a channel's title and its group's, as the card names
-::  them; ~ for a DM
+::  +approval-channel: a channel's title and its group's, as the card and
+::  every reply and listing name them, each cut by +bounded:ask; ~ for a DM
 ::
 ++  approval-channel
   |=  =place:t
@@ -3910,8 +3910,8 @@
     `[title.meta.u.channel title.meta.group]
   ?~  named  `[name.u.place ~]
   :+  ~
-    ?:(=('' channel.i.named) name.u.place channel.i.named)
-  ?:(=('' group.i.named) ~ `group.i.named)
+    ?:(=('' channel.i.named) name.u.place (bounded:ask channel.i.named))
+  ?:(=('' group.i.named) ~ `(bounded:ask group.i.named))
 ::  +approval-preview: the text of the message that opened a request
 ::
 ::    A DM's first message comes as an invitation; its text is on the ship.

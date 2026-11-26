@@ -199,4 +199,17 @@
         !>('Room in Lux (chat/~lux/test)')
       !>((channel-label:ask nest 'test' `['Room' `'Lux']))
   ==
+::  Characters, not bytes, are counted.
+::
+++  test-a-title-over-eighty-characters-is-cut-to-seventy-seven-and-an-ellipsis
+  =/  eighty  (crip (reap 80 'a'))
+  ;:  weld
+      (expect-eq !>(eighty) !>((bounded:ask eighty)))
+      %+  expect-eq
+        !>((cat 3 (crip (reap 77 'a')) '...'))
+      !>((bounded:ask (cat 3 eighty 'b')))
+      %+  expect-eq
+        !>((cat 3 (crip (tufa (reap 77 `@c`0x00e9))) '...'))
+      !>((bounded:ask (crip (tufa (reap 81 `@c`0x00e9)))))
+  ==
 --
