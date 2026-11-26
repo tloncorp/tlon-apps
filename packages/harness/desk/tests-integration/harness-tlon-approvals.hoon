@@ -1107,7 +1107,7 @@
   |=  [caz=(list card) ack=(unit tang)]
   =/  m  (mare ,[(list card) state-7:t])
   ^-  form:m
-  =/  wires  (turn (blocks caz) head)
+  =/  wires  (turn (ship-pokes %chat-block-ship caz) head)
   ?>  ?=([* ~] wires)
   ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ack])
   ;<  =vase  bind:m  get-save
@@ -1133,14 +1133,16 @@
     `[(address:policy-lib [%dm p.act ~]) (story-to-text:story content.essay.q.q.act)]
   =/  act  ;;([%channel =nest:dv %post %add [=memo:v9:dv *]] q.q.cage)
   `[(address:policy-lib [%channel nest.act ~]) (story-to-text:story content.memo.act)]
-::  The native blocks asked of %chat: their wires and ships.
+::  The native blocks or unblocks, by .mark, asked of %chat: their wires and
+::  ships
 ::
-++  blocks
-  |=  caz=(list card)
+++  ship-pokes
+  |=  [=mark caz=(list card)]
   ^-  (list [wire @p])
   %+  murn  caz
   |=  c=card
-  ?.  ?=([%pass * %agent [@ %chat] %poke %chat-block-ship *] c)  ~
+  ?.  ?=([%pass * %agent [@ %chat] %poke * *] c)  ~
+  ?.  =(mark p.cage.task.q.c)  ~
   `[p.c !<(@p q.cage.task.q.c)]
 ::  The DM invitations accepted.
 ::
@@ -1409,6 +1411,25 @@
     ==
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
   (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  The owner blocked ~dev in Tlon after it wrote, then taps the old card's
+::  Allow: the grant is made, and ~dev's message is answered with nothing.
+::
+++  test-allow-answers-nothing-from-a-ship-blocked-since-it-wrote
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  (stream ~[[told (said ~nec '/allow d0001' told)]])
+  ;<  ~  bind:m  (boot asked later events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>((silt ~[~bel ~dev]))
+    ((holding events (dm-page ~[[one-at 'may I ask?' &]]) ~) path)
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  =/  s  !<(state-7:t vase)
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
 ::  ~dev's newest DM message is an approval command, which only the owner
 ::  gives. As a deleted newest message, it is answered with nothing.
 ::
@@ -1568,7 +1589,7 @@
     (open:ask open 'c0003' [~dev `all-nest start])
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit saved later ~[[told (said ~nec '/ban c0001' told)]])
-  ;<  ~  bind:m  (ex-equal !>((turn (blocks caz) tail)) !>(`(list @p)`~[~dev]))
+  ;<  ~  bind:m  (ex-equal !>((turn (ship-pokes %chat-block-ship caz) tail)) !>(`(list @p)`~[~dev]))
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.saved))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
   ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block caz ~)
@@ -1592,7 +1613,7 @@
     |=  =path
     ?:  ?=([%gx @ %chat @ %dm %invited %ships ~] path)  `!>((silt ~[~dev]))
     ((scries *stream:v10:a) path)
-  =/  wires  (turn (blocks caz) head)
+  =/  wires  (turn (ship-pokes %chat-block-ship caz) head)
   ?>  ?=([* ~] wires)
   ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
   ;<  =vase  bind:m  get-save
@@ -1613,7 +1634,7 @@
     :~  [told (said ~nec tap told)]
         [(add told ~s1) (said ~nec tap (add told ~s1))]
     ==
-  =/  wires  (turn (blocks caz) head)
+  =/  wires  (turn (ship-pokes %chat-block-ship caz) head)
   ?>  ?=([* * ~] wires)
   ;<  first=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
   ;<  ~  bind:m
@@ -1660,7 +1681,7 @@
     :~  [told (said ~nec tap told)]
         [(add told ~s1) (said ~nec tap (add told ~s1))]
     ==
-  =/  wires  (turn (blocks caz) head)
+  =/  wires  (turn (ship-pokes %chat-block-ship caz) head)
   ?>  ?=([* * ~] wires)
   ;<  first=(list card)  bind:m
     (do-agent i.wires [~zod %chat] [%poke-ack `~[leaf+"no"]])
@@ -1683,7 +1704,7 @@
   =.  approvals.saved  (open:ask approvals.saved 'c0004' [~bel `room-nest start])
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit saved later ~[[told (said ~nec '/ban c0004' told)]])
-  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   %+  ex-equal  !>((answered caz))
   !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~bel. They will no longer be able to contact the bot.']])
@@ -1707,7 +1728,7 @@
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit closed later ~[[told (said ~nec '/ban d0001' told)]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.closed))
-  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m
     %+  ex-equal  !>((answered caz))
     !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #d0001']])
@@ -1766,7 +1787,7 @@
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
-  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m  (ex-equal !>((kinds s 'permission-denied')) !>(0))
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   (ex-equal !>((turned caz)) !>(|))
@@ -1905,7 +1926,7 @@
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit extended later ~[[told (said ~nec (rap 3 '/ban c0001 ' (token asked 'c0001') ~) told)]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.extended))
-  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m
     %+  ex-equal  !>((answered caz))
     !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found for ID: #c0001']])
@@ -2105,15 +2126,6 @@
   =/  act  !<(action:dm:v7:cv q.cage.task.q.c)
   ?>  ?=(%add -.q.q.act)
   `blob.essay.q.q.act
-::  The native unblocks asked of %chat: their wires and ships
-::
-++  unblocks
-  |=  caz=(list card)
-  ^-  (list [wire @p])
-  %+  murn  caz
-  |=  c=card
-  ?.  ?=([%pass * %agent [@ %chat] %poke %chat-unblock-ship *] c)  ~
-  `[p.c !<(@p q.cage.task.q.c)]
 ::  As +admit, with %chat blocking .blocked
 ::
 ++  admit-blocking
@@ -2283,14 +2295,21 @@
 ::
 ++  admit-titled
   |=  [saved=state-7:t now=@da events=(list [@da incoming-event:v8:a])]
+  (admit-named saved now events long-channel long-group)
+::  As +admit, with .room-nest titled .channel and its group .title
+::
+++  admit-named
+  |=  $:  saved=state-7:t  now=@da  events=(list [@da incoming-event:v8:a])
+          channel=@t  title=@t
+      ==
   =/  m  (mare ,[(list card) state-7:t])
   ^-  form:m
   =/  events  (stream events)
   =/  group  room-group
-  =.  title.meta.group  long-group
+  =.  title.meta.group  title
   =.  channels.group
     %+  ~(jab by channels.group)  room-nest
-    |=(=channel:v9:g channel(title.meta long-channel))
+    |=(room=channel:v9:g room(title.meta channel))
   ;<  ~  bind:m  (boot saved now events)
   ;<  ~  bind:m
     %-  set-scry-gate
@@ -2304,6 +2323,44 @@
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
   (pure:m caz !<(state-7:t vase))
+::  The UTF-8 decoder crashes on a tab, which a group's title may hold. The
+::  request opens, its card goes out and catch-up moves past the mention.
+::
+++  test-a-group-title-with-a-tab-opens-the-request-and-catch-up-moves-on
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  at  ~2026.9.9..12.00.00
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-named fixture start ~[[at (mention ~dev room-nest at)]] 'Room' (crip "Lux\09group"))
+  ;<  ~  bind:m  (ex-equal !>((open s)) !>((places ~[[~dev `room-nest]])))
+  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(at))
+  =/  cards  (sent caz)
+  ?>  ?=([* ~] cards)
+  (ex-equal !>((says blob.i.cards (cat 3 'Group: ' (crip "Lux\09group")))) !>(&))
+::  An untitled channel is named by its nest, which a host may make long:
+::  the card's row names it cut as a title is, within Messenger's limit.
+::
+++  test-pending-cuts-a-long-nest-in-its-card
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  long  `nest:dv`[%chat ~lux (crip (reap 300 'a'))]
+  =/  saved  fixture
+  =.  approvals.saved  (open:ask approvals.saved 'c0001' [~dev `long start])
+  ;<  [caz=(list card) *]  bind:m  (admit saved later ~[[told (said ~nec '/pending' told)]])
+  =/  shown  (cat 3 (crip (weld "chat/~lux/" (reap 67 'a'))) '...')
+  =/  cards  (carded caz)
+  ?>  ?=([[~ @] ~] cards)
+  ;<  ~  bind:m  (ex-equal !>((says u.i.cards (cat 3 'Channel: ' shown))) !>(&))
+  %+  ex-equal
+    !>  %+  levy  (components u.i.cards)
+        |=  c=json
+        ?>  ?=(%o -.c)
+        =/  text  (~(get by p.c) 'text')
+        ?.  ?=([~ %s *] text)  &
+        (lth (met 3 p.u.text) 1.000)
+  !>(&)
 ++  test-a-card-cuts-a-long-channel-and-group-title
   %-  eval-mare
   =/  m  (mare ,~)
@@ -2361,7 +2418,7 @@
   ^-  form:m
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit asked later ~[[told (said ~nec '/unban ~bel' told)]])
-  =/  asks  (unblocks caz)
+  =/  asks  (ship-pokes %chat-unblock-ship caz)
   ;<  ~  bind:m  (ex-equal !>((turn asks tail)) !>(`(list @p)`~[~bel]))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
   ?>  ?=([* ~] asks)
@@ -2373,14 +2430,14 @@
   ::  As OpenClaw reads it, the sig and the case are optional.
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit asked later ~[[told (said ~nec '/unban BEL' told)]])
-  (ex-equal !>((turn (unblocks caz) tail)) !>(`(list @p)`~[~bel]))
+  (ex-equal !>((turn (ship-pokes %chat-unblock-ship caz) tail)) !>(`(list @p)`~[~bel]))
 ++  test-a-refused-unblock-is-reported
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit asked later ~[[told (said ~nec '/unban ~bel' told)]])
-  =/  asks  (unblocks caz)
+  =/  asks  (ship-pokes %chat-unblock-ship caz)
   ?>  ?=([* ~] asks)
   ;<  [out=(list card) w=state-7:t]  bind:m  (ack-unblock -.i.asks `~[leaf+"no"] (silt ~[~bel]))
   ;<  ~  bind:m
@@ -2400,7 +2457,7 @@
     :~  [told (said ~nec '/unban ~bel' told)]
         [(add told ~s1) (said ~nec '/unban ~bel' (add told ~s1))]
     ==
-  =/  asks  (unblocks caz)
+  =/  asks  (ship-pokes %chat-unblock-ship caz)
   ?>  ?=([* * ~] asks)
   ;<  [first=(list card) *]  bind:m  (ack-unblock -.i.asks ~ ~)
   ;<  [second=(list card) w=state-7:t]  bind:m
@@ -2417,7 +2474,7 @@
   ^-  form:m
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit asked later ~[[told (said ~nec '/unban ~dev' told)]])
-  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-unblock-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   %+  ex-equal  !>((answered caz))
   !>(`(list [@t @t])`~[['dm/~nec' '~dev is not blocked.']])
@@ -2430,7 +2487,7 @@
     :~  [told (said ~nec '/unban' told)]
         [(add told ~s1) (said ~nec '/unban sampel palnet' (add told ~s1))]
     ==
-  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-unblock-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m  (ex-equal !>((turned caz)) !>(|))
   %+  ex-equal  !>((answered caz))
   !>  ^-  (list [@t @t])
@@ -2457,7 +2514,7 @@
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
-  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-unblock-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m  (ex-equal !>((kinds s 'permission-denied')) !>(0))
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   (ex-equal !>((turned caz)) !>(|))
@@ -2484,7 +2541,7 @@
   =/  s  !<(state-7:t vase)
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
-  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-unblock-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m
     %+  ex-equal  !>((turn ~(val by jobs.s) |=(=job:t actor.input.job)))
     !>(`(list @p)`~[~nec])
@@ -2886,6 +2943,35 @@
   ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after reused start ~)
   ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
   (ex-equal !>(told) !>(`(list [@t @t])`~))
+::  In one catch-up, ~dev's mention opens a request, the owner's bare
+::  /reject closes it, and ~bus's mention opens another with the same id
+::  and opening time. ~dev's card's acknowledgement tells nobody; ~bus's
+::  tells ~bus once.
+::
+++  test-a-card-acknowledged-after-its-id-and-time-went-to-another-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  one  ~2026.9.9..12.00.00
+  =/  two  ~2026.9.9..12.00.01
+  =/  three  ~2026.9.9..12.00.02
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  fixture  start
+    :~  [one (mention ~dev room-nest one)]
+        [two (said ~nec '/reject' two)]
+        [three (mention ~bus room-nest three)]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.s)) !>(1))
+  =/  wires
+    %+  murn  caz
+    |=(c=card ?.(?=([%pass [%approval @ @ *] %agent [@ %chat] *] c) ~ `p.c))
+  ;<  ~  bind:m  (ex-equal !>((lent wires)) !>(2))
+  ?>  ?=([* * ~] wires)
+  ;<  first=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
+  ;<  second=(list card)  bind:m  (do-agent i.t.wires [~zod %chat] [%poke-ack ~])
+  =/  waits  '~bus: I need approval from my owner, ~nec, before I can respond in this channel — I\'ve sent them the request.'
+  %+  ex-equal  !>((weld (waiting first) (waiting second)))
+  !>(`(list [@t @t])`~[['chat/~lux/test' waits]])
 ::  The reply would name the owner now; the card went to the one before.
 ::
 ++  test-a-card-acknowledged-after-the-owner-changed-tells-nothing

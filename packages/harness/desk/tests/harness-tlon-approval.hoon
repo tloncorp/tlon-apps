@@ -213,4 +213,15 @@
         !>((cat 3 (crip (tufa (reap 77 e))) '...'))
       !>((bounded:ask (crip (tufa (reap 81 e)))))
   ==
+::  The UTF-8 decoder crashes on these; a host can set either.
+::
+++  test-a-title-with-a-tab-or-invalid-utf-8-is-cut-without-crashing
+  =/  tab  (crip (reap 81 '\09'))
+  =/  bad  (rep 3 (reap 81 0xff))
+  ;:  weld
+      (expect-eq !>((cat 3 (crip (reap 77 '\09')) '...')) !>((bounded:ask tab)))
+      (expect-eq !>((cat 3 (rep 3 (reap 77 0xff)) '...')) !>((bounded:ask bad)))
+      (expect-eq !>('a\09b') !>((bounded:ask 'a\09b')))
+      (expect-eq !>('a\09b') !>((preview:ask 'a\09b')))
+  ==
 --

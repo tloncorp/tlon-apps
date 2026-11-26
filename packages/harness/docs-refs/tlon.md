@@ -834,14 +834,17 @@ hand handles no message from its own ship.
   message and a later catch-up of this one. If the ship wrote several times,
   only the newest is answered; if the newest was deleted, or is itself an
   approval command, which is the owner's alone, or the bot has left the
-  channel, nothing is. A grant made by a settings save, `/reject`
+  channel, or the ship is blocked on Tlon since it wrote, nothing is. A grant made by a settings save, `/reject`
   and `/ban` answer nothing. The reply is `Approved DM access for ~ship. They will be able
   to message the bot.` or `Approved ~ship for <channel>. They will be able to
   interact in this channel.`, where the channel is named `Title in Group
   (chat/~host/name)`, or with what of the titles it has. Wherever a card, a
   reply or `/pending` names a channel, each title over 80 characters is cut
   to 77 and `...`, as OpenClaw cuts a group's, since the host sets it and
-  Messenger limits a card's text.
+  Messenger limits a card's text; so are the nest and an untitled channel's
+  name shown there, though a button still sends the request's own id. The
+  cut counts characters on the bytes, so a tab or a malformed byte in a
+  title cannot stop the request from opening.
 - `/reject` closes the request and gives nothing, so the ship can ask again.
   For a DM request it also declines the ship's pending DM invitation, as
   expiry does, so its next message invites the bot again. The reply is

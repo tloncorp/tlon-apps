@@ -3213,9 +3213,12 @@
   ?>  ?=([%approval @ @ @ ~] wire)
   ?.  ?=(%poke-ack -.sign)  cor
   =/  id  i.t.wire
+  ::  The request's token, not its id, which another request opened in the
+  ::  same event shares, names the request the card was for.
   =/  found=(unit approval:t)
     =/  held  (~(get by by-id.approvals) id)
-    ?.  &(?=(^ held) =(i.t.t.wire (scot %da at.u.held)))  ~
+    ?~  held  ~
+    ?.  =(i.t.t.wire (scot %uv (button-token:ask id u.held)))  ~
     held
   ::  The reply would name the owner now, who was never sent the card.
   =/  to=(unit destination:t)
@@ -3520,7 +3523,7 @@
   =/  told  (bind (waiting-to event) |=(to=destination:t [u.owner to]))
   %-  emit
   %:  publish:messenger
-    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam told))
+    /approval/[id]/(scot %uv (button-token:ask id [who place now.bowl]))/(scot %uv (jam told))
     [%dm u.owner ~]
     text
     last-sent
@@ -3733,11 +3736,13 @@
 ::    is admitted past .floor; the cutoff still stops every earlier message
 ::    and a later catch-up of this one. A deleted message, an approval
 ::    command, which +activity drops from anyone but the owner, or a channel
-::    the bot has left, gets no answer.
+::    the bot has left, gets no answer, nor does a ship blocked since it
+::    wrote.
 ::
 ++  answer-waiting
   |=  [who=@p =place:t floor=@da]
   ^+  cor
+  ?:  (blocked:messenger who)  cor
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
   =/  event  (waiting-attempt who place floor)
   ?~  event  cor
@@ -3961,9 +3966,9 @@
     =/  channel  (~(get by channels.group) u.place)
     ?~  channel  ~
     `[title.meta.u.channel title.meta.group]
-  ?~  named  `[name.u.place ~]
+  ?~  named  `[(bounded:ask name.u.place) ~]
   :+  ~
-    ?:(=('' channel.i.named) name.u.place (bounded:ask channel.i.named))
+    (bounded:ask ?:(=('' channel.i.named) name.u.place channel.i.named))
   ?:(=('' group.i.named) ~ `(bounded:ask group.i.named))
 ::  +approval-preview: the text of the message that opened a request
 ::
