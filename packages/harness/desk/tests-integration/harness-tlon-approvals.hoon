@@ -2398,7 +2398,7 @@
   ?>  ?=([* ~] cards)
   (ex-equal !>((says blob.i.cards (cat 3 'Group: ' (crip "Lux\09group")))) !>(&))
 ::  An untitled channel is named by its nest, which a host may make long:
-::  the card's row names it cut as a title is, within Messenger's limit.
+::  the card's row names it by its start and end, within Messenger's limit.
 ::
 ++  test-pending-cuts-a-long-nest-in-its-card
   %-  eval-mare
@@ -2408,7 +2408,7 @@
   =/  saved  fixture
   =.  approvals.saved  (open:ask approvals.saved 'c0001' [~dev `long start])
   ;<  [caz=(list card) *]  bind:m  (admit saved later ~[[told (said ~nec '/pending' told)]])
-  =/  shown  (cat 3 (crip (weld "chat/~lux/" (reap 67 'a'))) '...')
+  =/  shown  (rap 3 (crip (weld "chat/~lux/" (reap 28 'a'))) '...' (crip (reap 39 'a')) ~)
   =/  cards  (carded caz)
   ?>  ?=([[~ @] ~] cards)
   ;<  ~  bind:m  (ex-equal !>((says u.i.cards (cat 3 'Channel: ' shown))) !>(&))

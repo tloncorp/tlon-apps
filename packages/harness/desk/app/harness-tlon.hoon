@@ -3335,7 +3335,7 @@
   ^-  (unit destination:t)
   =/  order  (approval-order event)
   ?~  order  ~
-  ?.  ?=(%allow action.order.u.order)  ~
+  ?.  ?=(%allow -.order.u.order)  ~
   ?.  (actor-owner who.u.order)  ~
   =/  found  (pick:ask (live:ask approvals now.bowl) [id token]:order.u.order)
   ?~  found  ~
@@ -3924,7 +3924,8 @@
   ?~  place  ~
   `(channel-label:ask (address:p [%channel u.place ~]) name.u.place (approval-channel place))
 ::  +approval-channel: a channel's title and its group's, as the card and
-::  every reply and listing name them, each cut by +bounded:ask; ~ for a DM
+::  every reply and listing name them, titles cut by +bounded:ask and a name by
+::  +squeezed:ask; ~ for a DM
 ::
 ++  approval-channel
   |=  =place:t
@@ -3937,9 +3938,9 @@
     =/  channel  (~(get by channels.group) u.place)
     ?~  channel  ~
     `[title.meta.u.channel title.meta.group]
-  ?~  named  `[(bounded:ask name.u.place) ~]
+  ?~  named  `[(squeezed:ask name.u.place) ~]
   :+  ~
-    (bounded:ask ?:(=('' channel.i.named) name.u.place channel.i.named))
+    ?:(=('' channel.i.named) (squeezed:ask name.u.place) (bounded:ask channel.i.named))
   ?:(=('' group.i.named) ~ `(bounded:ask group.i.named))
 ::  +approval-preview: the text of the message that opened a request
 ::
