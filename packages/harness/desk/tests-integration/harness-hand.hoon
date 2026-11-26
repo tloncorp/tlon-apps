@@ -989,82 +989,6 @@
         ['forget-1' 'error: That memory name is not available.']
     ==
   (ex-equal !>(`(map @t @t)`(malt results)) !>(expected))
-::  A webhook turn answers no one, so though the place rule would let it
-::  change what its own conversation learned, it saves and forgets nothing.
-::
-++  test-a-webhook-turns-memory-tool-cannot-save-or-forget
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  =/  saved  (seed owned 'hook-note' 'The hook fires hourly.' 'hook' '~zod' |)
-  =.  sessions.saved  (~(put by sessions.saved) 'hook' (idle saved))
-  =/  revision  (scot %ud revision:(~(got by records.knowledge.saved) 'hook-note'))
-  ;<  ~  bind:m  (load saved lane-scry)
-  ;<  asked=(list card)  bind:m
-    (do-poke %handle-http-request !>([`@ta`%hook-1 (webhook 'Note this.')]))
-  ;<  *  bind:m
-    %+  do-arvo  wire:(snag 0 (model-requests asked))
-    %+  answer  ''
-    :~  ['save-1' 'memory' '{"operation":"save","name":"fresh-note","text":"Noted.","revision":"0"}']
-        :+  'forget-1'  'memory'
-        (rap 3 '{"operation":"forget","name":"hook-note","revision":"' revision '"}' ~)
-    ==
-  ;<  after=state-0  bind:m  get-state
-  =/  results
-    %+  murn  log:(~(got by sessions.after) 'hook')
-    |=  =event:h
-    ^-  (unit [@t @t])
-    ?.  ?=(%tool-completed -.event)  ~
-    `[call-id.event body.event]
-  =/  refusal  (cat 3 'error: ' refused-memory:command)
-  ;<  ~  bind:m
-    %+  ex-equal  !>(`(map @t @t)`(malt results))
-    !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]]))
-  (ex-equal !>(records.knowledge.after) !>(records.knowledge.saved))
-::  A turn in the unbound session 'hook' starts from .first, the webhook's
-::  text or the owner's poke; the other arrives while its model request is
-::  out, and that request's answer saves a fact. The save's result, and the
-::  state after.
-::
-++  interleaved-save
-  |=  first=?(%webhook %owner)
-  =/  m  (mare ,[result=@t after=state-0])
-  ^-  form:m
-  =/  saved  owned
-  =.  sessions.saved  (~(put by sessions.saved) 'hook' (idle saved))
-  =/  hook  (do-poke %handle-http-request !>([`@ta`%hook-1 (webhook 'Note this.')]))
-  =/  owner  (do-poke %harness-action !>(`action:h`[%send 'hook' 'Owner here.']))
-  ;<  ~  bind:m  (load saved lane-scry)
-  ;<  asked=(list card)  bind:m  ?:(?=(%webhook first) hook owner)
-  ;<  *  bind:m  ?:(?=(%webhook first) owner hook)
-  ;<  *  bind:m
-    %+  do-arvo  wire:(snag 0 (model-requests asked))
-    %+  answer  ''
-    ~[['save-1' 'memory' '{"operation":"save","name":"fresh-note","text":"Noted.","revision":"0"}']]
-  ;<  after=state-0  bind:m  get-state
-  (pure:m [(tool-result log:(~(got by sessions.after) 'hook')) after])
-::  The webhook's turn answers the webhook, though the owner spoke while
-::  its model request was out: its save changes nothing.
-::
-++  test-a-webhook-turn-cannot-save-after-the-owner-speaks-mid-turn
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  [result=@t after=state-0]  bind:m  (interleaved-save %webhook)
-  =/  start=state-0  owned
-  ;<  ~  bind:m  (ex-equal !>(result) !>((cat 3 'error: ' refused-memory:command)))
-  (ex-equal !>(records.knowledge.after) !>(records.knowledge.start))
-::  The owner's turn answers the owner, though a webhook arrived while its
-::  model request was out: its save still lands.
-::
-++  test-the-owners-turn-still-saves-after-a-webhook-arrives-mid-turn
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  [result=@t after=state-0]  bind:m  (interleaved-save %owner)
-  ;<  ~  bind:m  (ex-equal !>(=('error: ' (end [3 7] result))) !>(|))
-  %+  ex-equal  !>(body.value:(~(got by records.knowledge.after) 'fresh-note'))
-  !>(`'Noted.')
 ::  A subagent's reach comes from the head's own walk to its root: one
 ::  started from the owner's DM sees what the DM sees, one from a channel
 ::  does not.
@@ -1144,31 +1068,46 @@
 ::
 ++  memory-writes
   |=  [saved=state-0 sid=@t who=@t name=@t]
-  (memory-writes-with lane-scry saved sid who name)
-++  memory-writes-with
-  |=  [scry=$-(path (unit vase)) saved=state-0 sid=@t who=@t name=@t]
   =/  m  (mare ,[results=(map @t @t) after=state-0])
   ^-  form:m
-  =/  revision  (scot %ud revision:(~(got by records.knowledge.saved) name))
-  ;<  ~  bind:m  (load saved scry)
+  ;<  ~  bind:m  (load saved ceiling-scry)
   ;<  asked=(list card)  bind:m  (hear sid who 'ask' 'Keep a note of this.')
-  ;<  *  bind:m
-    %+  do-arvo  wire:(snag 0 (model-requests asked))
-    %+  answer  ''
-    :~  ['save-1' 'memory' '{"operation":"save","name":"fresh-note","text":"Noted.","revision":"0"}']
-        :+  'forget-1'  'memory'
-        (rap 3 '{"operation":"forget","name":"' name '","revision":"' revision '"}' ~)
-    ==
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests asked)) (write-answer saved name))
   ;<  after=state-0  bind:m  get-state
-  =/  results
-    %+  murn  log:(~(got by sessions.after) sid)
-    |=  =event:h
-    ^-  (unit [@t @t])
-    ?.  ?=(%tool-completed -.event)  ~
-    `[call-id.event body.event]
-  (pure:m [(malt results) after])
-::  A turn that answers someone other than the owner saves and forgets
-::  nothing through the memory tool, though the place rule would let it.
+  (pure:m [(tool-results log:(~(got by sessions.after) sid)) after])
+::  The hand's authority as the real adapter gives it: the owner ~nec has
+::  no ceiling, every other speaker one.
+::
+++  ceiling-scry
+  |=  =path
+  ^-  (unit vase)
+  =/  parts=(list @ta)  path
+  ?.  ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] parts)  (lane-scry path)
+  =/  owner  =('~nec' i.t.t.t.t.t.t.parts)
+  `!>(`hand-authority:adapter`[& ?:(owner ~ `~[%tlon-read %tlon-write])])
+::  The model's answer: save a new fact and forget .name of .saved.
+::
+++  write-answer
+  |=  [saved=state-0 name=@t]
+  ^-  sign-arvo
+  =/  revision  (scot %ud revision:(~(got by records.knowledge.saved) name))
+  %+  answer  ''
+  :~  ['save-1' 'memory' '{"operation":"save","name":"fresh-note","text":"Noted.","revision":"0"}']
+      :+  'forget-1'  'memory'
+      (rap 3 '{"operation":"forget","name":"' name '","revision":"' revision '"}' ~)
+  ==
+++  tool-results
+  |=  log=(list event:h)
+  ^-  (map @t @t)
+  %-  malt
+  %+  murn  log
+  |=  =event:h
+  ^-  (unit [@t @t])
+  ?.  ?=(%tool-completed -.event)  ~
+  `[call-id.event body.event]
+::  A turn the Tlon hand started for someone other than the owner saves and
+::  forgets nothing through the memory tool, though the place rule would
+::  let it.
 ::
 ++  ex-memory-writes-refused
   |=  [saved=state-0 sid=@t who=@t name=@t]
@@ -1228,55 +1167,76 @@
     !>(`'The falcon codeword is vexillum.')
   ;<  ~  bind:m  (ex-equal !>(body.value:(~(got by records.knowledge.forgotten) 'falcon')) !>(~))
   (ex-equal !>((model log:(~(got by sessions.changed) 'owner'))) !>('other-model'))
-::  A run of .actor's schedule in their DM, .sid, which already learned
-::  .name; the hand answers that no speaker changes a run's settings. The
-::  run's memory writes.
+::  A guest speaks in the channel while the owner's turn there is running.
+::  The owner's turn still saves and forgets; the guest's, which starts once
+::  the owner's is answered, cannot.
 ::
-++  scheduled-writes
-  |=  [actor=@t sid=@t name=@t]
-  =/  m  (mare ,[results=(map @t @t) after=state-0])
+++  test-a-guest-message-during-the-owners-turn-changes-neither-rule
+  %-  eval-mare
+  =/  m  (mare ,~)
   ^-  form:m
-  =/  saved  (seed owned name 'A fact the DM learned.' sid actor |)
-  =/  source=binding:hh  ['tlon' (cat 3 'dm/' actor) sid ~[actor] &]
-  =/  args
-    %-  pairs:enjs:format
-    :~  ['schedule' %s '* * * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Check status']
-        ['runs' %s '2']
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  =.  saved  (seed saved 'room-plan' 'The room plans on Mondays.' 'room' '~bus' |)
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  owner=(list card)  bind:m  (hear 'room' '~nec' 'owner' 'Keep a note of this.')
+  ;<  guest=(list card)  bind:m  (hear 'room' '~bus' 'guest' 'Keep a note of this too.')
+  ;<  ~  bind:m  (ex-equal !>((model-requests guest)) !>(~))
+  ;<  tools=(list card)  bind:m
+    (do-arvo wire:(snag 0 (model-requests owner)) (write-answer saved 'room-note'))
+  ;<  answered=state-0  bind:m  get-state
+  ;<  ~  bind:m
+    %:  ex-memory-writes-saved
+      (tool-results log:(~(got by sessions.answered) 'room'))  answered  'room-note'
     ==
-  =/  job  (create:schedule [%add 0v1 sid actor %prompt args] source ~ t0)
-  =/  run  run-sid.job
-  =.  schedules.saved  (my ~[[0v1 job]])
-  =.  sessions.saved  (~(put by sessions.saved) run (idle saved))
-  =.  bindings.hands.saved  (~(put by bindings.hands.saved) run source(sid run))
-  =/  scry
-    |=  =path
-    ^-  (unit vase)
-    ?:  ?=([%gx @ %harness-tlon @ %settings @ @ %noun ~] path)  `!>(|)
-    (lane-scry path)
-  (memory-writes-with scry saved run actor name)
-::  A run of the owner's schedule answers for the owner.
-::
-++  test-the-owners-scheduled-run-still-saves-and-forgets
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  [results=(map @t @t) after=state-0]  bind:m
-    (scheduled-writes '~nec' 'owner' 'owner-note')
-  (ex-memory-writes-saved results after 'owner-note')
-::  A run of anyone else's schedule answers for them, so it saves and
-::  forgets nothing.
-::
-++  test-another-ships-scheduled-run-cannot-save-or-forget
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  =/  before  (seed owned 'dm-note' 'A fact the DM learned.' 'dm' '~bus' |)
-  ;<  [results=(map @t @t) after=state-0]  bind:m
-    (scheduled-writes '~bus' 'dm' 'dm-note')
+  ;<  started=(list card)  bind:m
+    (do-arvo wire:(snag 0 (model-requests tools)) (answer 'Noted.' ~))
+  =/  plan  (scot %ud revision:(~(got by records.knowledge.answered) 'room-plan'))
+  ;<  *  bind:m
+    %+  do-arvo  wire:(snag 0 (model-requests started))
+    %+  answer  ''
+    :~  ['save-2' 'memory' '{"operation":"save","name":"guest-note","text":"Noted.","revision":"0"}']
+        :+  'forget-2'  'memory'
+        (rap 3 '{"operation":"forget","name":"room-plan","revision":"' plan '"}' ~)
+    ==
+  ;<  after=state-0  bind:m  get-state
+  =/  results  (tool-results log:(~(got by sessions.after) 'room'))
   =/  refusal  (cat 3 'error: ' refused-memory:command)
   ;<  ~  bind:m
-    (ex-equal !>(results) !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]])))
-  (ex-equal !>(records.knowledge.after) !>(records.knowledge.before))
+    %+  ex-equal  !>([(~(got by results) 'save-2') (~(got by results) 'forget-2')])
+    !>([refusal refusal])
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.answered))
+::  A subagent that a guest's channel turn starts answers for that turn, so
+::  it cannot save; one the owner's turn starts can.
+::
+++  test-a-subagent-keeps-its-root-turns-memory-rule
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  child-save
+    |=  who=@t
+    =/  m  (mare ,@t)
+    ^-  form:m
+    =/  saved  owned
+    =.  sessions.saved
+      %+  ~(put by sessions.saved)  'room-child'
+      :_  2
+      :~  [%input-received [0v1 [%subagent 'room' 'call'] ~ ~ t0 [%user 'Child work']]]
+          [%config-replaced defaults.saved]
+      ==
+    ;<  ~  bind:m  (load saved ceiling-scry)
+    ;<  *  bind:m  (hear 'room' who 'ask' 'Start a subagent.')
+    ;<  sent=(list card)  bind:m
+      (do-poke %harness-action !>(`action:h`[%send 'room-child' 'Write a short note.']))
+    ;<  *  bind:m
+      %+  do-arvo  wire:(snag 0 (model-requests sent))
+      %+  answer  ''
+      ~[['save-1' 'memory' '{"operation":"save","name":"child-note","text":"Noted.","revision":"0"}']]
+    ;<  after=state-0  bind:m  get-state
+    (pure:m (tool-result log:(~(got by sessions.after) 'room-child')))
+  ;<  guest=@t  bind:m  (child-save '~bus')
+  ;<  owner=@t  bind:m  (child-save '~nec')
+  ;<  ~  bind:m  (ex-equal !>(guest) !>((cat 3 'error: ' refused-memory:command)))
+  (ex-equal !>(=('error: ' (end [3 7] owner))) !>(|))
 ::  The channel facts a multi-term search ranks: five fillers' worth of
 ::  common terms, and two facts that tie when no private count is used.
 ::  .private adds an owner fact that shares one of the terms.

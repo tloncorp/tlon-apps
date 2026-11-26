@@ -469,8 +469,9 @@ owner's DM, except that the owner's general preferences are recalled
 everywhere. Use `/remember preference Keep replies short.` to save a fact,
 `/memory [query]` to inspect memories, and `/forget preference` to forget one.
 Use `/memory off` for a conversation that should neither recall nor capture
-shared facts. Only the owner saves, forgets or turns memory on or off, by
-command or through the `memory` tool in a turn that answers them; see
+shared facts. Only the owner saves, forgets or turns memory on or off: by
+command, or through the `memory` tool in the owner's own turn. Anyone
+else's turn may still search and read memory; see
 [who may change settings](#authority-and-conversation-scope). Model replies
 containing commands do not execute them.
 
@@ -915,6 +916,11 @@ hand handles no message from its own ship.
   keeps it, under their own Workspace permissions. The head asks the adapter
   whether a speaker may, as it asks for authority. The operator's local
   prompts keep every command.
+- The same speakers' turns cannot save or forget with the `memory` tool;
+  search and read still work. The head decides it from the authority of the
+  speaker whose message started the turn: only a speaker without a ceiling
+  may write. A subagent answers for its root turn. Webhook, peer, local and
+  timer input into a conversation is not restricted this way.
 
 Authority is decided per speaker. For each turn the head asks the adapter about
 the actor of the conversation's running input, and for scheduled work about the
@@ -1545,6 +1551,8 @@ It restores defaults and policy; messages remain.
 peer, while it owns the bot, saves a memory and changes the model in its DM,
 and that once the bot's own ship owns it and the peer has only a DM grant, the
 peer's `/remember`, `/forget` and `/model` there get the owner-only reply and
-change nothing. `desk/tests-integration/harness-hand.hoon` covers each
+change nothing, and a `memory` tool save in the peer's turn is refused and
+stores nothing. `desk/tests-integration/harness-hand.hoon` covers each
 settings command and the `memory` tool's save and forget through the head, in
-a DM and in a channel, for the owner and for anyone else.
+a DM and in a channel, for the owner and for anyone else, for a subagent, and
+for a guest who speaks during the owner's turn.

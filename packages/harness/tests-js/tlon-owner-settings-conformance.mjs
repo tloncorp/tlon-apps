@@ -1,4 +1,5 @@
-// Only the owner changes a DM's settings and shared memory by command. The
+// Only the owner changes a DM's settings and shared memory, by command or
+// through the memory tool. The
 // peer (~lux) DMs the bot, first as its owner, then as a ship with only a DM
 // grant, while the bot's own ship owns it. Leaves marked test messages and
 // audit records; restores defaults, policy and the DM's configuration.
@@ -18,11 +19,23 @@ const ship = cookie.split('=')[0].slice('urbauth-'.length), marker = `owner-sett
 const name = `o${randomUUID().slice(0, 8)}`, refused = /Only the owner can change this conversation/
 const dm = {}
 let event = 0, stamp = 0, originals
-// Commands never reach the model; any request is a failure.
-const requests = []
-const server = createServer((req, res) => {
-  requests.push(req.url)
-  res.writeHead(500, { 'content-type': 'application/json' }); res.end('{}')
+// Commands never reach the model; any other request is a failure. A message
+// asking the bot to remember is answered by a memory save, then a reply.
+const requests = [], saves = []
+const server = createServer(async (req, res) => {
+  let body = ''
+  for await (const chunk of req) body += chunk
+  const messages = JSON.parse(body || '{}').messages ?? []
+  if (!body.includes(`${marker}-ask`)) {
+    requests.push(req.url)
+    res.writeHead(500, { 'content-type': 'application/json' }); return res.end('{}')
+  }
+  const done = messages.filter((m) => m.role === 'tool')
+  saves.push(...done.map((m) => m.content))
+  const message = done.length ? { role: 'assistant', content: `${marker}-done` }
+    : { role: 'assistant', content: '', tool_calls: [{ id: 'save-1', type: 'function', function: { name: 'memory', arguments: JSON.stringify({ operation: 'save', name: `${name}-tool`, text: `${marker}-tool`, revision: '0' }) } }] }
+  res.writeHead(200, { 'content-type': 'application/json' })
+  res.end(JSON.stringify({ choices: [{ finish_reason: done.length ? 'stop' : 'tool_calls', message }] }))
 })
 async function scry(path, remote = false) {
   const r = await fetch(`${remote ? peerUrl : base}/~/scry/${path}.json`, { headers: { cookie: remote ? peerCookie : cookie }, signal: AbortSignal.timeout(15000) })
@@ -84,6 +97,10 @@ try {
   assert.equal(await model(), 'owner-model', 'a DM partner\'s /model leaves the model')
   await command(`/memory ${name}`, new RegExp(`${marker}-owner`))
   console.log('PASS a ship with only a DM grant cannot remember, forget or change the model in its DM')
+  assert.equal(await command(`${marker}-ask Please remember that I like tea.`, new RegExp(`${marker}-done`)), 0)
+  assert.deepEqual(saves, ['error: Only the owner can change shared memory.'])
+  await command(`/memory ${name}-tool`, /No matching shared memories/)
+  console.log('PASS asked by a ship with only a DM grant, the memory tool stores nothing')
 
   await owner(peer)
   assert.equal(await command(`/forget ${name}`, /Memory forgotten/), 1)

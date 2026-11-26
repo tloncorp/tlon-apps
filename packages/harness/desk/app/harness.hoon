@@ -2820,12 +2820,7 @@
   %+  levy  log
   |=  =event:h
   ?.  ?=(%input-received -.event)  &
-  (owner-input input.event)
-::  +owner-input: one input is the owner's own on this ship.
-::
-++  owner-input
-  |=  in=admitted-input:h
-  ^-  ?
+  =/  in=admitted-input:h  input.event
   ?+  -.source.in  |
     %acp    &(?=(~ (decode:admin client.source.in)) =(`our.bowl actor.in))
     %poke   &(=(our.bowl ship.source.in) =(`our.bowl actor.in))
@@ -4303,14 +4298,13 @@
       /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/[question]/[sid]/[actor.source]/noun
     ==
   =(`& found)
-::  Whether the turn running in .sid answers the owner, so it may change
-::  shared memory: a hand's speaker who may change the conversation, a peer
-::  call from the owner's ship, or the owner's own local input. A subagent's
-::  turn answers for its root parent's, and a scheduled run for its
-::  schedule's actor. Webhook, work and any other input may not. Every
-::  input the turn answers must pass, not whatever arrived last.
+::  Whether the turn running in .sid may save or forget shared memory. A
+::  turn the Tlon hand started answers its speaker's authority, as its tools
+::  do: only a speaker without a ceiling, the owner or the operator, may. A
+::  subagent's turn answers for its root parent's. Other input keeps the
+::  place rule alone.
 ::
-++  turn-configures
+++  memory-writable
   |=  sid=session-id:h
   ^-  ?
   =/  left=@ud  8
@@ -4321,38 +4315,10 @@
   ?^  parent
     ?:  =(0 left)  |
     $(sid parent.u.parent, left (dec left))
-  =/  job  (for-session:schedule-lib schedules sid)
-  ?^  job  (fall (bind (slaw %p actor.u.job) is-owner) |)
-  =/  inputs  (turn-inputs log.u.session)
-  ?~  inputs  |
-  %+  levy  `(list admitted-input:h)`inputs
-  |=  input=admitted-input:h
-  ?+  -.source.input  (owner-input input)
-    %hand  (speaker-configures sid source.input |)
-    %peer  (peer-owner ship.source.input)
-  ==
-::  +turn-inputs: the inputs the running turn answers: those its newest
-::  model request saw, back to the last reply, command or cancellation.
-::  An input that arrived after that request waits for a later one. With no
-::  model request, as for a peer's direct call, every input since then.
-::
-++  turn-inputs
-  |=  log=(list event:h)
-  ^-  (list admitted-input:h)
-  =/  seen=(list event:h)
-    =/  rest  log
-    |-  ^-  (list event:h)
-    ?~  rest  log
-    ?:  ?=([%llm-requested * %turn] i.rest)  t.rest
-    $(rest t.rest)
-  |-  ^-  (list admitted-input:h)
-  ?~  seen  ~
-  ?:  ?|  ?=(?(%cancelled %command-completed) -.i.seen)
-          &(?=(%llm-completed -.i.seen) ?=([%assistant * ~] item.i.seen))
-      ==
-    ~
-  ?.  ?=(%input-received -.i.seen)  $(seen t.seen)
-  [input.i.seen $(seen t.seen)]
+  =/  speaker  (hand-speaker sid)
+  ?:  |(?=(~ speaker) !(session-tlon sid))  &
+  =/  authority  (execution-authority sid & speaker)
+  &(live.authority ?=(~ ceiling.authority))
 ::  A stop is out of band, not another queued request. Idle sessions need no
 ::  synthetic cancellation; their command acknowledgement is sufficient.
 ::  With .who, a hand speaker other than the owner stops only their own work.
@@ -5354,7 +5320,7 @@
       ::  rule's refusals answer as before.
       =/  operation  (tool-str:effects args.call 'operation')
       ?:  ?&  |(=(`'save' operation) =(`'forget' operation))
-              !(turn-configures sid)
+              !(memory-writable sid)
           ==
         (complete (cat 3 'error: ' refused-memory:command))
       =.  knowledge.batch  db.p.result
