@@ -4298,11 +4298,12 @@
       /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/[question]/[sid]/[actor.source]/noun
     ==
   =(`& found)
-::  Whether the turn running in .sid may save or forget shared memory. A
-::  turn the Tlon hand started answers its speaker's authority, as its tools
-::  do: only a speaker without a ceiling, the owner or the operator, may. A
-::  subagent's turn answers for its root parent's. Other input keeps the
-::  place rule alone.
+::  Whether the turn running in .sid may save or forget shared memory. In a
+::  conversation bound to the Tlon hand, only while the hand runs a
+::  speaker's input there and that speaker has no ceiling, as the owner
+::  has: a retried turn, or local or webhook input, has no speaker and may
+::  not. A subagent's turn answers for its root parent's. A conversation
+::  without a Tlon binding keeps the place rule alone.
 ::
 ++  memory-writable
   |=  sid=session-id:h
@@ -4315,23 +4316,11 @@
   ?^  parent
     ?:  =(0 left)  |
     $(sid parent.u.parent, left (dec left))
-  ::  A turn the operator retries after its failure settled has no active
-  ::  input, but still answers the speaker of its newest input.
+  ?.  (session-tlon sid)  &
   =/  speaker  (hand-speaker sid)
-  =?  speaker  ?=(~ speaker)  (newest-tlon-speaker log.u.session)
-  ?:  |(?=(~ speaker) !(session-tlon sid))  &
+  ?~  speaker  |
   =/  authority  (execution-authority sid & speaker)
   &(live.authority ?=(~ ceiling.authority))
-::  The actor of .log's newest input, when the Tlon hand delivered it.
-::
-++  newest-tlon-speaker
-  |=  log=(list event:h)
-  ^-  (unit @t)
-  ?~  log  ~
-  ?.  ?=(%input-received -.i.log)  $(log t.log)
-  =*  source  source.input.i.log
-  ?.  &(?=(%hand -.source) =('tlon' hand.source))  ~
-  `actor.source
 ::  A stop is out of band, not another queued request. Idle sessions need no
 ::  synthetic cancellation; their command acknowledgement is sufficient.
 ::  With .who, a hand speaker other than the owner stops only their own work.

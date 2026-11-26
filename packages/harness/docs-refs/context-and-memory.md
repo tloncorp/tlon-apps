@@ -251,14 +251,18 @@ opt-outs apply to both capture paths.
   tools: the turn answers the speaker whose message started it, and only a
   speaker without a tool ceiling, the owner, a sibling moon the owner check
   counts, or the operator, may write. A subagent answers for its root
-  turn's speaker, and a failed turn the operator retries for the speaker of
-  its message. A message that arrives while another speaker's turn runs
-  waits for its own turn and changes neither. Both refusals change nothing.
-  A save or forget the place rule below refuses gets that refusal instead.
-  Turns that do not come from a Tlon speaker are not restricted this way:
-  webhook text, peer calls, local ACP or poke prompts and timers keep the
-  place rule alone. A scheduled run answers for its schedule's actor, who on
-  Tlon is the owner, since only the owner may schedule there.
+  turn's speaker. A message that arrives while another speaker's turn runs
+  waits for its own turn and changes neither. A scheduled run answers for
+  its schedule's actor, who on Tlon is the owner, since only the owner may
+  schedule there, so the owner's runs still write. In a conversation bound
+  to the Tlon hand, a turn while the hand runs no speaker's message there
+  cannot write either: a failed turn the operator retries, the owner's
+  included (the owner sends the message again instead), and local ACP or
+  poke prompts, webhook text, peer calls and timers delivered into that
+  conversation. Both refusals change nothing. A save or forget the place
+  rule below refuses gets that refusal instead. Conversations with no Tlon
+  binding are not restricted this way: local sessions, a fork without a
+  binding, and peer and webhook sessions keep the place rule alone.
 
 Settings → Memory shows 25 compact rows per page, word-prefix search, source
 attribution and recent revisions. Previous and Next replace the visible page.
@@ -446,7 +450,10 @@ corrections, opt-out, source validation, persistence and who sees a fact.
 `tests-integration/harness-hand.hoon` checks that rule through the head for an
 owner's DM, a channel, a subagent, a fork and a peer session, and that a
 guest's or a DM partner's turn and its subagents cannot save or forget while
-the owner's can, also when the two speak in one channel at once; and
+the owner's can, also when the two speak in one channel at once, that the
+owner's scheduled run writes, that a retried turn and a local prompt in a
+Tlon conversation cannot, and that a conversation without a Tlon binding
+can; and
 `tests-js/tlon-memory-conformance.mjs` checks it through native Tlon. The native integration
 suite `harness-memory-worker.hoon` drives dreaming alongside an active reply
 and checks compaction capture, model routing, reloads, timeouts and late responses.

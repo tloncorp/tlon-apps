@@ -1205,37 +1205,131 @@
     %+  ex-equal  !>([(~(got by results) 'save-2') (~(got by results) 'forget-2')])
     !>([refusal refusal])
   (ex-equal !>(records.knowledge.after) !>(records.knowledge.answered))
-::  .who's turn in the channel fails and settles; the operator retries it,
-::  and the resumed model saves a new fact and forgets one the channel
-::  learned. The hand no longer holds the turn's input, but the turn still
-::  answers .who: a guest's retried turn is refused, the owner's writes.
+::  .who's turn in the channel fails and settles, and the operator retries
+::  it; with .send, the operator also sends to the channel while the
+::  retry's model request is out. The resumed model saves a new fact and
+::  forgets one the channel learned; the tool results and the state after.
+::
+++  retried-writes
+  |=  [saved=state-0 who=@t send=?]
+  =/  m  (mare ,[results=(map @t @t) after=state-0])
+  ^-  form:m
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  asked=(list card)  bind:m  (hear 'room' who 'ask' 'Keep a note of this.')
+  ;<  *  bind:m
+    (do-arvo wire:(snag 0 (model-requests asked)) [%iris %http-response %finished [401 ~] ~])
+  ;<  failed=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.failed) 'room')) !>(|))
+  ;<  again=(list card)  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'room']))
+  ;<  *  bind:m
+    ?.  send  (pure:(mare ,(list card)) ~)
+    (do-poke %harness-action !>(`action:h`[%send 'room' 'A local note.']))
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests again)) (write-answer saved 'room-note'))
+  ;<  after=state-0  bind:m  get-state
+  (pure:m [(tool-results log:(~(got by sessions.after) 'room')) after])
+::  Both writes were refused and memory is as in .saved.
+::
+++  ex-writes-refused
+  |=  [results=(map @t @t) after=state-0 saved=state-0]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  refusal  (cat 3 'error: ' refused-memory:command)
+  ;<  ~  bind:m
+    (ex-equal !>(results) !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]])))
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.saved))
+::  A retried turn runs no speaker's input on the hand, so in a Tlon
+::  conversation it cannot save or forget, whoever it answered: a guest's
+::  retried turn is refused, and so is the owner's.
 ::
 ++  test-a-retried-guest-turn-cannot-save-or-forget-memory
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
-  =/  retried
-    |=  who=@t
-    =/  m  (mare ,[results=(map @t @t) after=state-0])
-    ^-  form:m
-    ;<  ~  bind:m  (load saved ceiling-scry)
-    ;<  asked=(list card)  bind:m  (hear 'room' who 'ask' 'Keep a note of this.')
-    ;<  *  bind:m
-      (do-arvo wire:(snag 0 (model-requests asked)) [%iris %http-response %finished [401 ~] ~])
-    ;<  failed=state-0  bind:m  get-state
-    ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.failed) 'room')) !>(|))
-    ;<  again=(list card)  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'room']))
-    ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests again)) (write-answer saved 'room-note'))
-    ;<  after=state-0  bind:m  get-state
-    (pure:m [(tool-results log:(~(got by sessions.after) 'room')) after])
-  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried '~bus')
-  =/  refusal  (cat 3 'error: ' refused-memory:command)
-  ;<  ~  bind:m
-    (ex-equal !>(results) !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]])))
-  ;<  ~  bind:m  (ex-equal !>(records.knowledge.after) !>(records.knowledge.saved))
-  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried '~nec')
-  (ex-memory-writes-saved results after 'room-note')
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried-writes saved '~bus' |)
+  (ex-writes-refused results after saved)
+::
+++  test-a-retried-owner-turn-cannot-save-or-forget-memory
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried-writes saved '~nec' |)
+  (ex-writes-refused results after saved)
+::  A local send while a guest's retried turn waits for its model does not
+::  let that turn write.
+::
+++  test-a-local-send-during-a-retried-guest-turn-cannot-unlock-memory-writes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried-writes saved '~bus' &)
+  (ex-writes-refused results after saved)
+::  The operator's local prompt into a Tlon conversation, with no speaker's
+::  input running there, cannot save or forget.
+::
+++  test-a-local-prompt-in-a-tlon-conversation-cannot-save-or-forget-memory
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  asked=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%send 'room' 'Keep a note of this.']))
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests asked)) (write-answer saved 'room-note'))
+  ;<  after=state-0  bind:m  get-state
+  (ex-writes-refused (tool-results log:(~(got by sessions.after) 'room')) after saved)
+::  A local prompt in a conversation with no Tlon binding still saves and
+::  forgets.
+::
+++  test-a-conversation-without-a-tlon-binding-still-saves-and-forgets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'local-note' 'The operator likes tea.' 'local' '~zod' |)
+  =.  sessions.saved  (~(put by sessions.saved) 'local' (idle saved))
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  asked=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%send 'local' 'Keep a note of this.']))
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests asked)) (write-answer saved 'local-note'))
+  ;<  after=state-0  bind:m  get-state
+  %^  ex-memory-writes-saved  (tool-results log:(~(got by sessions.after) 'local'))
+    after
+  'local-note'
+::  A run of the owner's schedule in their DM is admitted on the run's Tlon
+::  binding as the owner's input, so it saves and forgets.
+::
+++  test-the-owners-scheduled-run-still-saves-and-forgets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'owner-note' 'Owner likes tea.' 'owner' '~nec' |)
+  =/  source=binding:hh  ['tlon' 'dm/~nec' 'owner' ~['~nec'] &]
+  =/  args
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '* * * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Check status']
+        ['runs' %s '2']
+    ==
+  =/  job  (create:schedule [%add 0v1 'owner' '~nec' %prompt args] source ~ t0)
+  =/  run  run-sid.job
+  =.  schedules.saved  (my ~[[0v1 job]])
+  =.  sessions.saved  (~(put by sessions.saved) run (idle saved))
+  =.  bindings.hands.saved  (~(put by bindings.hands.saved) run source(sid run))
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  loaded=state-0  bind:m  get-state
+  =/  tick  (need schedule-wake.loaded)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now tick)))
+  ;<  *  bind:m  (do-arvo /schedules/(scot %da tick) [%behn %wake ~])
+  ;<  ready=state-0  bind:m  get-state
+  =/  at  (need schedule-wake.ready)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now at)))
+  ;<  fired=(list card)  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests fired)) (write-answer saved 'owner-note'))
+  ;<  after=state-0  bind:m  get-state
+  %^  ex-memory-writes-saved  (tool-results log:(~(got by sessions.after) run))
+    after
+  'owner-note'
 ::  A subagent that a guest's channel turn starts answers for that turn, so
 ::  it cannot save; one the owner's turn starts can.
 ::
