@@ -3913,9 +3913,9 @@
     =/  channel  (~(get by channels.group) u.place)
     ?~  channel  ~
     `[title.meta.u.channel title.meta.group]
-  ?~  named  `[name.u.place ~]
+  ?~  named  `[(bounded:ask name.u.place) ~]
   :+  ~
-    ?:(=('' channel.i.named) name.u.place (bounded:ask channel.i.named))
+    (bounded:ask ?:(=('' channel.i.named) name.u.place channel.i.named))
   ?:(=('' group.i.named) ~ `(bounded:ask group.i.named))
 ::  +approval-preview: the text of the message that opened a request
 ::

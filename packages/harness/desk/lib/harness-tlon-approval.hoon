@@ -330,18 +330,20 @@
 ::  +channel-label: a channel as OpenClaw names it in a reply
 ::
 ::    .named is the channel's title, or its .name when untitled, and its
-::    group's title, as the adapter's +approval-channel reads them.
+::    group's title, as the adapter's +approval-channel reads them. The nest
+::    is cut as a title is, for a host names the channel.
 ::
 ++  channel-label
   |=  [nest=@t name=@t named=(unit [channel=@t group=(unit @t)])]
   ^-  @t
-  ?~  named  nest
-  =/  titled  !=(name channel.u.named)
+  =/  shown  (bounded nest)
+  ?~  named  shown
+  =/  titled  !=((bounded name) channel.u.named)
   ?~  group.u.named
-    ?.  titled  nest
-    (rap 3 channel.u.named ' (' nest ')' ~)
-  ?.  titled  (rap 3 u.group.u.named ' (' nest ')' ~)
-  (rap 3 channel.u.named ' in ' u.group.u.named ' (' nest ')' ~)
+    ?.  titled  shown
+    (rap 3 channel.u.named ' (' shown ')' ~)
+  ?.  titled  (rap 3 u.group.u.named ' (' shown ')' ~)
+  (rap 3 channel.u.named ' in ' u.group.u.named ' (' shown ')' ~)
 ::  +lifetime: how long a request stays open unanswered, as OpenClaw's
 ::
 ++  lifetime  ~h48
@@ -418,19 +420,36 @@
 ++  preview
   |=  text=@t
   ^-  @t
-  (crip (tufa (scag 100 (tuba (trip text)))))
-::  +bounded: a channel's or a group's title cut to eighty characters, the
-::  last three an ellipsis, as OpenClaw bounds a group's title
+  (fall (clip text 100) text)
+::  +bounded: a channel's or a group's title, or a nest, cut to eighty
+::  characters, the last three an ellipsis, as OpenClaw bounds a group's
+::  title
 ::
-::    A host sets the title, and it goes into cards and replies whose text
+::    A host sets them, and they go into cards and replies whose text
 ::    Messenger limits.
 ::
 ++  bounded
   |=  text=@t
   ^-  @t
-  =/  chars  (tuba (trip text))
-  ?:  (lte (lent chars) 80)  text
-  (cat 3 (crip (tufa (scag 77 chars))) '...')
+  ?~  (clip text 80)  text
+  (cat 3 (need (clip text 77)) '...')
+::  +clip: .text cut to its first .max characters, or ~ when it has no more
+::
+::    Counted on the bytes, as the UTF-8 decoder crashes on a tab, another
+::    control character or a malformed sequence, which another ship may
+::    send: every byte but a continuation byte begins a character, so the
+::    cut falls on a character boundary.
+::
+++  clip
+  |=  [text=@t max=@ud]
+  ^-  (unit @t)
+  =/  len  (met 3 text)
+  =|  [at=@ud count=@ud]
+  |-  ^-  (unit @t)
+  ?:  =(at len)  ~
+  ?:  =(2 (rsh [0 6] (cut 3 [at 1] text)))  $(at +(at))
+  ?:  =(count max)  `(end [3 at] text)
+  $(at +(at), count +(count))
 ::  +card: the notice text and the card for a request
 ::
 ::    .where is the channel's name and group, or ~ for a DM.

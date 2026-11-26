@@ -840,7 +840,10 @@ hand handles no message from its own ship.
   (chat/~host/name)`, or with what of the titles it has. Wherever a card, a
   reply or `/pending` names a channel, each title over 80 characters is cut
   to 77 and `...`, as OpenClaw cuts a group's, since the host sets it and
-  Messenger limits a card's text.
+  Messenger limits a card's text; so are the nest and an untitled channel's
+  name shown there, though a button still sends the request's own id. The
+  cut counts characters on the bytes, so a tab or a malformed byte in a
+  title cannot stop the request from opening.
 - `/reject` closes the request and gives nothing, so the ship can ask again.
   For a DM request it also declines the ship's pending DM invitation, as
   expiry does, so its next message invites the bot again. The reply is
