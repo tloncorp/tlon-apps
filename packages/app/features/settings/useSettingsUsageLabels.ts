@@ -132,8 +132,8 @@ export function getTokenUsageLabel(query: {
       : formatCount(totals.totalTokens).text;
   }
   if (query.error) {
-    // 404: hosting predates the endpoint. 409: the bot doesn't run on
-    // OpenClaw, the only runtime that records usage.
+    // 404: hosting predates the endpoint. 409: the bot's runtime, or its
+    // release, records no usage.
     const status =
       query.error instanceof api.HostingError
         ? query.error.details.status
