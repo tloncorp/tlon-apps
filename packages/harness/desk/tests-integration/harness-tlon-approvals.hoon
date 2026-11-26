@@ -1408,6 +1408,25 @@
     ==
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
   (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  The owner blocked ~dev in Tlon after it wrote, then taps the old card's
+::  Allow: the grant is made, and ~dev's message is answered with nothing.
+::
+++  test-allow-answers-nothing-from-a-ship-blocked-since-it-wrote
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  (stream ~[[told (said ~nec '/allow d0001' told)]])
+  ;<  ~  bind:m  (boot asked later events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>((silt ~[~bel ~dev]))
+    ((holding events (dm-page ~[[one-at 'may I ask?' &]]) ~) path)
+  ;<  *  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  =/  s  !<(state-7:t vase)
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
 ::  ~dev's newest DM message is an approval command, which only the owner
 ::  gives. As a deleted newest message, it is answered with nothing.
 ::
