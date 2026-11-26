@@ -1,5 +1,5 @@
 /-  t=harness-tlon, h=harness
-/+  *test, migrate=harness-tlon-migrate, c=harness-tlon-continuity
+/+  *test, migrate=harness-tlon-migrate, c=harness-tlon-continuity, ask=harness-tlon-approval
 |%
 ++  dm-to  `destination:t`[%dm ~bud ~]
 ++  room-to  `destination:t`[%channel [%chat ~lux %test] ~]
@@ -319,5 +319,25 @@
         ~
       !>(approvals.new)
       (expect-eq !>(+>.old) !>(+>.new))
+  ==
+::  A card sent on %7 carries the token %7 computed, a hash of the id and
+::  the stored request; the same request on %8 has the same token.
+::
+++  test-a-version-seven-requests-button-token-survives-the-upgrade
+  =/  room=place:t  `[%chat ~lux %test]
+  =/  old  *state-7:migrate
+  =.  approvals.old
+    :-  (my ~[['d0001' [~dev ~ ~2026.1.1]] ['c0001' [~dev room ~2026.1.2]]])
+    (my ~[[[~dev ~] 'd0001'] [[~dev room] 'c0001']])
+  =/  new  (load:migrate !>(old))
+  =/  token
+    |=  id=@t
+    :-  (sham id (~(got by by-id.approvals.old) id))
+    (button-token:ask id (~(got by by-id.approvals.new) id))
+  ;:  weld
+      =/  [base=@uv now=@uv]  (token 'd0001')
+      (expect-eq !>(base) !>(now))
+      =/  [base=@uv now=@uv]  (token 'c0001')
+      (expect-eq !>(base) !>(now))
   ==
 --

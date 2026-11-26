@@ -1021,8 +1021,11 @@ approval commands above, with these differences.
   able to contact the bot.` A refused decline gets `Blocked ~ship, but could
   not submit the decline for ~host/name. Request stays pending, try again.`;
   a second `/ban`, finding the ship blocked, sends no block and declines
-  again. A ban of a DM or channel request also declines the ship's
-  invitations, without waiting.
+  again. When another ship's invitation to the group is on the ship too,
+  the ban declines nothing there: the request closes at once with the same
+  reply, and a request opens for that other ship, under the usual checks
+  and limits, whose card the owner is sent. A ban of a DM or channel
+  request also declines the ship's invitations, without waiting.
 - Expiry, 48 hours after the request opened, closes it and declines the
   invitation if it is still on the ship, as a reject would, so the bot holds
   no invitation the owner did not answer. `%groups` reports an invitation

@@ -1493,8 +1493,8 @@
 ::  lane
 ::
 ++  full-lane
-  |=  [s=state-7:t nest=nest:dv]
-  ^-  state-7:t
+  |=  [s=state-8:t nest=nest:dv]
+  ^-  state-8:t
   =/  to  `destination:t`[%channel nest ~]
   =/  sid  (identity:continuity to)
   %=  s
@@ -1520,13 +1520,13 @@
   =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
   =/  saved  (full-lane asked room-nest)
   =.  activity-through.saved  one-at
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit-holding saved later events (dm-page ~) ~[[one-at &]])
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>(`(set @p)`~))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
   ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
-  ;<  [caz=(list card) w=state-7:t]  bind:m
+  ;<  [caz=(list card) w=state-8:t]  bind:m
     (admit-holding s(jobs ~) later events (dm-page ~) ~[[one-at &]])
   ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
   %+  ex-equal  !>((admitted w))
@@ -1542,7 +1542,7 @@
   =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
   =/  saved  (full-lane asked all-nest)
   =.  activity-through.saved  one-at
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     (admit-holding saved later events (dm-page ~) ~[[one-at &]])
   ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~dev])))
   %+  ex-equal  !>((skim (admitted s) |=([who=@p *] =(~dev who))))

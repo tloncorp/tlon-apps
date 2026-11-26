@@ -90,7 +90,7 @@
   |=  [=flag:g title=(unit @t)]
   ^-  @t
   ::  The host names the group, as it does a channel.
-  =/  id  (bounded (flag-id:spec flag))
+  =/  id  (squeezed (flag-id:spec flag))
   ?~  title  id
   ?:  =(id u.title)  id
   (rap 3 u.title ' (' id ')' ~)
@@ -98,12 +98,18 @@
 ::
 ::    Ids are unique only among open requests, but no two requests have the
 ::    same ship and opening time: the denial limit lets a ship open at most
-::    one request per five minutes.
+::    one request per five minutes. A DM or channel request hashes the noun
+::    state %7 stored for it, [who place at], so the buttons of a card sent
+::    before the upgrade to %8 still name their request; a group request
+::    hashes its own.
 ::
 ++  button-token
   |=  [id=@t =approval:t]
   ^-  @uv
-  (sham id approval)
+  ?-  -.topic.approval
+    %place  (sham id [who.approval place.topic.approval at.approval])
+    %group  (sham id approval)
+  ==
 ::  +keep: only the requests .keep accepts
 ::
 ++  keep

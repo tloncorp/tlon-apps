@@ -3425,7 +3425,9 @@
   ?.  (actor-owner who.u.order)  ~
   =/  found  (pick:ask (live:ask approvals now.bowl) [id token]:order.u.order)
   ?~  found  ~
-  `(place-to:p [who place]:approval.u.found)
+  ::  A group request hands on nothing.
+  ?.  ?=(%place -.topic.approval.u.found)  ~
+  `(place-to:p who.approval.u.found place.topic.approval.u.found)
 ::  +room: whether input to .to fits the head's queues now
 ::
 ++  room
@@ -4061,10 +4063,13 @@
 ::  +banned: close a blocked ship's requests, decline its group invites
 ::  and take back its DM grant
 ::
-::    Every invite of the ship's on the ship is declined. A group request
-::    the ban answers closes once %groups has its decline, so a refused one
-::    leaves it open for another ban, which declines again; the ship's other
-::    requests close at once.
+::    Every invite of the ship's on the ship is declined, but for a group
+::    another ship has invited the bot to as well: %groups would decline
+::    that ship's invite too. A group request the ban answers closes once
+::    %groups has its decline, so a refused one leaves it open for another
+::    ban, which declines again; when another ship's invite to the group is
+::    live, it closes at once and a request opens for that ship. The ship's
+::    other requests close at once.
 ::
 ++  banned
   |=  [who=@p id=@t to=destination:t]
@@ -4077,6 +4082,8 @@
     ?~  group  ~
     ?>  ?=(%group -.topic.u.group)
     `flag.topic.u.group
+  =/  others=(list @p)  ?~(answered ~ (inviters-besides u.answered who))
+  =?  group  ?=(^ others)  ~
   =.  cor
     %+  roll  (invites-from who)
     |=  [=flag:gv engine=_cor]
@@ -4090,7 +4097,23 @@
   =?  error  =(error block-refused)  ''
   ?^  group  (decline-request %ban id u.group to)
   =.  cor  (note 'approval-banned' who ?~(found (scot %p who) (address:ask u.found)) id)
-  (answer-order to (confirmation:ask %ban who ~))
+  =.  cor  (answer-order to (confirmation:ask %ban who ~))
+  ?~  answered  cor
+  ?~  others  cor
+  =/  invited=incoming-event:v8:a  [%group-invite u.answered i.others]
+  (ask-owner i.others [%group u.answered] invited after)
+::  +inviters-besides: the other ships whose invites to .flag are pending on
+::  the ship
+::
+++  inviters-besides
+  |=  [=flag:gv who=@p]
+  ^-  (list @p)
+  =/  found  (foreign flag)
+  ?~  found  ~
+  %~  tap  in
+  %-  silt
+  %+  murn  invites.u.found
+  |=(=invite:v8:gv ?.(&(valid.invite !=(who from.invite)) ~ `from.invite))
 ::
 ++  block-refused  'Messenger rejected a block; inspect the ship log.'
 ::

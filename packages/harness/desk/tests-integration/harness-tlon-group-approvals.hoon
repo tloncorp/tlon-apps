@@ -682,6 +682,29 @@
           '\0ad0001 ~bus dm/~bus'
       ==
   ==
+::  ~bus also invited the bot to .club, whose request is ~dev's. A ban from
+::  .club's own card blocks ~dev and closes its request, but declines no
+::  invite, which would take ~bus's too: a request opens for ~bus instead,
+::  and the owner gets its card.
+::
+++  test-a-ban-from-the-group-card-with-another-inviter-asks-for-that-one
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  held  `(list [flag:g @p])`~[[club ~dev] [club ~bus]]
+  ;<  [caz=(list card) s=state-8:t]  bind:m
+    (admit-held asked later ~[[told (said ~nec '/ban g0001' told)]] held)
+  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list @p)`~[~dev]))
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
+  ;<  ~  bind:m  (ex-equal !>((declines out)) !>(`(list [wire flag:g])`~))
+  ;<  ~  bind:m  (ex-equal !>((requests w)) !>(`(list approval:t)`~[[~bus [%group club] later]]))
+  ;<  ~  bind:m  (ex-equal !>(busy.approvals.w) !>(`(set @t)`~))
+  =/  cards  (sent out)
+  ?>  ?=([* ~] cards)
+  ;<  ~  bind:m
+    (ex-equal !>(text.i.cards) !>((cat 3 'Group invite request from ~bus for ' label)))
+  %+  ex-equal  !>((answered out))
+  !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
 ++  test-pending-lists-a-group-request
   %-  eval-mare
   =/  m  (mare ,~)
