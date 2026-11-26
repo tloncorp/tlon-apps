@@ -834,14 +834,17 @@ hand handles no message from its own ship.
   message and a later catch-up of this one. If the ship wrote several times,
   only the newest is answered; if the newest was deleted, or is itself an
   approval command, which is the owner's alone, or the bot has left the
-  channel, nothing is. A grant made by a settings save, `/reject`
+  channel, or the ship is blocked on Tlon since it wrote, nothing is. A grant made by a settings save, `/reject`
   and `/ban` answer nothing. The reply is `Approved DM access for ~ship. They will be able
   to message the bot.` or `Approved ~ship for <channel>. They will be able to
   interact in this channel.`, where the channel is named `Title in Group
   (chat/~host/name)`, or with what of the titles it has. Wherever a card, a
   reply or `/pending` names a channel, each title over 80 characters is cut
   to 77 and `...`, as OpenClaw cuts a group's, since the host sets it and
-  Messenger limits a card's text.
+  Messenger limits a card's text; so are the nest and an untitled channel's
+  name shown there, though a button still sends the request's own id. The
+  cut counts characters on the bytes, so a tab or a malformed byte in a
+  title cannot stop the request from opening.
 - `/reject` closes the request and gives nothing, so the ship can ask again.
   For a DM request it also declines the ship's pending DM invitation, as
   expiry does, so its next message invites the bot again. The reply is
@@ -919,7 +922,9 @@ and one space is `dm` for the ship's DM grant or a channel's nest, as
 - With a place, the ship's grant there is removed.
 - The grant is removed as a settings save that removes it would remove it,
   with the same cutoffs and cancellation: the ship's DM route is retired, or
-  its running and queued work in that channel is cancelled. Its grants in
+  its running and queued work in that channel is cancelled, unless the
+  channel answers everyone, when the ship keeps its access there and its
+  work runs on (see below). Its grants in
   other places are kept. It is not a ban: nothing is blocked, and the ship's
   next attempt there opens a new request. No request can be open for the ship
   in that place while it holds the grant, since gaining access closes one.
@@ -944,7 +949,9 @@ and one space is `dm` for the ship's DM grant or a channel's nest, as
   out at once when the owner's DM's queue is full, and when the adapter's
   64 jobs are, provided it is the next Activity event. An approval command
   behind another message still waits for that message, which catch-up does
-  not pass.
+  not pass. `/allow` is the exception: it answers the message waiting on
+  its request, which a full queue would refuse behind the cutoff the grant
+  moves, so it waits for room as that message would.
 
 An invitation to a group from a ship that is not the owner and is on neither
 ship-wide list opens a group invite request, as OpenClaw's does, instead of

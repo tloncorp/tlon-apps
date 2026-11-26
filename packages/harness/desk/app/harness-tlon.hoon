@@ -3277,9 +3277,12 @@
   ?>  ?=([%approval @ @ @ ~] wire)
   ?.  ?=(%poke-ack -.sign)  cor
   =/  id  i.t.wire
+  ::  The request's token, not its id, which another request opened in the
+  ::  same event shares, names the request the card was for.
   =/  found=(unit approval:t)
     =/  held  (~(get by by-id.approvals) id)
-    ?.  &(?=(^ held) =(i.t.t.wire (scot %da at.u.held)))  ~
+    ?~  held  ~
+    ?.  =(i.t.t.wire (scot %uv (button-token:ask id u.held)))  ~
     held
   ::  The reply would name the owner now, who was never sent the card.
   =/  to=(unit destination:t)
@@ -3358,9 +3361,9 @@
   =/  event  (supported:activity-read event.row)
   ::  Leave the cursor before work we cannot retain. A later head fact or
   ::  bounded catch-up wake can continue without dropping an accepted input.
-  ::  An approval command next in line is carried out: it starts no turn.
-  =/  order  ?~(event ~ (approval-order:engine u.event))
-  ?:  &((gte ~(wyt by jobs.engine) 64) ?=(~ order))  engine(catching-up &)
+  ::  An approval command next in line that starts no turn is carried out.
+  =/  free  ?~(event | (turnless:engine u.event))
+  ?:  &((gte ~(wyt by jobs.engine) 64) !free)  engine(catching-up &)
   ?~  event  $(rows t.rows, engine engine(activity-through at.row))
   =/  actor  (actor:continuity u.event)
   ?:  ?&  ?=(^ actor)
@@ -3379,12 +3382,24 @@
   =.  engine  (activity:engine(activity-through at.row) u.event)
   $(rows t.rows)
 ::
+::  +turnless: whether .event is an approval command that starts no turn
+::
+::    An allow answers the message waiting on its request, so it waits for
+::    room as that message would.
+::
+++  turnless
+  |=  event=incoming-event:v8:a
+  ^-  ?
+  =/  order  (approval-order event)
+  ?~  order  |
+  !?=(%allow -.order.u.order)
+::
 ++  activity-room
   |=  event=incoming-event:v8:a
   ^-  ?
-  ::  An approval command starts no turn, so a full queue in the owner's DM
-  ::  must not hold it back.
-  ?^  (approval-order event)  &
+  ::  A full queue in the owner's DM does not hold back an approval command
+  ::  that starts no turn.
+  ?:  (turnless event)  &
   =/  input  (normalize-owned:p our.bowl policy event actor-owner)
   ?~  input  &
   =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
@@ -3600,7 +3615,7 @@
   =/  told  (bind (waiting-to event) |=(to=destination:t [u.owner to]))
   %-  emit
   %:  publish:messenger
-    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam told))
+    /approval/[id]/(scot %uv (button-token:ask id [who place now.bowl]))/(scot %uv (jam told))
     [%dm u.owner ~]
     text
     last-sent
@@ -3940,11 +3955,13 @@
 ::    is admitted past .floor; the cutoff still stops every earlier message
 ::    and a later catch-up of this one. A deleted message, an approval
 ::    command, which +activity drops from anyone but the owner, or a channel
-::    the bot has left, gets no answer.
+::    the bot has left, gets no answer, nor does a ship blocked since it
+::    wrote.
 ::
 ++  answer-waiting
   |=  [who=@p =place:t floor=@da]
   ^+  cor
+  ?:  (blocked:messenger who)  cor
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
   =/  event  (waiting-attempt who place floor)
   ?~  event  cor
@@ -4189,9 +4206,9 @@
     =/  channel  (~(get by channels.group) u.place)
     ?~  channel  ~
     `[title.meta.u.channel title.meta.group]
-  ?~  named  `[name.u.place ~]
+  ?~  named  `[(bounded:ask name.u.place) ~]
   :+  ~
-    ?:(=('' channel.i.named) name.u.place (bounded:ask channel.i.named))
+    (bounded:ask ?:(=('' channel.i.named) name.u.place channel.i.named))
   ?:(=('' group.i.named) ~ `(bounded:ask group.i.named))
 ::  +approval-named: what a request's card calls its place or group
 ::
