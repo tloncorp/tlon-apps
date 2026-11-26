@@ -181,6 +181,9 @@ export default async ({ command, mode }: ConfigEnv) => {
     // rewrite host, origin, referer and sec-fetch-site headers
     // to reflect the ship's hostname
     proxy.on('proxyReq', (proxyReq, req) => {
+      // restore empty path segments first, now that we're past node-http-proxy
+      proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
+
       const upstream = upstreamForLocalHost(req.headers.host);
 
       if (!upstream) {
@@ -265,6 +268,7 @@ export default async ({ command, mode }: ConfigEnv) => {
     target: targetShipUrl,
     changeOrigin: true,
     secure: false,
+    rewrite: (path: string) => path.replaceAll('//', '/@@@/'), // protect from node-http-proxy
     configure: configureEyreProxy,
   } satisfies ProxyOptions;
   const shouldUploadSourcemaps =
@@ -453,18 +457,6 @@ export default async ({ command, mode }: ConfigEnv) => {
 
     '^/apps/groups/desk.js': {
       ...eyreProxy,
-    },
-
-    '^.*//.*': {
-      ...eyreProxy,
-      rewrite: (path) => path.replaceAll('//', '/@@@/'),
-      configure: (proxy) => {
-        configureEyreProxy(proxy);
-
-        proxy.on('proxyReq', (proxyReq) => {
-          proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
-        });
-      },
     },
 
     // serve dev files only on the discovered hostname,
