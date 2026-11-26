@@ -122,7 +122,8 @@ function readClaimField(value: unknown): string | null {
 //     dispatches. No CI binding is possible (neither host exposes its registry
 //     to us), so these are deliberate, audit-pinned constants: changing one
 //     means re-auditing the host first. Harness has no host, so it has no
-//     core half.
+//     core half; its second half, HARNESS_TLON_COMMANDS, is what its Tlon
+//     hand handles before the runtime.
 //
 // The split is display-neutral. Presentation order comes from `priority`
 // (rankSlashCommands sorts by it and never by array position), so membership
@@ -481,6 +482,70 @@ const HARNESS_RUNTIME_COMMANDS: SlashCommandOption[] = [
   },
 ];
 
+// The owner's approval commands, which Harness's Tlon hand handles in a DM
+// before a message reaches the runtime (`+read-order` in
+// packages/harness/desk/lib/harness-tlon-approval.hoon). The runtime does not
+// advertise them, so they are not in its fixture or the drift contract.
+// Subtitles follow OpenClaw's entries for the same commands.
+const HARNESS_TLON_COMMANDS: SlashCommandOption[] = [
+  {
+    command: '/pending',
+    title: 'Pending approvals',
+    subtitle: 'List pending approval requests',
+    icon: 'Clock',
+    keywords: ['approval', 'requests', 'owner'],
+    priority: 11,
+  },
+  {
+    command: '/allow',
+    title: 'Allow request',
+    subtitle: 'Approve a pending request by id',
+    icon: 'Checkmark',
+    keywords: ['approve', 'approval', 'request'],
+    priority: 12,
+  },
+  {
+    command: '/reject',
+    title: 'Reject request',
+    subtitle: 'Decline a pending request by id',
+    icon: 'Close',
+    keywords: ['deny', 'decline', 'approval', 'request'],
+    priority: 13,
+  },
+  {
+    command: '/ban',
+    title: 'Ban request',
+    subtitle: 'Block a ship and deny its pending request',
+    icon: 'EyeClosed',
+    keywords: ['block', 'deny', 'ship', 'approval'],
+    priority: 14,
+  },
+  {
+    command: '/banned',
+    title: 'Banned ships',
+    subtitle: 'List currently banned ships',
+    icon: 'EyeClosed',
+    keywords: ['blocked', 'ships', 'list'],
+    priority: 15,
+  },
+  {
+    command: '/unban',
+    title: 'Unban ship',
+    subtitle: 'Remove a ship from the ban list',
+    icon: 'EyeOpen',
+    keywords: ['unblock', 'ship', 'allow'],
+    priority: 16,
+  },
+  {
+    command: '/revoke',
+    title: 'Revoke access',
+    subtitle: "Take back a ship's access in one place",
+    icon: 'Close',
+    keywords: ['remove', 'access', 'grant', 'ship'],
+    priority: 17,
+  },
+];
+
 // The CI-bound half of each list, keyed by harness. The drift contract reads
 // this; nothing else should need it.
 export const RUNTIME_COMMANDS: Record<BotAgentType, SlashCommandOption[]> = {
@@ -501,7 +566,7 @@ export const STATIC_MANIFESTS: Record<BotAgentType, SlashCommandManifest> = {
   },
   harness: {
     agent: 'harness',
-    commands: HARNESS_RUNTIME_COMMANDS,
+    commands: [...HARNESS_RUNTIME_COMMANDS, ...HARNESS_TLON_COMMANDS],
   },
 };
 

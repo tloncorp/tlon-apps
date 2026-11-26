@@ -222,4 +222,18 @@
         !>('Pending requests (1):\0a\0a  #g1234 - Group invite from ~dev to Club (~lux/club)\0a\0aUse /allow, /reject, or /ban with the ID.')
       !>((pending-text:ask ~[['g1234' [~dev [%group ~lux %club] ~2026.9.9] `'Club (~lux/club)']] 1))
   ==
+::  Characters, not bytes, are counted.
+::
+++  test-a-title-over-eighty-characters-is-cut-to-seventy-seven-and-an-ellipsis
+  =/  eighty  (crip (reap 80 'a'))
+  =/  e  (snag 0 (tuba "é"))
+  ;:  weld
+      (expect-eq !>(eighty) !>((bounded:ask eighty)))
+      %+  expect-eq
+        !>((cat 3 (crip (reap 77 'a')) '...'))
+      !>((bounded:ask (cat 3 eighty 'b')))
+      %+  expect-eq
+        !>((cat 3 (crip (tufa (reap 77 e))) '...'))
+      !>((bounded:ask (crip (tufa (reap 81 e)))))
+  ==
 --

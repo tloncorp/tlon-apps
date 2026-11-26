@@ -205,7 +205,7 @@ describe('rankSlashCommands', () => {
       ]);
     });
 
-    test('harness ranks in its advertised order', () => {
+    test('harness ranks in its advertised order, then its approval commands', () => {
       expect(commandNames(rankSlashCommands(harness, ''))).toEqual([
         '/help',
         '/status',
@@ -217,6 +217,13 @@ describe('rankSlashCommands', () => {
         '/forget',
         '/work',
         '/stop',
+        '/pending',
+        '/allow',
+        '/reject',
+        '/ban',
+        '/banned',
+        '/unban',
+        '/revoke',
       ]);
     });
   });

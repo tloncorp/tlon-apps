@@ -3261,7 +3261,7 @@
 ::  opens it again
 ::
 ::    Either way, a channel mention that opened the request is then told
-::    whether the owner was sent it.
+::    whether the owner was sent it, unless the owner has changed since.
 ::
 ++  agent-approval
   |=  [=wire =sign:agent:gall]
@@ -3273,7 +3273,12 @@
     =/  held  (~(get by by-id.approvals) id)
     ?.  &(?=(^ held) =(i.t.t.wire (scot %da at.u.held)))  ~
     held
-  =/  to  ;;((unit destination:t) (cue (slav %uv i.t.t.t.wire)))
+  ::  The reply would name the owner now, who was never sent the card.
+  =/  to=(unit destination:t)
+    =/  told  ;;((unit [owner=@p to=destination:t]) (cue (slav %uv i.t.t.t.wire)))
+    ?~  told  ~
+    ?.  =(`owner.u.told owner.policy)  ~
+    `to.u.told
   ?~  p.sign
     ?~  found  cor
     (tell-waiting who.u.found to &)
@@ -3342,10 +3347,12 @@
   ^+  engine
   ?~  rows  engine
   =/  row  i.rows
+  =/  event  (supported:activity-read event.row)
   ::  Leave the cursor before work we cannot retain. A later head fact or
   ::  bounded catch-up wake can continue without dropping an accepted input.
-  ?:  (gte ~(wyt by jobs.engine) 64)  engine(catching-up &)
-  =/  event  (supported:activity-read event.row)
+  ::  An approval command next in line is carried out: it starts no turn.
+  =/  order  ?~(event ~ (approval-order:engine u.event))
+  ?:  &((gte ~(wyt by jobs.engine) 64) ?=(~ order))  engine(catching-up &)
   ?~  event  $(rows t.rows, engine engine(activity-through at.row))
   =/  actor  (actor:continuity u.event)
   ?:  ?&  ?=(^ actor)
@@ -3367,8 +3374,8 @@
 ++  activity-room
   |=  event=incoming-event:v8:a
   ^-  ?
-  ::  An approval command starts no turn, so a full queue must not hold back
-  ::  the owner's revoke behind the work it would cancel.
+  ::  An approval command starts no turn, so a full queue in the owner's DM
+  ::  must not hold it back.
   ?^  (approval-order event)  &
   =/  input  (normalize-owned:p our.bowl policy event actor-owner)
   ?~  input  &
@@ -3576,10 +3583,12 @@
     (card:ask id approval (approval-named topic) (approval-preview who event cutoff))
   =.  last-sent  (next-message-stamp:p now.bowl last-sent)
   ::  The card's acknowledgement carries where to tell the ship the bot
-  ::  waits, as no request keeps anything of its message.
+  ::  waits, as no request keeps anything of its message, and whom the card
+  ::  went to.
+  =/  told  (bind (waiting-to event) |=(to=destination:t [u.owner to]))
   %-  emit
   %:  publish:messenger
-    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam (waiting-to event)))
+    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam told))
     [%dm u.owner ~]
     text
     last-sent
@@ -3706,19 +3715,17 @@
     %group  (decline-group:engine flag.topic.approval)
     %place  ?^(place.topic.approval engine (decline-invitation:engine who.approval))
   ==
-::  +approval-order: an approval command in a DM, or the owner's /revoke in
-::  a channel, and its author
+::  +approval-order: an approval command in a DM, and its author
 ::
-::    The network authenticates a DM's author, while a channel post's is
-::    whatever the channel's host reports, so in a channel the text is an
-::    ordinary message, except as +channel-revoke reads it. In a DM, read
-::    whoever wrote it, so that one from a ship that is not the owner is
-::    dropped before it could open a request or start a turn.
+::    Only a DM: the network authenticates a DM's author, while a channel
+::    post's is whatever the channel's host reports, so in a channel the
+::    text is an ordinary message. Read whoever wrote it, so that one from a
+::    ship that is not the owner is dropped before it could open a request
+::    or start a turn.
 ::
 ++  approval-order
   |=  event=incoming-event:v8:a
   ^-  (unit [who=@p =order:ask])
-  ?:  ?=(?(%post %reply) -.event)  (channel-revoke event)
   =/  said=(unit [who=@p content=story:v9:dv])
     ?+  -.event  ~
       %dm-post  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event content.event])
@@ -3730,32 +3737,8 @@
   ?:  (quoted:story content.u.said)  ~
   =/  order  (read-order:ask (story-to-text:story content.u.said))
   ?~(order ~ `[who.u.said u.order])
-::  +channel-revoke: the owner's /revoke in a channel, addressed as the
-::  head's commands are there
-::
-::    The one approval command a channel takes: posted as the owner by the
-::    channel's host, it can only take a grant back in that channel, whose
-::    members the host controls already. Any other text, and anyone else's
-::    /revoke, is an ordinary message.
-::
-++  channel-revoke
-  |=  event=incoming-event:v8:a
-  ^-  (unit [who=@p =order:ask])
-  =/  said=(unit [who=@p content=story:v9:dv])
-    ?+  -.event  ~
-      %post  `[p.id.key.event content.event]
-      %reply  `[p.id.key.event content.event]
-    ==
-  ?~  said  ~
-  ?.  (actor-owner who.u.said)  ~
-  ?:  (quoted:story content.u.said)  ~
-  =/  heard  (normalize-owned:p our.bowl policy event actor-owner)
-  ?~  heard  ~
-  =/  order  (read-order:ask text.u.heard)
-  ?.  ?=([~ %revoke *] order)  ~
-  `[who.u.said u.order]
-::  +carry-order: carry out the owner's approval command, answering where
-::  it came from
+::  +carry-order: carry out the owner's approval command, answering in the
+::  DM it came from
 ::
 ::    Anyone else's is dropped unanswered.
 ::
@@ -3777,8 +3760,8 @@
     ?~  who.order  (answer-order to unban-usage:ask)
     (unban u.who.order to)
   ?:  ?=(%revoke -.order)
-    ?~  who.order  (answer-order to revoke-usage:ask)
-    (revoke u.who.order to)
+    ?~  target.order  (answer-order to revoke-usage:ask)
+    (revoke who.u.target.order where.u.target.order to)
   ::  Among several, a bare command could act on a request the owner did
   ::  not mean, so it lists them instead.
   ?:  &(?=(~ id.order) (gth ~(wyt by by-id.live) 1))
@@ -3892,8 +3875,9 @@
 ::
 ::    The grant has just moved the ship's cutoff there past it, so it alone
 ::    is admitted past .floor; the cutoff still stops every earlier message
-::    and a later catch-up of this one. A deleted message, or a channel the
-::    bot has left, gets no answer.
+::    and a later catch-up of this one. A deleted message, an approval
+::    command, which +activity drops from anyone but the owner, or a channel
+::    the bot has left, gets no answer.
 ::
 ++  answer-waiting
   |=  [who=@p =place:t floor=@da]
@@ -3901,6 +3885,7 @@
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
   =/  event  (waiting-attempt who place floor)
   ?~  event  cor
+  ?^  (approval-order u.event)  cor
   =/  heard  (normalize-owned:p our.bowl policy u.event actor-owner)
   ?~  heard  cor
   ::  A settings save drops the cutoff of a ship that lost its access and
@@ -4054,18 +4039,38 @@
   =.  error  'Messenger rejected an unblock; inspect the ship log.'
   =.  cor  (note 'approval-unban-failed' who (scot %p who) '')
   (answer-order to (unbanned:ask who %failed))
-::  +revoke: take back .who's grant in the place of .to, as a settings save
-::  that removes it does
+::  +revoke: take back .who's grant in .where, or in its one place when no
+::  place is given, as a settings save that removes it does
 ::
-::    Not a ban: nothing is blocked, and the ship may ask again.
+::    Not a ban: nothing is blocked, and the ship may ask again. A ship with
+::    grants in several places keeps them all until the owner names one.
 ::
 ++  revoke
-  |=  [who=@p to=destination:t]
+  |=  [who=@p where=(unit place:t) to=destination:t]
   ^+  cor
-  =/  =place:t  (place:p to)
-  =/  where  (place-label place)
-  ?^  (actor-grants who ~)  (answer-order to (unrevoked:ask who where %everywhere))
-  ?.  (placed:p policy who place)  (answer-order to (unrevoked:ask who where %ungranted))
+  ?^  (actor-grants who ~)
+    =/  label  ?~(where ~ (place-label u.where))
+    (answer-order to (unrevoked:ask who label %everywhere))
+  ?^  where  (revoke-in who u.where to)
+  =/  held=(list place:t)
+    %+  weld
+      `(list place:t)`?.((~(has in dm-grants.policy) who) ~ ~[~])
+    %+  sort
+      %+  murn  ~(tap by channel-grants.policy)
+      |=  [=nest:dv ships=(set @p)]
+      ^-  (unit place:t)
+      ?.((~(has in ships) who) ~ ``nest)
+    |=([a=place:t b=place:t] (aor (place-text:ask a) (place-text:ask b)))
+  ?~  held  (answer-order to (unrevoked:ask who ~ %nowhere))
+  ?^  t.held  (answer-order to (revoke-choices:ask who held))
+  (revoke-in who i.held to)
+::  +revoke-in: take back .who's grant in .place
+::
+++  revoke-in
+  |=  [who=@p =place:t to=destination:t]
+  ^+  cor
+  =/  label  (place-label place)
+  ?.  (placed:p policy who place)  (answer-order to (unrevoked:ask who label %ungranted))
   =/  revoked=policy:t
     ?~  place  policy(dm-grants (~(del in dm-grants.policy) who))
     =/  ships  (~(del in (~(got by channel-grants.policy) u.place)) who)
@@ -4077,8 +4082,8 @@
   =.  cor  (configure revoked sibling-moon-owners)
   =.  cor  (note 'approval-revoked' who (address:p (place-to:p who place)) '')
   ::  A channel open to everyone still answers the ship.
-  ?:  (place-access who place)  (answer-order to (still-answered:ask who (need where)))
-  (answer-order to (confirmation:ask %revoke who where))
+  ?:  (place-access who place)  (answer-order to (still-answered:ask who (need label)))
+  (answer-order to (confirmation:ask %revoke who label))
 ::
 ++  agent-approval-reply
   |=  [=wire =sign:agent:gall]
@@ -4096,8 +4101,8 @@
   ^-  (unit @t)
   ?~  place  ~
   `(channel-label:ask (address:p [%channel u.place ~]) name.u.place (approval-channel place))
-::  +approval-channel: a channel's title and its group's, as the card names
-::  them; ~ for a DM
+::  +approval-channel: a channel's title and its group's, as the card and
+::  every reply and listing name them, each cut by +bounded:ask; ~ for a DM
 ::
 ++  approval-channel
   |=  =place:t
@@ -4112,8 +4117,8 @@
     `[title.meta.u.channel title.meta.group]
   ?~  named  `[name.u.place ~]
   :+  ~
-    ?:(=('' channel.i.named) name.u.place channel.i.named)
-  ?:(=('' group.i.named) ~ `group.i.named)
+    ?:(=('' channel.i.named) name.u.place (bounded:ask channel.i.named))
+  ?:(=('' group.i.named) ~ `(bounded:ask group.i.named))
 ::  +approval-named: what a request's card calls its place or group
 ::
 ++  approval-named

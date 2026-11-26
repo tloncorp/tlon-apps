@@ -16,11 +16,12 @@
   ==
 ::  $order: an owner command: an answer to a request, typed or sent by a
 ::  card's button, a listing of the open requests or of the blocked ships,
-::  an unblock, or taking back a ship's access where the command is typed
+::  an unblock, or taking back a ship's grant in one place
 ::
 ::    A button also sends its request's +button-token, so that a stale
-::    card's id, reused by a later request, acts on nothing. An unban or a
-::    revoke holds its ship, or ~ when no ship can be read from the text.
+::    card's id, reused by a later request, acts on nothing. An unban holds
+::    its ship, and a revoke its ship and the place it names, if it names
+::    one; either holds ~ when they cannot be read from the text.
 ::
 +$  answer  [id=(unit @t) token=(unit @uv)]
 +$  order
@@ -30,7 +31,7 @@
       [%pending ~]
       [%banned ~]
       [%unban who=(unit @p)]
-      [%revoke who=(unit @p)]
+      [%revoke target=(unit [who=@p where=(unit place:t)])]
   ==
 ::  +find: the id of the request open for a ship in a place
 ::
@@ -122,7 +123,7 @@
     %pending  ?.(=('' arg) ~ `[%pending ~])
     %banned  ?.(=('' arg) ~ `[%banned ~])
     %unban  `[%unban (read-ship arg)]
-    %revoke  `[%revoke (read-ship arg)]
+    %revoke  `[%revoke (read-revoke arg)]
   ==
 ::  +read-answer: the request an answer's .arg names
 ::
@@ -149,6 +150,41 @@
   ^-  (unit @p)
   =/  chars  (cass (trip arg))
   (slaw %p (crip ?:(=("~" (scag 1 chars)) chars ['~' chars])))
+::  +read-revoke: the ship a revoke names, and the place after it and one
+::  space, if any, as +place-text prints it
+::
+++  read-revoke
+  |=  arg=@t
+  ^-  (unit [who=@p where=(unit place:t)])
+  =/  chars  (trip arg)
+  =/  gap  (^find " " chars)
+  ?~  gap
+    =/  who  (read-ship arg)
+    ?~(who ~ `[u.who ~])
+  =/  who  (read-ship (crip (scag u.gap chars)))
+  ?~  who  ~
+  =/  where  (read-place (crip (slag +(u.gap) chars)))
+  ?~  where  ~
+  `[u.who where]
+::  +read-place: the place .text names, as +place-text prints it
+::
+++  read-place
+  |=  text=@t
+  ^-  (unit place:t)
+  ?:  =('dm' text)  `~
+  =/  parsed  (rush text ;~((glue fas) sym ;~(pfix sig fed:ag) sym))
+  ?~  parsed  ~
+  =/  [kind=@tas host=@p name=@tas]  u.parsed
+  ?.  ?=(?(%chat %diary %heap) kind)  ~
+  ``[kind host name]
+::  +place-text: a grant's place as /revoke takes it, `dm` or the channel's
+::  nest
+::
+++  place-text
+  |=  =place:t
+  ^-  @t
+  ?~  place  'dm'
+  (address:p [%channel u.place ~])
 ::  +pick: the request an order names
 ::
 ::    As OpenClaw finds it, the exact id, else the one id it begins. With no
@@ -373,24 +409,38 @@
 ::  +unban-usage: OpenClaw's reply to /unban without a ship
 ::
 ++  unban-usage  'Usage: /unban ~ship-name'
-::  +revoke-usage: the reply to /revoke without a ship, as /unban's
+::  +revoke-usage: the reply to /revoke without a ship, or with text after
+::  it that names no place, as /unban's
 ::
 ++  revoke-usage  'Usage: /revoke ~ship-name'
 ::  +unrevoked: the reply to /revoke of .who that takes nothing back, as
-::  .who has access everywhere from settings, or no grant in .where (~ for
-::  a DM)
+::  .who has access everywhere from settings, no grant in .where (~ for a
+::  DM), or no grant anywhere
 ::
 ++  unrevoked
-  |=  [who=@p where=(unit @t) why=?(%everywhere %ungranted)]
+  |=  [who=@p where=(unit @t) why=?(%everywhere %ungranted %nowhere)]
   ^-  @t
   =/  ship  (scot %p who)
   ?-  why
     %everywhere  (cat 3 ship ' has access everywhere from settings; change it there.')
+    %nowhere  (cat 3 ship ' has no access to revoke.')
   ::
       %ungranted
     ?~  where  (cat 3 ship ' has no DM access to revoke.')
     (rap 3 ship ' has no access to revoke in ' u.where '.' ~)
   ==
+::  +revoke-choices: the reply to /revoke of .who without a place while it
+::  holds a grant in each of .places, as a bare answer's among several
+::  requests
+::
+++  revoke-choices
+  |=  [who=@p places=(list place:t)]
+  ^-  @t
+  =/  ship  (scot %p who)
+  %+  rap  3
+  :-  (cat 3 ship ' has access in more than one place. Send the command again with one:')
+  %+  turn  places
+  |=(=place:t (rap 3 '\0a/revoke ' ship ' ' (place-text place) ~))
 ::  +still-answered: the reply to /revoke of .who in channel .where once its
 ::  grant is gone, when the channel's settings still answer it there
 ::
@@ -529,6 +579,18 @@
   |=  text=@t
   ^-  @t
   (crip (tufa (scag 100 (tuba (trip text)))))
+::  +bounded: a channel's or a group's title cut to eighty characters, the
+::  last three an ellipsis, as OpenClaw bounds a group's title
+::
+::    A host sets the title, and it goes into cards and replies whose text
+::    Messenger limits.
+::
+++  bounded
+  |=  text=@t
+  ^-  @t
+  =/  chars  (tuba (trip text))
+  ?:  (lte (lent chars) 80)  text
+  (cat 3 (crip (tufa (scag 77 chars))) '...')
 ::  +card: the notice text and the card for a request
 ::
 ++  card
