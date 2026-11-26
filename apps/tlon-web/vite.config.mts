@@ -120,7 +120,9 @@ export default async ({ command, mode }: ConfigEnv) => {
         signal: AbortSignal.timeout(10_000),
       });
     } catch (error) {
-      console.error(`failed to discover hostname from ${appUrl.href}: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(
+        `failed to discover hostname from ${appUrl.href}: ${error instanceof Error ? error.message : String(error)}`
+      );
       return 'localhost'; // fail safe
     }
 
@@ -134,7 +136,9 @@ export default async ({ command, mode }: ConfigEnv) => {
     // attempt to parse canonical domain from redirect target
     const appHostname = localHostForUpstream(new URL(location, shipOrigin));
     if (!appHostname) {
-      console.error(`cannot derive local host for ${location} under ${shipOrigin.origin}`);
+      console.error(
+        `cannot derive local host for ${location} under ${shipOrigin.origin}`
+      );
       return 'localhost'; // fail safe
     }
 
@@ -173,9 +177,7 @@ export default async ({ command, mode }: ConfigEnv) => {
     }
   };
 
-  type ProxyServer = Parameters<
-    NonNullable<ProxyOptions['configure']>
-  >[0];
+  type ProxyServer = Parameters<NonNullable<ProxyOptions['configure']>>[0];
 
   const configureEyreProxy = (proxy: ProxyServer) => {
     // rewrite host, origin, referer and sec-fetch-site headers
@@ -214,9 +216,7 @@ export default async ({ command, mode }: ConfigEnv) => {
       // dev server behavior.
       // if no origin was provided, use referer for this instead.
       const provenance =
-        typeof origin === 'string'
-          ? translatedOrigin
-          : translatedReferer;
+        typeof origin === 'string' ? translatedOrigin : translatedReferer;
 
       const fetchSite = req.headers['sec-fetch-site'];
 
@@ -227,9 +227,7 @@ export default async ({ command, mode }: ConfigEnv) => {
         // different localhost origins become different origins under ship site
         proxyReq.setHeader(
           'sec-fetch-site',
-          provenance.origin === upstream.origin
-            ? 'same-origin'
-            : 'same-site'
+          provenance.origin === upstream.origin ? 'same-origin' : 'same-site'
         );
       }
     });
@@ -240,10 +238,7 @@ export default async ({ command, mode }: ConfigEnv) => {
       const location = proxyRes.headers.location;
 
       // relative redirects already return through vite
-      if (
-        typeof location !== 'string' ||
-        !/^(?:https?:)?\/\//.test(location)
-      ) {
+      if (typeof location !== 'string' || !/^(?:https?:)?\/\//.test(location)) {
         return;
       }
 
@@ -255,8 +250,7 @@ export default async ({ command, mode }: ConfigEnv) => {
       }
 
       const localPort = req.headers.host?.match(/:(\d+)$/)?.[1];
-      const localAuthority =
-        localHostname + (localPort ? `:${localPort}` : '');
+      const localAuthority = localHostname + (localPort ? `:${localPort}` : '');
 
       proxyRes.headers.location =
         `//${localAuthority}` +
