@@ -9,8 +9,10 @@
     ==
   ::  The memory index marker is added by the load after the upgrade.
   =/  migrated  (migrate-memory-prefixes:storage (envelope:storage !>(old)))
+  ::  The fixture saves no schedule; compare in the frozen schedule type.
+  =/  frozen  migrated(schedules *(map @uv schedule-s0))
   ;:  weld
-      (expect-eq !>(+.old) !>(+.+.+>.migrated))
+      (expect-eq !>(+.old) !>(+>+>+.frozen))
       (expect-eq !>(*state:r) !>(runners.migrated))
       (expect-eq !>(migrated) !>((envelope:storage !>(migrated))))
   ==

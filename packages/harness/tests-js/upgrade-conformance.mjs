@@ -52,7 +52,10 @@ const baseline = {
 // moves to the baseline once the seeder of every long-lived branch emits it.
 const newer = {
   tlon: ['dm.lane', 'dm.session', 'dm.hand', 'dm.address', 'dm.actors', 'dm.enabled'],
-  schedules: ['tlon.binding', 'tlon.actor', 'tlon.kind', 'tlon.state', 'tlon.prompt', 'tlon.schedule', 'tlon.destination'],
+  schedules: [
+    'tlon.binding', 'tlon.actor', 'tlon.kind', 'tlon.state', 'tlon.prompt', 'tlon.schedule', 'tlon.destination',
+    'cron.remaining',
+  ],
 }
 
 const sections = Object.keys(baseline)
@@ -146,6 +149,7 @@ async function values(ids) {
     schedules: {
       'cron.binding': cron?.sourceBinding, 'cron.actor': cron?.actor, 'cron.kind': cron?.kind, 'cron.state': cron?.state,
       'cron.prompt': cron?.prompt, 'cron.schedule': cron?.schedule, 'cron.destination': cron?.destination,
+      'cron.remaining': cron?.remaining,
       'timer.prompt': timer?.prompt, 'timer.every': timer?.every, 'timer.at': timer?.at,
       'tlon.binding': dmCron?.sourceBinding, 'tlon.actor': dmCron?.actor, 'tlon.kind': dmCron?.kind, 'tlon.state': dmCron?.state,
       'tlon.prompt': dmCron?.prompt, 'tlon.schedule': dmCron?.schedule, 'tlon.destination': dmCron?.destination,
@@ -290,6 +294,7 @@ async function seed() {
     schedules: {
       'cron.binding': ids.binding, 'cron.actor': actor, 'cron.kind': 'reminder', 'cron.state': 'active',
       'cron.prompt': `${id} reminder`, 'cron.schedule': later, 'cron.destination': address,
+      'cron.remaining': 1,
       'timer.prompt': timer.prompt, 'timer.every': '~h2', 'timer.at': null,
       ...dm.schedules,
     },
@@ -359,7 +364,12 @@ try {
     console.log(JSON.stringify({ ok: true, mode, id, manifest: manifestPath }))
   } else {
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
-    compare(manifest.sections, await values(manifest.ids), process.env.UPGRADE_KEYS === 'all')
+    const upgraded = await values(manifest.ids)
+    compare(manifest.sections, upgraded, process.env.UPGRADE_KEYS === 'all')
+    // Every seeder makes a one-run reminder, so its count is checked even
+    // against a manifest from before the count was recorded.
+    assert.equal(upgraded.schedules['cron.remaining'], 1, 'the seeded reminder keeps its one run')
+    console.log(`schedules.cron.remaining: ${upgraded.schedules['cron.remaining']}`)
     // The hand index is rebuilt at load: the open publications are still listed.
     const open = (await hand.outbox()).map((row) => row.text).sort()
     assert.deepEqual(open, [manifest.ids.pending, manifest.ids.claimed].sort(), 'outbox lists the pending and claimed publications')

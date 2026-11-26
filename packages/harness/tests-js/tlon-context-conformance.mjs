@@ -19,20 +19,35 @@ const ship = cookie.split('=')[0].slice('urbauth-'.length), marker = `context-${
 const client = new Client(), contexts = [{ kind: 'dm' }, { kind: 'channel' }], failures = []
 const note = `c${randomUUID().slice(0, 8)}`, secret = `${marker}-private-note`, skillName = `${marker}-forbidden`
 const reminders = new Map(), reminderSpecs = new Map()
-let event = 0, stamp = 0, originals, requests = 0, completed = false, adapterStopped = false
+let event = 0, stamp = 0, originals, requests = 0, completed = false, adapterStopped = false, waiting, profile
+const hold = Promise.withResolvers(), held = Promise.withResolvers()
+// A ship busy with one long event answers late: a read that times out is
+// asked again until the wait it serves, or two minutes, runs out.
 async function scry(path, remote = false) {
-  const response = await fetch(`${remote ? peerUrl : base}/~/scry/${path}.json`, { headers: { cookie: remote ? peerCookie : cookie }, signal: AbortSignal.timeout(15000) })
-  assert.ok(response.ok, `${path}: ${response.status}`); return response.json()
+  const asked = Date.now(), end = waiting?.end ?? asked + 120000
+  for (let left = end - asked; left > 0; left = end - Date.now()) {
+    try {
+      const response = await fetch(`${remote ? peerUrl : base}/~/scry/${path}.json`, { headers: { cookie: remote ? peerCookie : cookie }, signal: AbortSignal.timeout(Math.min(15000, left)) })
+      assert.ok(response.ok, `${path}: ${response.status}`)
+      const data = await response.json()
+      if (Date.now() < end) return data
+    } catch (error) {
+      if (error.name !== 'TimeoutError') throw error
+    }
+  }
+  throw new Error(`${path}: the ship has not answered for ${((Date.now() - asked) / 1000).toFixed(1)} s, waiting for ${waiting?.label ?? 'a direct read'}`)
 }
 async function until(label, check) {
   // Peer propagation is distinct from the channel host's durable receipt.
-  const end = Date.now() + 120000
-  while (Date.now() < end) {
-    if (failures.length) throw new AggregateError(failures)
-    const value = await check(); if (value) return value
-    await sleep(150)
-  }
-  throw new Error(`Timed out: ${label}`)
+  waiting = { label, end: Date.now() + 120000 }
+  try {
+    while (Date.now() < waiting.end) {
+      if (failures.length) throw new AggregateError(failures)
+      const value = await check(); if (value) return value
+      await sleep(150)
+    }
+    throw new Error(`Timed out: ${label}`)
+  } finally { waiting = undefined }
 }
 async function posts(ctx, remote = true) {
   const data = await scry(ctx.kind === 'dm' ? `chat/v4/dm/${remote ? ship : peer}/writs/newest/100/heavy` : `channels/v5/${nest}/posts/newest/100/post`, remote)
@@ -52,6 +67,10 @@ async function send(ctx, text, addressed = true) {
   const response = await fetch(`${peerUrl}/~/channel/${marker}`, { method: 'PUT', headers: { cookie: peerCookie, 'content-type': 'application/json' }, body: JSON.stringify([{ id: ++event, action: 'poke', ship: peer.slice(1), app: ctx.kind === 'channel' ? 'channels' : 'chat', mark: ctx.kind === 'channel' ? 'channel-action-2' : 'chat-dm-action-2', json }]), signal: AbortSignal.timeout(15000) })
   assert.ok(response.ok)
 }
+async function contact(actions, remote = false) {
+  const response = await fetch(`${remote ? peerUrl : base}/~/channel/${marker}-contacts`, { method: 'PUT', headers: { cookie: remote ? peerCookie : cookie, 'content-type': 'application/json' }, body: JSON.stringify(actions.map((json) => ({ id: ++event, action: 'poke', ship: (remote ? peer : ship).slice(1), app: 'contacts', mark: 'contact-action-1', json }))), signal: AbortSignal.timeout(15000) })
+  assert.ok(response.ok)
+}
 async function command(ctx, text, expected) {
   const ids = new Set((await replies(ctx)).map((p) => p.id)), before = new Set((await client.call('harness/tlon')).sessions)
   await send(ctx, text)
@@ -65,6 +84,9 @@ const server = createServer(async (req, res) => {
     const body = JSON.parse(raw); requests++
     res.writeHead(200, { 'content-type': 'application/json' })
     assert.ok(!raw.includes(secret), 'memory opt-out excludes shared facts from the request')
+    // The held turn answers only once the messages behind it are queued.
+    if (body.messages.findLast((m) => m.role === 'user').content.includes(`${marker}-hold`)) { held.resolve(); await hold.promise }
+    if (raw.includes(`${marker}-top`)) return res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: `${marker}-top-done` } }] }))
     assert.ok(!raw.includes(`${marker}-outside`), 'unrelated public top-level messages are excluded')
     const reference = body.messages.find((m) => m.role === 'user' && m.content.startsWith('Public thread reference captured at admission.'))
     assert.ok(reference, 'public native context is supplied without asking for a history tool')
@@ -134,6 +156,43 @@ try {
   await until('published result', async () => (await replies(channel)).some((p) => authorShip(p.author) === ship && JSON.stringify(p.content).includes(`${marker}-done`)))
   const events = await scry(`harness/events/${channel.sid}`), reference = events.find((e) => e.type === 'context-received')
   assert.ok(reference && events.some((e) => e.type === 'input' && e.id === reference.inputId), 'reference is durably linked to original input')
+  // The peer publishes a name, and this ship keeps a private one for it. A
+  // page that already exists refuses %page, so %edit follows it.
+  profile = await scry('contacts/v1/self', true)
+  await contact([{ self: { nickname: { type: 'text', value: `${marker}-name` } } }], true)
+  await contact([{ wipe: [peer] }, { meet: [peer] }])
+  await until('published name arrived', async () => (await scry(`contacts/v1/contact/${peer}`).catch(() => null))?.nickname?.value === `${marker}-name`)
+  await contact([{ page: { kip: peer, contact: {} } }, { edit: { kip: peer, contact: { nickname: { type: 'text', value: `${marker}-pet` } } } }])
+  await until('private name saved', async () => (await scry(`contacts/v1/contact/${peer}`))?.nickname?.value === `${marker}-pet`)
+  const top = { kind: 'channel' }
+  async function admitted(text) {
+    return until(`reference of ${text}`, async () => {
+      for (const sid of (await client.call('harness/tlon')).sessions) {
+        const log = await scry(`harness/events/${sid}`), input = log.find((e) => e.type === 'input' && e.item?.body?.includes(text))
+        const found = input && log.find((e) => e.type === 'context-received' && e.inputId === input.id)
+        if (found) return { input: input.item.body, messages: JSON.parse(found.body.slice(found.body.indexOf('\n') + 1)).messages, body: found.body }
+      }
+    })
+  }
+  await send(top, `${marker}-top`)
+  const recent = await admitted(`${marker}-top`), shown = `${peer} (${marker}-name)`
+  assert.ok(recent.body.startsWith('Recent public channel activity captured at admission'), 'a top-level turn gets recent channel activity')
+  assert.ok(recent.messages.length <= 20 && recent.messages.some((m) => m.text.includes(`${marker}-outside`) && m.author === shown), 'recent top-level posts are attributed, with published display names')
+  assert.ok(!recent.messages.some((m) => m.text.includes(`${marker}-top`)), 'the message being admitted is not repeated as history')
+  assert.ok(recent.input.startsWith(`${shown}: `), 'a channel message names its speaker, with the published display name')
+  assert.ok(!recent.body.includes(`${marker}-pet`) && !recent.input.includes(`${marker}-pet`), 'a name this ship keeps privately for a contact stays out of a shared channel')
+  // Two mentions that queue behind a running turn are inputs of their own.
+  await until('top-level turn published', async () => (await posts(top)).some(([, p]) => JSON.stringify(p).includes(`${marker}-top-done`)))
+  await send(top, `${marker}-hold`); await held.promise
+  await send(top, `${marker}-first`); await send(top, `${marker}-second`)
+  await until('queued messages arrived', async () => (await posts(top, false)).filter(([, p]) => [`${marker}-first`, `${marker}-second`].some((text) => JSON.stringify(p.essay?.content).includes(text))).length === 2)
+  await sleep(3000); hold.resolve()
+  for (const text of [`${marker}-first`, `${marker}-second`]) {
+    const queued = await admitted(text)
+    assert.ok(!queued.messages.some((m) => m.text.includes(`${marker}-first`) || m.text.includes(`${marker}-second`)), 'a message queued behind a running turn is not repeated as history')
+  }
+  await contact([{ wipe: [peer] }])
+  await contact([{ self: { nickname: profile.nickname ?? null } }], true); profile = undefined
   assert.deepEqual(await scry('harness/skills'), originals.skills)
   assert.deepEqual(await scry('harness/staged'), originals.staged)
   assert.deepEqual((await client.call('harness/session/snapshot', { sessionId: channel.sid })).memory, [])
@@ -218,6 +277,7 @@ try {
   if (adapterStopped) {
     await rein(process.env.SHIP_PIER, 'harness', 'harness-tlon', true); await sleep(1000)
   }
+  if (profile) await Promise.all([contact([{ wipe: [peer] }]), contact([{ self: { nickname: profile.nickname ?? null } }], true)]).catch(() => {})
   if (originals) {
     for (const job of reminders.values()) await client.call('harness/cron/cancel', { id: job.id }).catch(() => {})
     for (const ctx of contexts) if (ctx.sid) await client.call('session/cancel', { sessionId: ctx.sid }).catch(() => {})

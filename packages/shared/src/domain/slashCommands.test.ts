@@ -169,6 +169,9 @@ describe('static command lists', () => {
     expect(getStaticSlashCommandManifest('hermes')).toBe(
       STATIC_MANIFESTS.hermes
     );
+    expect(getStaticSlashCommandManifest('harness')).toBe(
+      STATIC_MANIFESTS.harness
+    );
   });
 
   test('an unknown, absent, or mis-cased harness falls back to openclaw', () => {
@@ -198,7 +201,27 @@ describe('static command lists', () => {
     }
   );
 
-  test.each(['openclaw', 'hermes'] as const)(
+  test("the harness list is exactly Harness's own commands", () => {
+    const tokens = STATIC_MANIFESTS.harness.commands.map((c) => c.command);
+    expect([...tokens].sort()).toEqual(
+      [
+        '/help',
+        '/status',
+        '/model',
+        '/context',
+        '/compact',
+        '/memory',
+        '/remember',
+        '/forget',
+        '/work',
+        '/stop',
+      ].sort()
+    );
+    expect(tokens).not.toContain('/owner-listen');
+    expect(tokens).not.toContain('/new');
+  });
+
+  test.each(['openclaw', 'hermes', 'harness'] as const)(
     'the %s list has unique tokens and unique priorities',
     (harness) => {
       const commands = STATIC_MANIFESTS[harness].commands;
@@ -211,7 +234,7 @@ describe('static command lists', () => {
     }
   );
 
-  test.each(['openclaw', 'hermes'] as const)(
+  test.each(['openclaw', 'hermes', 'harness'] as const)(
     'every %s entry carries an icon and a popup-triggerable token',
     (harness) => {
       // A token that does not match this shape can never trigger the popup

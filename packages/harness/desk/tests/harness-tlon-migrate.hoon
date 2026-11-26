@@ -44,7 +44,7 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(%7) !>(-.new))
       (expect-eq !>(*approvals:t) !>(approvals.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
@@ -175,7 +175,7 @@
   =/  three  (two-to-three:migrate every-field)
   =/  new  (load:migrate !>(three))
   ;:  weld
-      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(%7) !>(-.new))
       (expect !>(&(?=(^ trusted.policy.three) ?=(^ allowed.policy.three))))
       (expect !>(?=(^ channels.policy.three)))
       (expect-eq !>(trusted.policy.three) !>(trusted.policy.new))
@@ -197,7 +197,7 @@
     (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
   =/  new  (load:migrate !>(four))
   ;:  weld
-      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(%7) !>(-.new))
       (expect-eq !>(browser-entries.four) !>(browser-entries.new))
       (expect !>(&(?=(^ trusted.policy.four) ?=(^ allowed.policy.four))))
       (expect !>(?=(^ channels.policy.four)))
@@ -213,40 +213,91 @@
 ::  The upgrade that adds approval requests keeps every saved field, browser
 ::  handoffs, access and place cutoffs included, and starts with none open.
 ::
-++  test-state-five-upgrade-keeps-every-field-and-opens-no-requests
+++  test-state-six-upgrade-keeps-every-field-and-opens-no-requests
+  =/  six=state-6:migrate
+    %-  five-to-six:migrate
+    (four-to-five:migrate (three-to-four:migrate (two-to-three:migrate every-field)))
+  =.  browser-entries.six
+    (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
+  =.  projected.automation.six  &
+  =.  dm-grants.policy.six  (silt ~[~bus])
+  =.  place-cuts.six  (my ~[[[~bus ~] ~2026.1.13]])
+  =/  new  (load:migrate !>(six))
+  ;:  weld
+      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(*approvals:t) !>(approvals.new))
+      (expect-eq !>(+.six) !>(+>.new))
+      (expect-eq !>(~) !>((dropped:migrate !>(six))))
+  ==
+::  The Steward automation and the ship-wide access survive the upgrade
+::  that adds per-place grants, which start empty.
+::
+++  test-state-five-upgrade-keeps-automation-and-access-and-adds-no-place-grants
   =/  five=state-5:migrate
     (four-to-five:migrate (three-to-four:migrate (two-to-three:migrate every-field)))
-  =.  browser-entries.five
-    (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
-  =.  dm-grants.policy.five  (silt ~[~bus])
-  =.  place-cuts.five  (my ~[[[~bus ~] ~2026.1.13]])
+  =.  projected.automation.five  &
+  =.  names.automation.five  (my ~[[0v1 [`'UTC' ~ `'Brief' ~]]])
   =/  new  (load:migrate !>(five))
   ;:  weld
-      (expect-eq !>(%6) !>(-.new))
-      (expect-eq !>(*approvals:t) !>(approvals.new))
-      (expect-eq !>(+.five) !>(+>.new))
+      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(automation.five) !>(automation.new))
+      (expect !>(&(?=(^ trusted.policy.five) ?=(^ allowed.policy.five))))
+      (expect !>(?=(^ channels.policy.five)))
+      %+  expect-eq
+        !>(policy.five)
+      !>([enabled owner trusted response allowed channels]:policy.new)
+      (expect-eq !>([~ ~]) !>([dm-grants channel-grants]:policy.new))
+      (expect-eq !>(~) !>(place-cuts.new))
+      (expect-eq !>(cuts.five) !>(cuts.new))
+      (expect-eq !>(lanes.five) !>(lanes.new))
       (expect-eq !>(~) !>((dropped:migrate !>(five))))
   ==
 ::
-++  test-state-three-loads-with-no-pending-browser-handoff
+++  test-state-three-loads-with-no-pending-browser-handoff-or-automation
   =/  old=state-3:migrate  (three:migrate !>(every-field))
   =/  four  (three-to-four:migrate old)
+  =/  five  (four-to-five:migrate four)
   ;:  weld
       (expect !>(=(%4 -.four)))
       (expect !>(=(~ browser-entries.four)))
       (expect !>(=(+.old +>.four)))
+      (expect !>(=(%5 -.five)))
+      (expect-eq !>(*automation:t) !>(automation.five))
+      (expect !>(=(+.four +>.five)))
       (expect !>(=(~ browser-entries:(load:migrate !>(old)))))
+      (expect-eq !>(~) !>((dropped:migrate !>(old))))
+  ==
+::  A saved %4 with a browser handoff pending.
+::
+++  pending-browser-handoff
+  ^-  state-4:migrate
+  =/  saved  *state-4:migrate
+  =.  policy.saved  [& `~nec ~ %mentions ~ ~]
+  =.  tool-receipts.saved
+    %-  my
+    ~[[0v1 `tool-receipt:t`[['dm' 1 ['call' 'browser_secure_entry' '{}']] %sending '' ~2026.11.1]]]
+  =.  browser-entries.saved
+    %-  my
+    :~  :-  0v1
+        ^-  browser-entry-4:migrate
+        [~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]
+    ==
+  saved
+::
+++  test-state-four-keeps-its-pending-browser-handoff
+  =/  old  pending-browser-handoff
+  =/  five  (four-to-five:migrate old)
+  =/  current  (load:migrate !>(old))
+  ;:  weld
+      (expect !>(=(%5 -.five)))
+      (expect-eq !>(*automation:t) !>(automation.five))
+      (expect !>(=(+.old +>.five)))
+      (expect-eq !>(browser-entries.old) !>(browser-entries.current))
       (expect-eq !>(~) !>((dropped:migrate !>(old))))
   ==
 ::
 ++  test-pending-browser-handoff-loads-unchanged
-  =/  current  *state-6:t
-  =.  policy.current  [& `~nec ~ %mentions ~ ~ ~ ~]
-  =.  tool-receipts.current
-    %-  my
-    ~[[0v1 `tool-receipt:t`[['dm' 1 ['call' 'browser_secure_entry' '{}']] %sending '' ~2026.11.1]]]
-  =.  browser-entries.current
-    %-  my
-    ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]]
+  =/  current  (load:migrate !>(pending-browser-handoff))
+  =.  projected.automation.current  &
   (expect-eq !>(current) !>((load:migrate !>(current))))
 --

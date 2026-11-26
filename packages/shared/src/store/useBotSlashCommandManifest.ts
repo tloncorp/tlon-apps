@@ -56,13 +56,21 @@ export function resolveBotManifestShipId(
 export function selectBotSlashCommandManifest(args: {
   enabled: boolean;
   botInfo?: string | null;
+  channelType: db.Channel['type'] | undefined;
 }): domain.SlashCommandManifest | null {
   if (!args.enabled) {
     return null;
   }
-  return domain.getStaticSlashCommandManifest(
+  const manifest = domain.getStaticSlashCommandManifest(
     domain.parseBotInfo(args.botInfo)?.harness
   );
+  // The popup inserts a command without a mention, and a Harness bot hears an
+  // unmentioned channel message only in some channels, so outside a DM the
+  // command could be dropped silently.
+  if (manifest.agent === 'harness' && args.channelType !== 'dm') {
+    return null;
+  }
+  return manifest;
 }
 
 // Returns the slash-command manifest for a bot conversation, or null when
@@ -80,7 +88,7 @@ export function selectBotSlashCommandManifest(args: {
 // Which commands are shown: bots publish an identity claim in their contact
 // profile (see domain.parseBotInfo and docs/bot-info.md), and the claimed
 // harness selects one of the app's static command lists. An unidentified bot
-// gets the OpenClaw list.
+// gets the OpenClaw list. A Harness bot's list is offered in DMs only.
 export const useBotSlashCommandManifest = (
   channel: db.Channel | null | undefined,
   // Required (not optional) so TypeScript forces the call site to thread the
@@ -127,7 +135,8 @@ export const useBotSlashCommandManifest = (
       selectBotSlashCommandManifest({
         enabled,
         botInfo: contact?.botInfo,
+        channelType: channel?.type,
       }),
-    [enabled, contact?.botInfo]
+    [enabled, contact?.botInfo, channel?.type]
   );
 };
