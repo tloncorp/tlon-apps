@@ -3389,15 +3389,16 @@
 ::
 ::  +turnless: whether .event is an approval command that starts no turn
 ::
-::    An allow answers the message waiting on its request, so it waits for
-::    room as that message would.
+::    An allow with a message waiting on its request answers it, so it waits
+::    for room as that message would.
 ::
 ++  turnless
   |=  event=incoming-event:v8:a
   ^-  ?
   =/  order  (approval-order event)
   ?~  order  |
-  !?=(%allow -.order.u.order)
+  ?.  ?=(%allow -.order.u.order)  &
+  ?=(~ (allow-to event))
 ::
 ++  activity-room
   |=  event=incoming-event:v8:a
@@ -3413,8 +3414,11 @@
   =/  handed  (allow-to event)
   ?~  handed  &
   (room u.handed)
-::  +allow-to: where the owner's allow in .event hands on its request's
-::  waiting message, if it acts on a request
+::  +allow-to: the conversation the owner's allow in .event hands its
+::  request's waiting message on to, if it acts on a request with one
+::
+::    The lookup is +answer-waiting's, with the cutoff the request's
+::    attempts were judged by, before the grant moves it.
 ::
 ++  allow-to
   |=  event=incoming-event:v8:a
@@ -3427,7 +3431,21 @@
   ?~  found  ~
   ::  A group request hands on nothing.
   ?.  ?=(%place -.topic.approval.u.found)  ~
-  `(place-to:p who.approval.u.found place.topic.approval.u.found)
+  =/  who  who.approval.u.found
+  =/  =place:t  place.topic.approval.u.found
+  =/  floor  (admission-cutoff who (place-to:p who place))
+  ::  The message is read as it will be once the grant lets it in.
+  %+  bind
+    (waiting-message:cor(policy (granting who place)) who place floor)
+  tail
+::  +granting: the policy with .who granted .place
+::
+++  granting
+  |=  [who=@p =place:t]
+  ^-  policy:t
+  ?~  place  policy(dm-grants (~(put in dm-grants.policy) who))
+  =/  ships  (fall (~(get by channel-grants.policy) u.place) ~)
+  policy(channel-grants (~(put by channel-grants.policy) u.place (~(put in ships) who)))
 ::  +room: whether input to .to fits the head's queues now
 ::
 ++  room
@@ -3840,14 +3858,7 @@
     ::  The cutoff the request's attempts were judged by, before the grant
     ::  moves it.
     =/  floor  (admission-cutoff who.approval (place-to:p who.approval place))
-    =/  granted=policy:t
-      ?~  place
-        policy(dm-grants (~(put in dm-grants.policy) who.approval))
-      =/  ships  (fall (~(get by channel-grants.policy) u.place) ~)
-      %=  policy
-        channel-grants
-          (~(put by channel-grants.policy) u.place (~(put in ships) who.approval))
-      ==
+    =/  granted  (granting who.approval place)
     ::  The settings save closes the request, sets cutoffs and, for a DM,
     ::  accepts the ship's pending invitation.
     =.  cor  (configure granted sibling-moon-owners)
@@ -4007,18 +4018,27 @@
 ++  answer-waiting
   |=  [who=@p =place:t floor=@da]
   ^+  cor
-  ?:  (blocked:messenger who)  cor
-  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
+  =/  waiting  (waiting-message who place floor)
+  ?~  waiting  cor
+  (admit event.u.waiting `floor)
+::  +waiting-message: the message +answer-waiting would admit, and the
+::  conversation it would be admitted to, if there is one
+::
+++  waiting-message
+  |=  [who=@p =place:t floor=@da]
+  ^-  (unit [event=incoming-event:v8:a to=destination:t])
+  ?:  (blocked:messenger who)  ~
+  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  ~
   =/  event  (waiting-attempt who place floor)
-  ?~  event  cor
-  ?^  (approval-order u.event)  cor
+  ?~  event  ~
+  ?^  (approval-order u.event)  ~
   =/  heard  (normalize-owned:p our.bowl policy u.event actor-owner)
-  ?~  heard  cor
+  ?~  heard  ~
   ::  A settings save drops the cutoff of a ship that lost its access and
   ::  has no conversation left, so .floor need not stop a message an earlier
   ::  allow answered. Whatever binding took it, it is not answered again.
-  ?:  (answered event.u.heard)  cor
-  (admit u.event `floor)
+  ?:  (answered event.u.heard)  ~
+  `[u.event to.u.heard]
 ::  +waiting-attempt: the newest message .who sent the bot in .place after
 ::  .floor that counts as an attempt there, as it would toward a request
 ::

@@ -832,10 +832,12 @@ hand handles no message from its own ship.
   post is not read; the answer is to the text Activity reported.
   It is let past the cutoff the grant sets, which still stops every earlier
   message and a later catch-up of this one, so it could not be read again:
-  catch-up carries out an `/allow` only when that conversation has room in
-  the head's queues, eight inputs per conversation and 128 across the head,
-  as it admits a message only then, and otherwise waits before it and
-  tries again. If the ship wrote several times,
+  catch-up finds that message first and carries out an `/allow` only when
+  the conversation the message is admitted to (a thread reply's thread, for
+  one) has room in the head's queues, eight inputs per conversation and 128
+  across the head, as it admits a message only then, and otherwise waits
+  before it and tries again. An `/allow` with nothing to hand on does not
+  wait. If the ship wrote several times,
   only the newest is answered; if the newest was deleted, or is itself an
   approval command, which is the owner's alone, or the bot has left the
   channel, or the ship is blocked on Tlon since it wrote, nothing is. A grant made by a settings save, `/reject`
@@ -956,9 +958,10 @@ and one space is `dm` for the ship's DM grant or a channel's nest, as
   out at once when the owner's DM's queue is full, and when the adapter's
   64 jobs are, provided it is the next Activity event. An approval command
   behind another message still waits for that message, which catch-up does
-  not pass. `/allow` is the exception: it answers the message waiting on
-  its request, which a full queue would refuse behind the cutoff the grant
-  moves, so it waits for room as that message would.
+  not pass. `/allow` with a message waiting on its request is the
+  exception: it answers that message, which a full queue would refuse
+  behind the cutoff the grant moves, so it waits for room as that message
+  would. An `/allow` with nothing to hand on passes like the others.
 
 An invitation to a group from a ship that is not the owner and is on neither
 ship-wide list opens a group invite request, as OpenClaw's does, instead of
