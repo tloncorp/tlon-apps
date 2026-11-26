@@ -958,9 +958,10 @@ and one space is `dm` for the ship's DM grant or a channel's nest, as
   out at once when the owner's DM's queue is full, and when the adapter's
   64 jobs are, provided it is the next Activity event. An approval command
   behind another message still waits for that message, which catch-up does
-  not pass. `/allow` is the exception: it answers the message waiting on
-  its request, which a full queue would refuse behind the cutoff the grant
-  moves, so it waits for room as that message would.
+  not pass. `/allow` with a message waiting on its request is the
+  exception: it answers that message, which a full queue would refuse
+  behind the cutoff the grant moves, so it waits for room as that message
+  would. An `/allow` with nothing to hand on passes like the others.
 
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership

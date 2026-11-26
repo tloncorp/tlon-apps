@@ -2932,6 +2932,19 @@
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.w) !>((silt ~[~bus ~dev])))
   %+  ex-equal  !>((admitted w))
   !>(`(list [@p destination:t @t])`~[[~dev [%dm ~dev ~] 'may I ask?']])
+::  ~dev's waiting message was deleted, so the allow hands nothing on and
+::  starts no turn: it passes the full adapter queue at once.
+::
+++  test-an-allow-with-nothing-to-hand-on-passes-a-full-queue
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[[told (said ~nec '/allow d0001' told)]]
+  =/  page  (dm-page ~[[one-at 'may I ask?' |]])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding (busy-jobs asked) later events page ~)
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  (ex-equal !>(activity-through.s) !>(told))
 ::  .open-nest answers every reader: once ~bus's grant there is gone, the
 ::  owner is told ~bus still has access.
 ::

@@ -3320,15 +3320,16 @@
 ::
 ::  +turnless: whether .event is an approval command that starts no turn
 ::
-::    An allow answers the message waiting on its request, so it waits for
-::    room as that message would.
+::    An allow with a message waiting on its request answers it, so it waits
+::    for room as that message would.
 ::
 ++  turnless
   |=  event=incoming-event:v8:a
   ^-  ?
   =/  order  (approval-order event)
   ?~  order  |
-  !?=(%allow -.order.u.order)
+  ?.  ?=(%allow -.order.u.order)  &
+  ?=(~ (allow-to event))
 ::
 ++  activity-room
   |=  event=incoming-event:v8:a
