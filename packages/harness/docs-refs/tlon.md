@@ -616,9 +616,10 @@ S3 endpoint, and restores the test ship's storage configuration.
 ## Authority and conversation scope
 
 A ship without access in a place is not answered there. Its message never
-starts a turn and is never admitted as one, nothing is said to it, and it gains
-no access. Instead, its attempt opens an approval request, and the bot sends
-its owner one card about it. Nothing is admitted until the owner gives the ship
+starts a turn and is never admitted as one, and it gains no access. Instead,
+its attempt opens an approval request, and the bot sends its owner one card
+about it; in a channel, it also tells the ship once that it waits for its
+owner, and says nothing more to it. Nothing is admitted until the owner gives the ship
 access. Its messages can still reach the model as context, as they did before
 approval requests: when a ship with access addresses the bot in a channel, the
 turn carries the thread's parent and its newest replies, or the channel's
@@ -646,6 +647,28 @@ where granted, read messages by every author.
   a channel and four hex digits, or eight hex digits when ten tries at four
   collide with open requests; it is unique among open requests. The card is
   sent once, not again for later messages.
+- When a channel mention or reply opens a request, the bot answers it, as
+  OpenClaw does, where its answer would go (in the thread for a reply), once
+  `%chat` has acknowledged the card, outside a turn: `~ship: I need approval
+  from my owner, ~owner, before I can respond in this channel — I've sent
+  them the request.`, with `~ship` a mention. If `%chat` rejects the card,
+  which closes the request, it says instead `~ship: I need approval from my
+  owner, ~owner, before I can respond in this channel. I couldn't reach them
+  just now — please mention me again later.` The ship's next mention opens
+  the request again. Neither is said when the owner has changed since the
+  card was sent, as it would name an owner the card never reached, nor when
+  the request has closed or its id gone to another meanwhile. A later message that joins the open request is
+  answered with nothing, and a DM attempt never is. Nor is a known bot, a
+  ship whose message carries a bot's author profile, as OpenClaw leaves
+  bots unanswered: two bots without access to each other would otherwise
+  trade replies; its owner still gets the card. What opens no request, a
+  blocked ship's mention, a comet's or one held back by a limit, is
+  answered with nothing too. The request does not depend on the reply: if
+  local `%channels` refuses it, the hand reports the failure in its error
+  and the ship log, and a host's refusal, as when the bot may not write in
+  the channel, reaches only `%channels`' log, as for the hand's other posts
+  outside a turn. The reply is the bot's own post, so it is never an
+  attempt and never the message `/allow` answers.
 - A request holds the ship, the place, its id and the time it opened, and
   nothing of the message: the preview is read when the card is built (for a DM
   invitation, from the invited DM on the ship) and kept only in the card.
@@ -1460,7 +1483,8 @@ answer; and giving the peer access closes the request, accepts its pending
 invitation, notes the acceptance and answers only what it sends afterward.
 `tests-js/tlon-approval-channel-conformance.mjs` checks the same in a fresh
 channel: a post that does not mention the bot opens nothing, a mention opens one
-request and one card, a thread reply within the limit opens nothing more, and
+request and one card and is told once in the channel that the bot waits for its
+owner, a thread reply within the limit opens nothing more and is told nothing, and
 leaving the channel leaves the request open. Both print each card's A2UI entry on a `CARD`
 line, to check with the app's validator.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers these rules on the
@@ -1469,7 +1493,11 @@ later message joining the open request, the same ship in a second place, a
 blocked ship, a channel with replies off, a ship with access whose text is not
 admitted, a declined invitation, a channel the bot is not in, a channel the bot
 leaves and joins again, catch-up across a channel policy change, the limit
-itself and a rejected card.
+itself and a rejected card. It also covers the reply that the bot waits: given
+to a first mention and not to a second while the request is open, given in the
+thread for a thread reply, given to no blocked ship, known bot or DM, its
+wording when the card is rejected, and the request left open when the reply
+is refused.
 `tests-js/tlon-approval-commands-dm-conformance.mjs` and
 `tests-js/tlon-approval-commands-channel-conformance.mjs` check the approval
 commands on three ships, the bot and two others that take turns as its owner
@@ -1477,7 +1505,8 @@ and as the ship that asks: the owner's tap on Allow gives a DM request DM
 access, accepts the invitation and answers the message the ship asked with,
 once, without its writing again, and then its next message; the owner's
 typed `/allow` gives a channel request that channel only, so the ship's
-waiting mention and its next one are answered there and it is not answered
+waiting mention, told once that the bot waits for its owner and not counted
+as an answer, and its next one are answered there and it is not answered
 in a DM; the owner's `/allow` posted in the channel
 is an ordinary message, answered as any unknown slash text, and grants nothing; the owner's
 `/reject` typed in the DM then leaves the ship unanswered with no request

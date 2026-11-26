@@ -2723,7 +2723,8 @@
     [%create @ ~]  (agent-create wire sign)
     [%hand @ @ ~]  (agent-hand wire sign)
     [%refusal @ ~]  (agent-refusal wire sign)
-    [%approval @ @ ~]  (agent-approval wire sign)
+    [%approval @ @ @ ~]  (agent-approval wire sign)
+    [%approval-waiting @ ~]  (agent-approval-waiting wire sign)
     [%approval-full @ ~]  (agent-approval-full wire sign)
     [%approval-ban @ @ @ ~]  (agent-approval-ban wire sign)
     [%approval-reply @ ~]  (agent-approval-reply wire sign)
@@ -3202,21 +3203,38 @@
 ::  stays open that the owner was never told of; the ship's next attempt
 ::  opens it again
 ::
+::    Either way, a channel mention that opened the request is then told
+::    whether the owner was sent it, unless the owner has changed since.
+::
 ++  agent-approval
   |=  [=wire =sign:agent:gall]
   ^+  cor
-  ?>  ?=([%approval @ @ ~] wire)
+  ?>  ?=([%approval @ @ @ ~] wire)
   ?.  ?=(%poke-ack -.sign)  cor
-  ?~  p.sign  cor
+  =/  id  i.t.wire
+  ::  The request's token, not its id, which another request opened in the
+  ::  same event shares, names the request the card was for.
+  =/  found=(unit approval:t)
+    =/  held  (~(get by by-id.approvals) id)
+    ?~  held  ~
+    ?.  =(i.t.t.wire (scot %uv (button-token:ask id u.held)))  ~
+    held
+  ::  The reply would name the owner now, who was never sent the card.
+  =/  to=(unit destination:t)
+    =/  told  ;;((unit [owner=@p to=destination:t]) (cue (slav %uv i.t.t.t.wire)))
+    ?~  told  ~
+    ?.  =(`owner.u.told owner.policy)  ~
+    `to.u.told
+  ?~  p.sign
+    ?~  found  cor
+    (tell-waiting who.u.found to &)
   %-  (slog 'harness-tlon: approval card rejected' u.p.sign)
   =.  cor  (emit (crash:observe bowl %approval-card u.p.sign))
   =.  error  'Messenger rejected an approval card; inspect the ship log.'
-  =/  id  i.t.wire
-  =/  found  (~(get by by-id.approvals) id)
-  ?.  &(?=(^ found) =(i.t.t.wire (scot %da at.u.found)))  cor
+  ?~  found  cor
   =.  approvals  (close:ask approvals id)
-  =/  to  (place-to:p [who place]:u.found)
-  (note 'approval-card-rejected' who.u.found (address:p to) id)
+  =.  cor  (note 'approval-card-rejected' who.u.found (address:p (place-to:p [who place]:u.found)) id)
+  (tell-waiting who.u.found to |)
 ::
 ++  agent-approval-full
   |=  [=wire =sign:agent:gall]
@@ -3537,14 +3555,58 @@
   =/  [text=@t blob=@t]
     (card:ask id [who place now.bowl] (approval-channel place) (approval-preview who event cutoff))
   =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  ::  The card's acknowledgement carries where to tell the ship the bot
+  ::  waits, as no request keeps anything of its message, and whom the card
+  ::  went to.
+  =/  told  (bind (waiting-to event) |=(to=destination:t [u.owner to]))
   %-  emit
   %:  publish:messenger
-    /approval/[id]/(scot %da now.bowl)
+    /approval/[id]/(scot %uv (button-token:ask id [who place now.bowl]))/(scot %uv (jam told))
     [%dm u.owner ~]
     text
     last-sent
     `blob
   ==
+::  +waiting-to: where the mention that opens a request is told the bot waits
+::  for its owner, as its answer would go, or ~
+::
+::    A DM is not told, nor a known bot: the reassurance is for people, and
+::    two bots without access to each other would otherwise trade replies.
+::
+++  waiting-to
+  |=  event=incoming-event:v8:a
+  ^-  (unit destination:t)
+  =/  to=(unit destination:t)
+    ?+  -.event  ~
+      %post  `[%channel channel.event ~]
+      %reply  `[%channel channel.event `time.parent.event]
+    ==
+  ?~  to  ~
+  ?:  =(`& (bot-author:~(. history-read bowl) u.to (posted-at:continuity event)))  ~
+  to
+::  +tell-waiting: tell .who, outside a turn, that the bot waits for its
+::  owner; .sent is whether the owner's card went out
+::
+++  tell-waiting
+  |=  [who=@p to=(unit destination:t) sent=?]
+  ^+  cor
+  ?~  to  cor
+  =/  owner  owner.policy
+  ?~  owner  cor
+  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  =/  content=story:v9:dv  ~[[%inline ~[[%ship who] (waiting-text:ask u.owner sent)]]]
+  (emit (publish-story:messenger /approval-waiting/(scot %da last-sent) u.to content last-sent ~ ~))
+::
+++  agent-approval-waiting
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%approval-waiting @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  ::  The request does not depend on the reply, so it stays open.
+  %-  (slog 'harness-tlon: approval waiting reply rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-waiting u.p.sign))
+  cor(error 'Messenger rejected a reply that the bot waits for its owner; inspect the ship log.')
 ::  +askable: whether .who's attempt in .place would open a request, were it
 ::  not for the limits on how many are open
 ::

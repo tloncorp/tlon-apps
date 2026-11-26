@@ -119,6 +119,9 @@
   ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>((silt ~[~bel]))
   ?:  ?=([%gx @ %chat @ %v4 %dm %'~dev' %writs %newest *] path)  `!>(invited)
   ?:  ?=([%gx @ %activity @ %v6 %all %noun ~] path)  `!>(events)
+  ::  Local %channels holds none of the posts, so none is a known bot's.
+  ?:  ?=([%gx @ %channels @ %v4 @ @ @ %posts *] path)
+    `!>(*paged-posts:v9:dv)
   ?:  (lien path |=(part=@ta =(%hand-state part)))  `!>(*state:hh)
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
   ?:  ?=([%gx @ %harness @ %defaults %json ~] path)
@@ -220,7 +223,7 @@
   ^-  (list [to=@p text=@t blob=@t])
   %+  murn  caz
   |=  c=card
-  ?.  ?=([%pass [%approval @ @ ~] %agent [@ %chat] %poke *] c)  ~
+  ?.  ?=([%pass [%approval @ @ *] %agent [@ %chat] %poke *] c)  ~
   =/  act  !<(action:dm:v7:cv q.cage.task.q.c)
   ?>  ?=(%add -.q.q.act)
   `[p.act (story-to-text:story content.essay.q.q.act) (need blob.essay.q.q.act)]
@@ -721,15 +724,9 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) *]  bind:m
     (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
-  =/  id  (requested s ~dev ~)
-  ;<  ~  bind:m  (boot s start *stream:v10:a)
-  ;<  *  bind:m
-    %^  do-agent  /approval/[id]/(scot %da start)  [~zod %chat]
-    [%poke-ack `~[leaf+"no"]]
-  ;<  =vase  bind:m  get-save
-  =/  w  !<(state-7:t vase)
+  ;<  [* w=state-7:t]  bind:m  (ack-card caz `~[leaf+"no"])
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   (ex-equal !>((kinds w 'approval-card-rejected')) !>(1))
 ::  The second attempt is within ten minutes of the notice.
@@ -2082,4 +2079,230 @@
     (admit fixture later ~[[told (said ~nec '/reject' told)]])
   %+  ex-equal  !>((answered caz))
   !>(`(list [@t @t])`~[['dm/~nec' 'No pending approval found.']])
+::
+::  The bot tells a ship whose channel mention opened a request that it waits
+::  for its owner, once the owner's card is acknowledged.
+::
+++  waits-sent
+  '~dev: I need approval from my owner, ~nec, before I can respond in this channel — I\'ve sent them the request.'
+++  waits-unsent
+  '~dev: I need approval from my owner, ~nec, before I can respond in this channel. I couldn\'t reach them just now — please mention me again later.'
+::  The replies that tell a ship the bot waits: where they go and their text.
+::
+++  waiting
+  |=  caz=(list card)
+  ^-  (list [to=@t text=@t])
+  %+  murn  caz
+  |=  c=card
+  ?.  ?=([%pass [%approval-waiting @ ~] %agent [@ %channels] %poke %channel-action-2 *] c)  ~
+  =/  act=*  q.q.cage.task.q.c
+  ?:  ?=([%channel * %post %reply *] act)
+    =/  in  ;;([%channel =nest:dv %post %reply parent=@da %add [=memo:v9:dv *]] act)
+    :-  ~
+    :-  (address:policy-lib [%channel nest.in `parent.in])
+    (story-to-text:story content.memo.in)
+  =/  in  ;;([%channel =nest:dv %post %add [=memo:v9:dv *]] act)
+  `[(address:policy-lib [%channel nest.in ~]) (story-to-text:story content.memo.in)]
+::  %chat's acknowledgement of the one card in .caz, with .ack, to the
+::  running adapter
+::
+++  ack-card
+  |=  [caz=(list card) ack=(unit tang)]
+  =/  m  (mare ,[(list card) state-7:t])
+  ^-  form:m
+  =/  wires
+    %+  murn  caz
+    |=(c=card ?.(?=([%pass [%approval @ @ *] %agent [@ %chat] *] c) ~ `p.c))
+  ?>  ?=([* ~] wires)
+  ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ack])
+  ;<  =vase  bind:m  get-save
+  (pure:m out !<(state-7:t vase))
+::
+++  test-a-first-channel-mention-without-access-is-told-the-bot-waits-for-its-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>((waiting caz)) !>(`(list [@t @t])`~))
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-card caz ~)
+  ;<  ~  bind:m
+    (ex-equal !>((waiting out)) !>(`(list [@t @t])`~[['chat/~lux/test' waits-sent]]))
+  (ex-equal !>(approvals.w) !>(approvals.s))
+::  After the denial limit, so only the open request keeps it from being
+::  told again.
+::
+++  test-a-second-mention-while-the-request-is-open-is-told-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  [* s=state-7:t]  bind:m  (ack-card caz ~)
+  ;<  [caz=(list card) w=state-7:t]  bind:m
+    (admit s later ~[[~2026.9.10..00.05.00 (mention ~dev room-nest ~2026.9.10..00.05.00)]])
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'permission-denied')) !>(2))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  (ex-equal !>((waiting caz)) !>(`(list [@t @t])`~))
+++  test-a-mention-in-a-thread-is-told-in-that-thread
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (reply ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
+  %+  ex-equal  !>((waiting out))
+  =/  thread  (address:policy-lib [%channel room-nest `~2026.9.9..10.00.00])
+  !>(`(list [@t @t])`~[[thread waits-sent]])
+++  test-a-blocked-ship-is-told-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~bel room-nest ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(~))
+  (ex-equal !>((waiting caz)) !>(`(list [@t @t])`~))
+::  A known bot's request opens and its owner is sent the card; the bot is
+::  told nothing, so two bots without access to each other cannot trade
+::  replies.
+::
+++  test-a-known-bot-is-told-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  at  ~2026.9.9..12.00.00
+  =/  events  (stream ~[[at (mention ~dev room-nest at)]])
+  ;<  ~  bind:m  (boot fixture start events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?.  ?=([%gx @ %channels @ %v4 %chat %'~lux' %test %posts *] path)
+      ((scries events) path)
+    =/  blank  *post:v9:dv
+    =/  post=post:v9:dv  blank(id at, author [~dev ~ ~])
+    `!>(`paged-posts:v9:dv`[(gas:on-posts:v9:dv ~ ~[[at %& post]]) ~ ~ 0 0])
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  ~  bind:m  (ex-equal !>((lent (sent caz))) !>(1))
+  ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
+  (ex-equal !>((waiting out)) !>(`(list [@t @t])`~))
+++  test-a-dm-is-told-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (dm ~dev ~2026.9.9..12.00.00)]])
+  ;<  ~  bind:m  (ex-equal !>((lent (sent caz))) !>(1))
+  ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
+  ::  Nothing is posted anywhere, by DM or in a channel.
+  %+  ex-equal
+    !>((lien out |=(c=card ?=([%pass * %agent [@ ?(%chat %channels)] %poke *] c))))
+  !>(|)
+::  The rejected card closes the request, so the next mention opens it again.
+::
+++  test-a-mention-whose-card-is-rejected-is-told-to-mention-the-bot-again
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-card caz `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  (ex-equal !>((waiting out)) !>(`(list [@t @t])`~[['chat/~lux/test' waits-unsent]]))
+++  test-a-refused-waiting-reply-leaves-the-request-open
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (mention ~dev room-nest ~2026.9.9..12.00.00)]])
+  ;<  [out=(list card) *]  bind:m  (ack-card caz ~)
+  =/  wires
+    %+  murn  out
+    |=(c=card ?.(?=([%pass [%approval-waiting @ ~] *] c) ~ `p.c))
+  ?>  ?=([* ~] wires)
+  ;<  *  bind:m  (do-agent i.wires [~zod %channels] [%poke-ack `~[leaf+"no"]])
+  ;<  =vase  bind:m  get-save
+  =/  w  !<(state-7:t vase)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.s))
+  (ex-equal !>(=('' error.w)) !>(|))
+::  Open ~dev's request by a mention in .room-nest, reload the adapter at
+::  .now with .change made to its state, then acknowledge the card with
+::  .ack: the replies that tell a ship the bot waits, and the state after
+::
+++  ack-after
+  |=  [change=$-(state-7:t state-7:t) now=@da ack=(unit tang)]
+  =/  m  (mare ,[(list [@t @t]) state-7:t])
+  ^-  form:m
+  =/  at  ~2026.9.9..12.00.00
+  ;<  [caz=(list card) s=state-7:t]  bind:m  (admit fixture start ~[[at (mention ~dev room-nest at)]])
+  ;<  ~  bind:m  (boot (change s) now *stream:v10:a)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-card caz ack)
+  (pure:m (waiting out) w)
+::  The acknowledgement names its request by its button token, so a request
+::  that closed, expired or gave its id to another meanwhile is told
+::  nothing.
+::
+++  test-a-card-acknowledged-after-its-request-closed-expired-or-gave-up-its-id-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  closed
+    |=  s=state-7:t
+    s(approvals (close:ask approvals.s (requested s ~dev `room-nest)))
+  =/  reused
+    |=  s=state-7:t
+    =/  id  (requested s ~dev `room-nest)
+    s(approvals (open:ask (close:ask approvals.s id) id [~wes `room-nest (add start ~m1)]))
+  ;<  [told=(list [@t @t]) *]  bind:m  (ack-after closed start ~)
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) *]  bind:m  (ack-after closed start `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m
+    (ack-after |=(s=state-7:t s) (add start ~h49) ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after reused start ~)
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
+  (ex-equal !>(told) !>(`(list [@t @t])`~))
+::  In one catch-up, ~dev's mention opens a request, the owner's bare
+::  /reject closes it, and ~bus's mention opens another with the same id
+::  and opening time. ~dev's card's acknowledgement tells nobody; ~bus's
+::  tells ~bus once.
+::
+++  test-a-card-acknowledged-after-its-id-and-time-went-to-another-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  one  ~2026.9.9..12.00.00
+  =/  two  ~2026.9.9..12.00.01
+  =/  three  ~2026.9.9..12.00.02
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  fixture  start
+    :~  [one (mention ~dev room-nest one)]
+        [two (said ~nec '/reject' two)]
+        [three (mention ~bus room-nest three)]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.s)) !>(1))
+  =/  wires
+    %+  murn  caz
+    |=(c=card ?.(?=([%pass [%approval @ @ *] %agent [@ %chat] *] c) ~ `p.c))
+  ;<  ~  bind:m  (ex-equal !>((lent wires)) !>(2))
+  ?>  ?=([* * ~] wires)
+  ;<  first=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
+  ;<  second=(list card)  bind:m  (do-agent i.t.wires [~zod %chat] [%poke-ack ~])
+  =/  waits  '~bus: I need approval from my owner, ~nec, before I can respond in this channel — I\'ve sent them the request.'
+  %+  ex-equal  !>((weld (waiting first) (waiting second)))
+  !>(`(list [@t @t])`~[['chat/~lux/test' waits]])
+::  The reply would name the owner now; the card went to the one before.
+::
+++  test-a-card-acknowledged-after-the-owner-changed-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  moved  |=(s=state-7:t s(owner.policy `~bus))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after moved start ~)
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after moved start `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  (ex-equal !>(approvals.w) !>(*approvals:t))
 --

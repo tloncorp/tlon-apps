@@ -265,19 +265,27 @@
   ;<  ~  bind:m  (ex-equal !>((kinds got)) !>(`(list @t)`~))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(64))
   (ex-equal !>(activity-through.saved.got) !>(~2026.10.1))
-::  ~bud may read the channel, so its post opens a request. The request
-::  checks that the bot is in the channel; no post is read.
+::  ~bud may read the channel, so its post opens a request. Only then is the
+::  post read, to tell whether its author is a known bot: the card to the
+::  owner then names no place to tell it that the bot waits for its owner.
 ::
-++  test-no-read-for-a-denied-post
+++  test-a-denied-post-is-read-when-it-opens-a-request
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  present=native  [& & parent-at ~ ~]
+  =/  present=native  [& & message-at ~[(post message-at [~bud `'Bud bot' ~])] ~]
   ;<  got=outcome  bind:m
     (run-in (my ~[[[~nec %home] (group ~bud)]]) fixture (post-event ~bud) `present)
   ;<  ~  bind:m
     (ex-equal !>((kinds got)) !>(`(list @t)`~['approval-request' 'permission-denied']))
-  (ex-equal !>(~(wyt by jobs.saved.got)) !>(0))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.saved.got)) !>(0))
+  =/  wires
+    %+  murn  cards.got
+    |=(c=card ?.(?=([%pass [%approval @ @ @ ~] *] c) ~ `p.c))
+  ?>  ?=([[%approval @ @ @ ~] ~] wires)
+  %+  ex-equal
+    !>(;;((unit destination:t) (cue (slav %uv i.t.t.t.i.wires))))
+  !>(`(unit destination:t)`~)
 ++  test-no-read-for-a-dm
   %-  eval-mare
   (admitted 'message' (run fixture dm-event unread))

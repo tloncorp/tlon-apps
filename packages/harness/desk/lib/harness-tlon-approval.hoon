@@ -146,6 +146,17 @@
   |=  who=@p
   ^-  @t
   (rap 3 'Could not block ' (scot %p who) ': block failed. Request stays pending, try again.' ~)
+::  +waiting-text: OpenClaw's reply in a channel to the mention that opened
+::  a request, after the ship's mention; .sent is whether the owner's card
+::  went out
+::
+++  waiting-text
+  |=  [owner=@p sent=?]
+  ^-  @t
+  =/  lead
+    (rap 3 ': I need approval from my owner, ' (scot %p owner) ', before I can respond in this channel' ~)
+  ?.  sent  (cat 3 lead '. I couldn\'t reach them just now — please mention me again later.')
+  (cat 3 lead ' — I\'ve sent them the request.')
 ::  +channel-label: a channel as OpenClaw names it in a reply
 ::
 ::    .named is the channel's title, or its .name when untitled, and its

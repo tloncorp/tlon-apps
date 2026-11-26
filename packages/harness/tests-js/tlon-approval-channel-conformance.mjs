@@ -1,8 +1,9 @@
 // A ship without access that mentions the bot in a channel opens one approval request,
 // and the bot's owner is sent one card about it, on two real ships: the bot (its own
 // owner) and a peer on no list, which hosts a fresh group with one channel. A post that
-// does not mention the bot opens nothing, a thread reply within the denial limit opens no
-// second request or card (the Hoon tests check joining past the limit), and leaving the
+// does not mention the bot opens nothing, the mention is told once in the channel that
+// the bot waits for its owner, a thread reply within the denial limit opens no second
+// request or card and is told nothing (the Hoon tests check joining past the limit), and leaving the
 // channel leaves it open. Nothing the peer sends starts a model turn. Runs apart from
 // tlon-denial-conformance: the denial limit lets a ship open one request per five minutes.
 // Restores policy and defaults and deletes the group. Prints the card's A2UI entry on a
@@ -98,7 +99,11 @@ function components(card) {
   const update = entry(card).messages.find((message) => message.updateComponents).updateComponents
   return new Map(update.components.map((component) => [component.id, component]))
 }
-const answered = async () => (await posts()).some(([, value]) => authorShip(value?.essay?.author) === ship)
+// The bot's posts in the channel, and its replies in the threads the page holds.
+const botPosts = async () => (await posts()).filter(([, value]) => authorShip(value?.essay?.author) === ship).map(([, value]) => plain(value.essay.content))
+const botReplies = async () => (await posts()).flatMap(([, value]) => Object.values(value?.seal?.replies || {}))
+  .filter((value) => authorShip(value?.['reply-essay']?.author) === ship)
+const waiting = `${peer}: I need approval from my owner, ${ship}, before I can respond in this channel — I've sent them the request.`
 try {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   await client.start()
@@ -158,6 +163,9 @@ try {
   assert.deepEqual(buttons, [['Allow', `/allow ${request.id} ${token}`], ['Reject', `/reject ${request.id} ${token}`], ['Block', `/ban ${request.id} ${token}`]])
   console.log('PASS the card names the peer, the channel and its message, and its buttons carry the request id and token')
 
+  await until('the mention is told the bot waits for its owner', async () => (await botPosts()).length)
+  assert.deepEqual(await botPosts(), [waiting])
+
   const [parent] = await posted('mention')()
   await reply(parent, 'thread')
   await until('a thread reply mentioning the bot arrived', replied(parent, 'thread'))
@@ -165,12 +173,14 @@ try {
   assert.equal(denials(await status()).length, 1, 'a thread reply within the limit recorded another denial')
   assert.deepEqual(requests(await status()), [request], 'a thread reply opened another request')
   assert.equal((await cards(testStart)).length, 1, 'a thread reply sent another card')
-  console.log('PASS a thread reply within the denial limit opens no request and sends no card')
+  assert.deepEqual(await botPosts(), [waiting], 'the peer was told again in the channel')
+  assert.deepEqual(await botReplies(), [], 'the peer was told again in the thread')
+  console.log('PASS a thread reply within the denial limit opens no request, sends no card and is told nothing')
 
   assert.ok(!['unmentioned', 'mention', 'thread'].some(seen), 'a message from a ship without access reached the model')
   assert.equal(prompts.length, 0, 'the model was called')
-  assert.ok(!(await answered()), 'the peer was answered in the channel')
-  console.log('PASS nothing the peer sends starts a model turn, and nothing is posted in the channel')
+  assert.deepEqual(await botPosts(), [waiting], 'the peer was answered in the channel')
+  console.log('PASS nothing the peer sends starts a model turn, and the bot posts only that it waits')
 
   await client.pokeAgent('channels', 'channel-action-2', { channel: { nest: room, action: { leave: null } } })
   await until('the bot left the channel', async () => !(await joined()))
