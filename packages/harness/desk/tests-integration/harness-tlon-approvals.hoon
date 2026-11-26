@@ -1408,6 +1408,22 @@
     ==
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
   (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  ~dev's newest DM message is an approval command, which only the owner
+::  gives. As a deleted newest message, it is answered with nothing.
+::
+++  test-allow-answers-nothing-when-the-newest-dm-message-is-an-approval-command
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %:  admit-holding  asked  later  ~[[told (said ~nec '/allow d0001' told)]]
+        (dm-page ~[[one-at 'one' &] [two-at '/allow d0001' &]])  ~
+    ==
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  ;<  ~  bind:m  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  ~[['dm/~nec' 'Approved DM access for ~dev. They will be able to message the bot.']]
 ::  ~dev's DM grant was taken back at .two-at. What it wrote before then was
 ::  past its cutoff, never an attempt of this request.
 ::
@@ -2405,4 +2421,56 @@
     %+  ex-equal  !>((turn ~(val by jobs.s) |=(=job:t actor.input.job)))
     !>(`(list @p)`~[~nec])
   (ex-equal !>((kinds s 'permission-denied')) !>(1))
+::  Open ~dev's request by a mention in .room-nest, reload the adapter at
+::  .now with .change made to its state, then acknowledge the card with
+::  .ack: the replies that tell a ship the bot waits, and the state after
+::
+++  ack-after
+  |=  [change=$-(state-7:t state-7:t) now=@da ack=(unit tang)]
+  =/  m  (mare ,[(list [@t @t]) state-7:t])
+  ^-  form:m
+  =/  at  ~2026.9.9..12.00.00
+  ;<  [caz=(list card) s=state-7:t]  bind:m  (admit fixture start ~[[at (mention ~dev room-nest at)]])
+  ;<  ~  bind:m  (boot (change s) now *stream:v10:a)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-card caz ack)
+  (pure:m (waiting out) w)
+::  The acknowledgement names its request by id and opening time, so a
+::  request that closed, expired or gave its id to another meanwhile is
+::  told nothing.
+::
+++  test-a-card-acknowledged-after-its-request-closed-expired-or-gave-up-its-id-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  closed
+    |=  s=state-7:t
+    s(approvals (close:ask approvals.s (requested s ~dev `room-nest)))
+  =/  reused
+    |=  s=state-7:t
+    =/  id  (requested s ~dev `room-nest)
+    s(approvals (open:ask (close:ask approvals.s id) id [~wes `room-nest (add start ~m1)]))
+  ;<  [told=(list [@t @t]) *]  bind:m  (ack-after closed start ~)
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) *]  bind:m  (ack-after closed start `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m
+    (ack-after |=(s=state-7:t s) (add start ~h49) ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after reused start ~)
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
+  (ex-equal !>(told) !>(`(list [@t @t])`~))
+::  The reply would name the owner now; the card went to the one before.
+::
+++  test-a-card-acknowledged-after-the-owner-changed-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  moved  |=(s=state-7:t s(owner.policy `~bus))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after moved start ~)
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after moved start `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  (ex-equal !>(approvals.w) !>(*approvals:t))
 --

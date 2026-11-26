@@ -3205,7 +3205,7 @@
 ::  opens it again
 ::
 ::    Either way, a channel mention that opened the request is then told
-::    whether the owner was sent it.
+::    whether the owner was sent it, unless the owner has changed since.
 ::
 ++  agent-approval
   |=  [=wire =sign:agent:gall]
@@ -3217,7 +3217,12 @@
     =/  held  (~(get by by-id.approvals) id)
     ?.  &(?=(^ held) =(i.t.t.wire (scot %da at.u.held)))  ~
     held
-  =/  to  ;;((unit destination:t) (cue (slav %uv i.t.t.t.wire)))
+  ::  The reply would name the owner now, who was never sent the card.
+  =/  to=(unit destination:t)
+    =/  told  ;;((unit [owner=@p to=destination:t]) (cue (slav %uv i.t.t.t.wire)))
+    ?~  told  ~
+    ?.  =(`owner.u.told owner.policy)  ~
+    `to.u.told
   ?~  p.sign
     ?~  found  cor
     (tell-waiting who.u.found to &)
@@ -3505,10 +3510,12 @@
     (card:ask id [who place now.bowl] (approval-channel place) (approval-preview who event cutoff))
   =.  last-sent  (next-message-stamp:p now.bowl last-sent)
   ::  The card's acknowledgement carries where to tell the ship the bot
-  ::  waits, as no request keeps anything of its message.
+  ::  waits, as no request keeps anything of its message, and whom the card
+  ::  went to.
+  =/  told  (bind (waiting-to event) |=(to=destination:t [u.owner to]))
   %-  emit
   %:  publish:messenger
-    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam (waiting-to event)))
+    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam told))
     [%dm u.owner ~]
     text
     last-sent
@@ -3716,8 +3723,9 @@
 ::
 ::    The grant has just moved the ship's cutoff there past it, so it alone
 ::    is admitted past .floor; the cutoff still stops every earlier message
-::    and a later catch-up of this one. A deleted message, or a channel the
-::    bot has left, gets no answer.
+::    and a later catch-up of this one. A deleted message, an approval
+::    command, which +activity drops from anyone but the owner, or a channel
+::    the bot has left, gets no answer.
 ::
 ++  answer-waiting
   |=  [who=@p =place:t floor=@da]
@@ -3725,6 +3733,7 @@
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
   =/  event  (waiting-attempt who place floor)
   ?~  event  cor
+  ?^  (approval-order u.event)  cor
   =/  heard  (normalize-owned:p our.bowl policy u.event actor-owner)
   ?~  heard  cor
   ::  A settings save drops the cutoff of a ship that lost its access and
