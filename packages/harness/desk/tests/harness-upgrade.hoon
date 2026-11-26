@@ -22,6 +22,7 @@
 ++  populated
   ^-  state-0
   :*  %0
+      [~2026.11.1 [1.200 340]]
       (my ~[[%'AGENTS.md' 'Agents layer.'] [%'SOUL.md' 'Soul layer.']])
       knowledge
       (my ~[['openrouter' [0v1.model (my ~[['fixture-model' 128.000]])]]])
@@ -205,9 +206,13 @@
 ::
 ::  Historical shapes, each a projection of the populated head state.
 ::
+++  project-u0
+  ^-  state-u0
+  =/  p  populated
+  [%0 +>.p]
 ++  project-p0
   ^-  state-p0
-  =/  p  populated
+  =/  p  project-u0
   [%0 +>.p]
 ::  Before runs became optional, every schedule held a bare count.
 ++  project-s0
@@ -277,10 +282,15 @@
   =.  summary-models.e
     [(bind compaction.summary-models.e upgrade-config) (bind lcm.summary-models.e upgrade-config)]
   e
+::  Usage counted before the ledger existed is unknown, so it starts empty.
+++  expected-u0
+  ^-  state-0
+  =/  e  expected-current
+  e(token-usage *month-usage:h)
 ::  The single default instructions text becomes the AGENTS.md layer.
 ++  expected-p0
   ^-  state-0
-  =/  e  expected-current
+  =/  e  expected-u0
   e(prompts (my ~[[%'AGENTS.md' system.defaults.e]]))
 ::  The capture scheduler's bookkeeping starts empty.
 ++  expected-before-maintenance
@@ -361,13 +371,16 @@
       (expect-eq !>((my ~[[%'AGENTS.md' long]])) !>(prompts.loaded))
       (expect-eq !>(long) !>(system.defaults.loaded))
   ==
+++  test-state-u0-upgrade-starts-an-empty-ledger-and-keeps-every-field
+  (expect-reload !>(project-u0) expected-u0)
 ++  test-state-p0-upgrade-keeps-every-field
   (expect-reload !>(project-p0) expected-p0)
 ::  Every bot inherits the same default instructions after any upgrade: they
 ::  compose from the layers to the text it saved, as the load upgrades it.
 ++  test-upgrade-keeps-the-composed-default-instructions
   =/  saved=(list [vase config:h])
-    :~  [!>(project-p0) defaults:project-p0]
+    :~  [!>(project-u0) defaults:project-u0]
+        [!>(project-p0) defaults:project-p0]
         [!>(project-s0) defaults:project-s0]
         [!>(project-before-maintenance) defaults:project-s0]
         [!>(project-m0) defaults:project-m0]

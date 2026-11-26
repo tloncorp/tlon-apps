@@ -10,6 +10,7 @@
 |%
 +$  state-0
   $:  %0
+      token-usage=month-usage:h
       prompts=prompts:h
       knowledge=state:memory
       model-contexts=model-contexts:h
@@ -63,6 +64,8 @@
       search-requests=search-requests:h
       js-timeouts=(map session-id:h @dr)
   ==
+::  Persisted envelope accepted only by token-usage migration.
++$  state-u0  $_  [%0 +>:*state-0]
 ::  Persisted envelope accepted only by prompt-layer migration.
 +$  state-p0
   $:  %0

@@ -44,6 +44,7 @@
 /+  hosted-content=harness-hosted-content
 /+  hosted-provision=harness-hosted-provision
 /+  hosted-cleanup=harness-hosted-cleanup
+/+  token-ledger=harness-token-usage
 /+  routing=harness-model-routing
 /+  model-context=harness-model-context
 /+  mcp=harness-mcp
@@ -2873,6 +2874,7 @@
   =/  pending  (need pending.knowledge)
   =/  wake  wake.knowledge
   =.  knowledge  (finish:memory-capture knowledge retry status usage)
+  =.  token-usage  (count:token-ledger token-usage now.bowl usage)
   :_  state
   :-  :*  %pass  `wire`[%llm sid.job.pending (scot %ud id.pending) %memory ~]
           %arvo  %i  %cancel-request  ~
@@ -3049,6 +3051,8 @@
         [~[(reply (error:hosted-auth 400 composed-too-long))] state]
       =.  state  (set-prompt %'AGENTS.md' system.config.p.attempted)
       [~[(reply response.p.attempted)] state]
+    ?:  =('token-usage' action.request)
+      [~[(reply (envelope:hosted-auth 200 (report:token-ledger token-usage now.bowl)))] state]
     ?:  =('skills' action.request)
       =/  attempted  (mule |.((apply-skills:hosted-content skills args.request)))
       ?:  ?=(%| -.attempted)
@@ -5698,6 +5702,7 @@
             !&(?=(^ compaction.view) ?=(^ command.u.compaction.view))
         ==
       [%compaction-failed req ?.(marked err.event (overflow:hl err.event)) [0 0]]
+    =.  token-usage  (count:token-ledger token-usage now.bowl (event-usage:token-ledger event))
     =/  events=(list event:h)  ~[event]
     =?  events  &(?=(%llm-completed -.event) ?=(^ reasoning) !=('' u.reasoning))
       [[%llm-reasoning req url.request-config model.request-config u.reasoning] events]

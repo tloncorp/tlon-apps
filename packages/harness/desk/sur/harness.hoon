@@ -23,6 +23,9 @@
 +$  search-config  [provider=search-provider instance-url=@t]
 +$  search-requests  (map [session-id @t] search-provider)
 +$  usage  [prompt=@ud completion=@ud]
+::  Every model request's tokens in the UTC month that begins at start.
+::  Events carry no time, so the month cannot be recounted from the logs.
++$  month-usage  [start=@da =usage]
 ::  A checkpoint replaces exactly this prefix of the active context. The
 ::  event-log boundary and digest make its sources recoverable without copying
 ::  them into a second store. Command identity is absent for automatic work.

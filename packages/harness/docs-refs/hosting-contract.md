@@ -135,6 +135,37 @@ it temporarily edits the soul and creates a uniquely named skill, verifies
 read-back and revision conflicts through both HTTP and native ACP, then restores
 the soul and deletes only its test skill. It makes no provider calls.
 
+## Token usage
+
+`POST /spider/harness/json/hosted-token-usage/json.json` with `{}` returns the
+tokens every model request on the ship used in the current UTC month, in the
+hosted envelope. The body has the shape of OpenClaw's gateway report
+(`GET /tlon/token-usage`), so hosting can relay either runtime's to the same
+reader:
+
+```json
+{
+  "updatedAt": 1795996800000,
+  "startDate": "2026-11-01",
+  "endDate": "2026-11-30",
+  "keyAttribution": "unavailable",
+  "totals": { "input": 30, "output": 12, "cacheRead": 0, "cacheWrite": 0, "totalTokens": 42 },
+  "byProvider": []
+}
+```
+
+The month is fixed; the request takes no date range. `startDate` is the first
+day of the month and `endDate` today, both inclusive UTC dates, and `updatedAt`
+is the read's time in Unix milliseconds. The count covers every conversation,
+peer and scheduled ones included, compaction summaries and memory capture,
+whichever credential served them, so it is not usage against an allowance.
+`input` and `output` are the prompt and completion tokens providers reported;
+providers count cached input within the prompt, so the cache fields are zero.
+The count is kept as requests finish, never partial, so there is no
+`cacheStatus`. It starts at zero with each month, and on a ship upgraded
+during a month it counts from the upgrade. The hosted capabilities response
+advertises `tokenUsage: true`.
+
 ## Health and failure
 
 Report head availability, Tlon Activity/head/publication subscriptions,
