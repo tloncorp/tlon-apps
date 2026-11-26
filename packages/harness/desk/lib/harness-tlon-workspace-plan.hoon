@@ -692,7 +692,7 @@
       ?~  task.plan  ~
       :~  '\0aSchedule its recurring task "'
           title.u.task.plan
-          '" now, once, with cron_add: the schedule and prompt you gave this task in tlon_workspace_plan, timezone "UTC" and runs "100". '
+          '" now, once, with cron_add: the schedule and prompt you gave this task in tlon_workspace_plan and timezone "UTC", without runs, so it repeats until cancelled. '
           'Start the prompt with "['
           title.u.task.plan
           ']" and end it with: "Post the result in '

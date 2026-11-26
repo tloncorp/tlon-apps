@@ -1,5 +1,5 @@
 ::  Gall persistence accepts the current tagged envelope.
-/-  *harness-store
+/-  *harness-store, cron=harness-cron
 /-  h=harness, c=harness-corpus
 /-  runner=harness-runner, memory=harness-memory
 /+  mem=harness-memory, policy=harness-defaults, index=harness-memory-index
@@ -27,9 +27,16 @@
     =/  pending  u.pending.knowledge.state
     `pending(job (migrate-memory-job job.pending))
   =.  scopes.corpus.state  (~(run by scopes.corpus.state) migrate-conversation)
+  ::  The AGENTS.md layer holds what was the single text, upgraded as a saved
+  ::  configuration is, and the layers are the one source of the text new
+  ::  conversations inherit.
+  =/  agents  (~(get by prompts.state) %'AGENTS.md')
+  =?  prompts.state  &(?=(^ agents) =(memory-migration-system u.agents))
+    (~(put by prompts.state) %'AGENTS.md' default-system:policy)
+  =/  defaults  (migrate-config defaults.state)
   %=  state
     sessions  sessions
-    defaults  (migrate-config defaults.state)
+    defaults  defaults(system (compose-prompts:policy prompts.state))
     peer-base  (bind peer-base.state migrate-config)
     summary-models  :*  (bind compaction.summary-models.state migrate-config)
                         (bind lcm.summary-models.state migrate-config)
@@ -126,9 +133,44 @@
   ^-  state-0
   =/  current  (mole |.(!<(state-0 saved)))
   ?^  current  (migrate-memory-prefixes u.current)
+  (migrate-memory-prefixes (migrate-prompts (envelope-before-prompts saved)))
+::  The single default instructions text becomes the AGENTS.md layer, which
+::  the load then upgrades as it does the configuration, so it composes to the
+::  same text.
+++  migrate-prompts
+  |=  old=state-p0
+  ^-  state-0
+  =/  system  system.defaults.old
+  [%0 ?:(=('' system) ~ (my ~[[%'AGENTS.md' system]])) +.old]
+++  envelope-before-prompts
+  |=  saved=vase
+  ^-  state-p0
+  =/  current  (mole |.(!<(state-p0 saved)))
+  ?^  current  u.current
+  (migrate-schedules (envelope-before-schedules saved))
+::  A saved count becomes a limit of that many runs. No save before this
+::  shape holds a schedule without one.
+++  migrate-schedules
+  |=  old=state-s0
+  ^-  state-p0
+  =/  schedules
+    %-  ~(run by schedules.old)
+    |=  job=schedule-s0
+    ^-  schedule:cron
+    =/  [binding=@t actor=@t hand=@t fingerprint=@uvH value=job-s0]  job
+    :*  binding  actor  hand  fingerprint
+        kind.value  timezone.value  destination.value  sid.value  run-sid.value
+        expression.value  pattern.value  prompt.value  tools.value  next.value
+        `remaining.value  state.value  reason.value  last.value
+    ==
+  old(schedules schedules)
+++  envelope-before-schedules
+  |=  saved=vase
+  ^-  state-s0
+  =/  current  (mole |.(!<(state-s0 saved)))
+  ?^  current  u.current
   =/  saved-memory  (mole |.(!<(state-before-maintenance saved)))
   ?^  saved-memory
-    %-  migrate-memory-prefixes
     [%0 [maintenance:*state:memory knowledge.u.saved-memory] +>.u.saved-memory]
   (migrate-memory (envelope-before-memory saved))
 ::  The capture scheduler adds bookkeeping without rewriting saved facts,
@@ -149,7 +191,7 @@
 ::  conversations receive distinct identities; forgotten notes stay absent.
 ++  migrate-memory
   |=  old=state-m0
-  ^-  state-0
+  ^-  state-s0
   =/  db=state:memory  *state:memory
   =.  db
     %+  roll  ~(tap by sessions.old)
