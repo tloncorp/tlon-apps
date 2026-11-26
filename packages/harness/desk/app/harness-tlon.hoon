@@ -3723,7 +3723,7 @@
   |=  [who=@p =place:t floor=@da]
   ^+  cor
   ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
-  =/  event  (waiting who place floor)
+  =/  event  (waiting-attempt who place floor)
   ?~  event  cor
   =/  heard  (normalize-owned:p our.bowl policy u.event actor-owner)
   ?~  heard  cor
@@ -3732,10 +3732,10 @@
   ::  allow answered. Whatever binding took it, it is not answered again.
   ?:  (answered event.u.heard)  cor
   (admit u.event `floor)
-::  +waiting: the newest message .who sent the bot in .place after .floor
-::  that counts as an attempt there, as it would toward a request
+::  +waiting-attempt: the newest message .who sent the bot in .place after
+::  .floor that counts as an attempt there, as it would toward a request
 ::
-++  waiting
+++  waiting-attempt
   |=  [who=@p =place:t floor=@da]
   ^-  (unit incoming-event:v8:a)
   ::  Activity reports no message of a pending invitation; read the DM.
