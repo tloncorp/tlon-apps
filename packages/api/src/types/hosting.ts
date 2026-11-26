@@ -91,7 +91,8 @@ export interface TlawnTokenUsageTotals {
 }
 
 /**
- * The bot's token usage for the current UTC month, as OpenClaw recorded it.
+ * The bot's token usage for the current UTC month, as its runtime (OpenClaw
+ * or Harness) recorded it.
  * It counts every credential the bot ran on, Tlon's and the user's own alike,
  * so it is not usage against a Tlon allowance.
  */
