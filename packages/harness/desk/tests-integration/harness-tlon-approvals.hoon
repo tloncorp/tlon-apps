@@ -2148,6 +2148,35 @@
   ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after reused start ~)
   ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
   (ex-equal !>(told) !>(`(list [@t @t])`~))
+::  In one catch-up, ~dev's mention opens a request, the owner's bare
+::  /reject closes it, and ~wes's mention opens another with the same id
+::  and opening time. ~dev's card's acknowledgement tells nobody; ~wes's
+::  tells ~wes once.
+::
+++  test-a-card-acknowledged-after-its-id-and-time-went-to-another-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  one  ~2026.9.9..12.00.00
+  =/  two  ~2026.9.9..12.00.01
+  =/  three  ~2026.9.9..12.00.02
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  fixture  start
+    :~  [one (mention ~dev room-nest one)]
+        [two (said ~nec '/reject' two)]
+        [three (mention ~wes room-nest three)]
+    ==
+  =/  ids  ~(tap in ~(key by by-id.approvals.s))
+  ?>  ?=([@ ~] ids)
+  =/  wires
+    %+  murn  caz
+    |=(c=card ?.(?=([%pass [%approval @ @ *] %agent [@ %chat] *] c) ~ `p.c))
+  ?>  ?=([* * ~] wires)
+  ;<  first=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
+  ;<  second=(list card)  bind:m  (do-agent i.t.wires [~zod %chat] [%poke-ack ~])
+  =/  waits  '~wes: I need approval from my owner, ~nec, before I can respond in this channel — I\'ve sent them the request.'
+  %+  ex-equal  !>((weld (waiting first) (waiting second)))
+  !>(`(list [@t @t])`~[['chat/~lux/test' waits]])
 ::  The reply would name the owner now; the card went to the one before.
 ::
 ++  test-a-card-acknowledged-after-the-owner-changed-tells-nothing

@@ -3212,9 +3212,12 @@
   ?>  ?=([%approval @ @ @ ~] wire)
   ?.  ?=(%poke-ack -.sign)  cor
   =/  id  i.t.wire
+  ::  The request's token, not its id, which another request opened in the
+  ::  same event shares, names the request the card was for.
   =/  found=(unit approval:t)
     =/  held  (~(get by by-id.approvals) id)
-    ?.  &(?=(^ held) =(i.t.t.wire (scot %da at.u.held)))  ~
+    ?~  held  ~
+    ?.  =(i.t.t.wire (scot %uv (button-token:ask id u.held)))  ~
     held
   ::  The reply would name the owner now, who was never sent the card.
   =/  to=(unit destination:t)
@@ -3514,7 +3517,7 @@
   =/  told  (bind (waiting-to event) |=(to=destination:t [u.owner to]))
   %-  emit
   %:  publish:messenger
-    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam told))
+    /approval/[id]/(scot %uv (button-token:ask id [who place now.bowl]))/(scot %uv (jam told))
     [%dm u.owner ~]
     text
     last-sent
