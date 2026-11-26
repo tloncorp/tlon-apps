@@ -111,6 +111,8 @@
   ?:  &(?=([%gu @ %chat @ %dm @ ~] path) =((scot %p comet) i.t.t.t.t.t.path))  `!>(&)
   ?:  ?=([%gu @ %chat @ %dm @ ~] path)  `!>(|)
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
+  ::  The bot holds no group invites.
+  ?:  ?=([%gx @ %groups @ %v1 %foreigns %noun ~] path)  `!>(*foreigns:v8:g)
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
   ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(~)
   ?:  ?=([%gu @ %channels @ %v4 *] path)  `!>(|)
