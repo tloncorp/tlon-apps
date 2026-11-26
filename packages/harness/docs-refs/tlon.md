@@ -469,9 +469,9 @@ owner's DM, except that the owner's general preferences are recalled
 everywhere. Use `/remember preference Keep replies short.` to save a fact,
 `/memory [query]` to inspect memories, and `/forget preference` to forget one.
 Use `/memory off` for a conversation that should neither recall nor capture
-shared facts. Only the owner saves, forgets or turns memory on or off: by
-command, or through the `memory` tool in the owner's own turn. Anyone
-else's turn may still search and read memory; see
+shared facts. Only the owner turns memory on or off, by command, and only
+the owner saves or forgets, by command or through the `memory` tool in the
+owner's own turn. Anyone else's turn may still search and read memory; see
 [who may change settings](#authority-and-conversation-scope). Model replies
 containing commands do not execute them.
 
@@ -919,7 +919,8 @@ hand handles no message from its own ship.
 - The same speakers' turns cannot save or forget with the `memory` tool;
   search and read still work. The head decides it from the authority of the
   speaker whose message started the turn: only a speaker without a ceiling
-  may write. A subagent answers for its root turn. Webhook, peer, local and
+  may write. A subagent answers for its root turn, and a failed turn the
+  operator retries for the speaker of its message. Webhook, peer, local and
   timer input into a conversation is not restricted this way.
 
 Authority is decided per speaker. For each turn the head asks the adapter about

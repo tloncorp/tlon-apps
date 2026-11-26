@@ -251,7 +251,8 @@ opt-outs apply to both capture paths.
   tools: the turn answers the speaker whose message started it, and only a
   speaker without a tool ceiling, the owner, a sibling moon the owner check
   counts, or the operator, may write. A subagent answers for its root
-  turn's speaker. A message that arrives while another speaker's turn runs
+  turn's speaker, and a failed turn the operator retries for the speaker of
+  its message. A message that arrives while another speaker's turn runs
   waits for its own turn and changes neither. Both refusals change nothing.
   A save or forget the place rule below refuses gets that refusal instead.
   Turns that do not come from a Tlon speaker are not restricted this way:

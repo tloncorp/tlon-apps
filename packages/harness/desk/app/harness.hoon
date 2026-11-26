@@ -4315,10 +4315,23 @@
   ?^  parent
     ?:  =(0 left)  |
     $(sid parent.u.parent, left (dec left))
+  ::  A turn the operator retries after its failure settled has no active
+  ::  input, but still answers the speaker of its newest input.
   =/  speaker  (hand-speaker sid)
+  =?  speaker  ?=(~ speaker)  (newest-tlon-speaker log.u.session)
   ?:  |(?=(~ speaker) !(session-tlon sid))  &
   =/  authority  (execution-authority sid & speaker)
   &(live.authority ?=(~ ceiling.authority))
+::  The actor of .log's newest input, when the Tlon hand delivered it.
+::
+++  newest-tlon-speaker
+  |=  log=(list event:h)
+  ^-  (unit @t)
+  ?~  log  ~
+  ?.  ?=(%input-received -.i.log)  $(log t.log)
+  =*  source  source.input.i.log
+  ?.  &(?=(%hand -.source) =('tlon' hand.source))  ~
+  `actor.source
 ::  A stop is out of band, not another queued request. Idle sessions need no
 ::  synthetic cancellation; their command acknowledgement is sufficient.
 ::  With .who, a hand speaker other than the owner stops only their own work.

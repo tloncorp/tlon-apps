@@ -1205,6 +1205,37 @@
     %+  ex-equal  !>([(~(got by results) 'save-2') (~(got by results) 'forget-2')])
     !>([refusal refusal])
   (ex-equal !>(records.knowledge.after) !>(records.knowledge.answered))
+::  .who's turn in the channel fails and settles; the operator retries it,
+::  and the resumed model saves a new fact and forgets one the channel
+::  learned. The hand no longer holds the turn's input, but the turn still
+::  answers .who: a guest's retried turn is refused, the owner's writes.
+::
+++  test-a-retried-guest-turn-cannot-save-or-forget-memory
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  =/  retried
+    |=  who=@t
+    =/  m  (mare ,[results=(map @t @t) after=state-0])
+    ^-  form:m
+    ;<  ~  bind:m  (load saved ceiling-scry)
+    ;<  asked=(list card)  bind:m  (hear 'room' who 'ask' 'Keep a note of this.')
+    ;<  *  bind:m
+      (do-arvo wire:(snag 0 (model-requests asked)) [%iris %http-response %finished [401 ~] ~])
+    ;<  failed=state-0  bind:m  get-state
+    ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.failed) 'room')) !>(|))
+    ;<  again=(list card)  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'room']))
+    ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests again)) (write-answer saved 'room-note'))
+    ;<  after=state-0  bind:m  get-state
+    (pure:m [(tool-results log:(~(got by sessions.after) 'room')) after])
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried '~bus')
+  =/  refusal  (cat 3 'error: ' refused-memory:command)
+  ;<  ~  bind:m
+    (ex-equal !>(results) !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]])))
+  ;<  ~  bind:m  (ex-equal !>(records.knowledge.after) !>(records.knowledge.saved))
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried '~nec')
+  (ex-memory-writes-saved results after 'room-note')
 ::  A subagent that a guest's channel turn starts answers for that turn, so
 ::  it cannot save; one the owner's turn starts can.
 ::
