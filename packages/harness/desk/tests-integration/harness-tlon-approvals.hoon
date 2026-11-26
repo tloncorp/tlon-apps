@@ -5,7 +5,8 @@
 /-  t=harness-tlon, ad=harness-adapter, h=harness, g=groups-ver,
     a=activity-ver, hh=harness-hand, dv=channels-ver, cv=chat-ver
 /+  *test-agent, policy-lib=harness-tlon-policy, hj=harness-json,
-    story=harness-tlon-story, ht=harness-tools, ask=harness-tlon-approval
+    story=harness-tlon-story, ht=harness-tools, ask=harness-tlon-approval,
+    continuity=harness-tlon-continuity
 /=  adapter  /app/harness-tlon
 |%
 ++  room-nest  `nest:dv`[%chat ~lux %test]
@@ -1483,6 +1484,65 @@
   =/  w  !<(state-7:t vase)
   ;<  ~  bind:m  (ex-equal !>(jobs.w) !>(`(map @uv job:t)`~))
   (ex-equal !>((kinds w 'message')) !>(1))
+::  .s with eight of ~bus's messages queued in .nest's conversation, a full
+::  lane
+::
+++  full-lane
+  |=  [s=state-7:t nest=nest:dv]
+  ^-  state-7:t
+  =/  to  `destination:t`[%channel nest ~]
+  =/  sid  (identity:continuity to)
+  %=  s
+    identities  (my ~[[to sid]])
+    lanes  (my ~[[sid [to 1 ~[%web]]]])
+    routes  (my ~[[sid ['binding-full' %ready]]])
+    jobs
+      %-  malt
+      %+  turn  (gulf 1 8)
+      |=  n=@ud
+      ^-  [@uv job:t]
+      [`@uv`n [[~bus (scot %ud n) to 'hi'] sid %bind '']]
+  ==
+::  The allow hands ~dev's mention on to .room-nest, whose lane is full:
+::  the head would refuse it there, behind the cutoff the grant moves. The
+::  allow waits as a message without room does, then runs once there is
+::  room, and the mention is answered.
+::
+++  test-an-allow-waits-for-room-where-it-hands-on-its-message
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
+  =/  saved  (full-lane asked room-nest)
+  =.  activity-through.saved  one-at
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding saved later events (dm-page ~) ~[[one-at &]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>(`(set @p)`~))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
+  ;<  [caz=(list card) w=state-7:t]  bind:m
+    (admit-holding s(jobs ~) later events (dm-page ~) ~[[one-at &]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
+  %+  ex-equal  !>((admitted w))
+  !>  ^-  (list [@p destination:t @t])
+  ~[[~dev [%channel room-nest ~] (mention-text 'may I ask?')]]
+::  A full lane elsewhere does not hold back an allow whose message goes
+::  where there is room.
+::
+++  test-a-full-lane-elsewhere-does-not-delay-an-allow
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
+  =/  saved  (full-lane asked all-nest)
+  =.  activity-through.saved  one-at
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding saved later events (dm-page ~) ~[[one-at &]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~dev])))
+  %+  ex-equal  !>((skim (admitted s) |=([who=@p *] =(~dev who))))
+  !>  ^-  (list [@p destination:t @t])
+  ~[[~dev [%channel room-nest ~] (mention-text 'may I ask?')]]
 ++  test-allow-answers-only-the-newest-of-three-waiting-channel-mentions
   %-  eval-mare
   =/  m  (mare ,~)

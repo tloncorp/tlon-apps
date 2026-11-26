@@ -3302,7 +3302,31 @@
   ^-  ?
   =/  input  (normalize-owned:p our.bowl policy event actor-owner)
   ?~  input  &
-  =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
+  ?.  (room to.u.input)  |
+  ::  An allow hands on the message waiting on its request, which needs room
+  ::  where it goes: past the grant's cutoff, it could not be read again.
+  =/  handed  (allow-to event)
+  ?~  handed  &
+  (room u.handed)
+::  +allow-to: where the owner's allow in .event hands on its request's
+::  waiting message, if it acts on a request
+::
+++  allow-to
+  |=  event=incoming-event:v8:a
+  ^-  (unit destination:t)
+  =/  order  (approval-order event)
+  ?~  order  ~
+  ?.  ?=(%allow action.order.u.order)  ~
+  ?.  (actor-owner who.u.order)  ~
+  =/  found  (pick:ask (live:ask approvals now.bowl) [id token]:order.u.order)
+  ?~  found  ~
+  `(place-to:p [who place]:approval.u.found)
+::  +room: whether input to .to fits the head's queues now
+::
+++  room
+  |=  to=destination:t
+  ^-  ?
+  =/  sid  (fall (~(get by identities) to) (identity:continuity to))
   =/  pending
     %-  lent
     %+  skim  ~(val by jobs)
