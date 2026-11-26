@@ -3,7 +3,7 @@
 ::  ordinary owner commands and approve nothing themselves.
 /-  t=harness-tlon, g=groups
 /+  p=harness-tlon-policy, work-card=harness-tlon-work-card,
-    command=harness-command, cj=channel-json
+    command=harness-command, cj=channel-json, spec=harness-tlon-tool
 |%
 ::  $named: what a card calls a request's place: nothing for a DM, a
 ::  channel's title and its group's, or the title of the group a ship
@@ -82,19 +82,15 @@
   ^-  @t
   ?-  -.topic.approval
     %place  (address:p (place-to:p who.approval place.topic.approval))
-    %group  (flag-text flag.topic.approval)
+    %group  (flag-id:spec flag.topic.approval)
   ==
-::
-++  flag-text
-  |=  =flag:g
-  ^-  @t
-  (rap 3 (scot %p p.flag) '/' q.flag ~)
 ::  +group-label: a group as OpenClaw names it, by its title and its flag
 ::
 ++  group-label
   |=  [=flag:g title=(unit @t)]
   ^-  @t
-  =/  id  (flag-text flag)
+  ::  The host names the group, as it does a channel.
+  =/  id  (bounded (flag-id:spec flag))
   ?~  title  id
   ?:  =(id u.title)  id
   (rap 3 u.title ' (' id ')' ~)
@@ -265,9 +261,16 @@
   |=  =flag:g
   ^-  @t
   %+  rap  3
-  :~  'Could not decline '  (flag-text flag)
+  :~  'Could not decline '  (flag-id:spec flag)
       ': invite decline failed. Request stays pending, try again.'
   ==
+::  +invite-gone: the reply to an allow of a group request whose invite is
+::  no longer on the ship, as its inviter withdrew it
+::
+++  invite-gone
+  |=  [who=@p group=@t]
+  ^-  @t
+  (rap 3 'The group invite from ' (scot %p who) ' to ' group ' is no longer on the ship; nothing to join.' ~)
 ::  +join-failed: OpenClaw's reply when the join an allow of a group
 ::  request needs is refused
 ::
@@ -275,7 +278,7 @@
   |=  =flag:g
   ^-  @t
   %+  rap  3
-  :~  'Could not join '  (flag-text flag)
+  :~  'Could not join '  (flag-id:spec flag)
       ': invite accept failed. Request stays pending, try again.'
   ==
 ::  +ban-decline-failed: OpenClaw's reply when .who is blocked but the
@@ -286,7 +289,7 @@
   ^-  @t
   %+  rap  3
   :~  'Blocked '  (scot %p who)  ', but could not submit the decline for '
-      (flag-text flag)  '. Request stays pending, try again.'
+      (flag-id:spec flag)  '. Request stays pending, try again.'
   ==
 ::  +expiry-decline-failed: the owner's notice that the decline an expired
 ::  group request needs was refused, so its invite stays on the ship
@@ -295,7 +298,7 @@
   |=  =flag:g
   ^-  @t
   %+  rap  3
-  :~  'Could not decline '  (flag-text flag)
+  :~  'Could not decline '  (flag-id:spec flag)
       ' after its request expired: invite decline failed. The invite stays on the ship.'
   ==
 ::  +in-flight: the reply to an answer to a request whose earlier answer
@@ -690,7 +693,7 @@
       =/  label  (group-label [flag title]:named)
       :*  (rap 3 'Group invite request from ' ship ' for ' label ~)
           'Group invite'
-          (rap 3 'Let the bot join ' (fall title.named (flag-text flag.named)) '?' ~)
+          (rap 3 'Let the bot join ' (fall title.named (flag-id:spec flag.named)) '?' ~)
           ~[(cat 3 'Inviter: ' ship) (cat 3 'Group: ' label)]
           'The bot will be able to read and respond in channels it joins.'
       ==

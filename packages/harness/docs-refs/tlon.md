@@ -989,7 +989,11 @@ approval commands above, with these differences.
   a ship-wide list does, and once `%groups` has the join, closes the request
   and replies `Approved group invite from ~ship to <group>. Joining
   group...` A refused join gets `Could not join ~host/name: invite accept
-  failed. Request stays pending, try again.` It gives nobody access: no
+  failed. Request stays pending, try again.` If the invitation has left the
+  ship before the owner allows it, as when its inviter withdrew it, nothing
+  is joined, the request closes and the owner is told `The group invite from
+  ~ship to <group> is no longer on the ship; nothing to join.` It gives
+  nobody access: no
   grant is stored for the inviter or the group's members, and each still
   needs access of their own to be answered in the group's channels, where an
   attempt opens a request as anywhere else. No message is answered.
@@ -1000,7 +1004,12 @@ approval commands above, with these differences.
   stays pending, try again.`
 - `/ban` blocks the inviting ship as for any request, and once `%chat` has
   the block, takes back its DM grant, closes its other requests and declines
-  every invitation of the ship's on the ship. The group request closes once
+  every invitation of the ship's on the ship to a group no other ship has
+  invited the bot to: `%groups` declines a group's invitations all at once,
+  so declining one another ship also sent would take that ship's too. The
+  block's acknowledgement names the request by its token, so one that comes
+  after the request closed and its id went to another acts on that other
+  request in no way. The group request closes once
   `%groups` has its decline, with `Blocked ~ship. They will no longer be
   able to contact the bot.` A refused decline gets `Blocked ~ship, but could
   not submit the decline for ~host/name. Request stays pending, try again.`;

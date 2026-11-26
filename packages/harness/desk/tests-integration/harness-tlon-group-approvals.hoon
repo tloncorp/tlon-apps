@@ -158,6 +158,11 @@
 ::
 ++  ack-block
   |=  caz=(list card)
+  (ack-block-with caz ~)
+::  %chat's acknowledgement, with .ack, of the one block in .caz
+::
+++  ack-block-with
+  |=  [caz=(list card) ack=(unit tang)]
   =/  m  (mare ,[(list card) state-7:t])
   ^-  form:m
   =/  wires
@@ -166,7 +171,7 @@
     ?.  ?=([%pass * %agent [@ %chat] %poke %chat-block-ship *] c)  ~
     `p.c
   ?>  ?=([* ~] wires)
-  ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ~])
+  ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack ack])
   ;<  =vase  bind:m  get-save
   (pure:m out !<(state-7:t vase))
 ::  The cards sent: to whom, their text and their blob.
@@ -577,6 +582,105 @@
   !>  ^-  (list [@t @t])
   :~  :-  'dm/~nec'
       'Could not decline ~lux/club after its request expired: invite decline failed. The invite stays on the ship.'
+  ==
+::  ~bus also invited the bot to .club, whose request is ~dev's. Banning
+::  ~bus from its DM request leaves .club's invites alone: %groups would
+::  decline ~dev's with them.
+::
+++  test-a-ban-declines-no-group-another-ship-also-invited-the-bot-to
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  approvals.saved  (open:ask approvals.saved 'd0001' [~bus [%place ~] start])
+  =/  held  `(list [flag:g @p])`~[[club ~dev] [club ~bus]]
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-held saved later ~[[told (said ~nec '/ban d0001' told)]] held)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block caz)
+  ;<  ~  bind:m  (ex-equal !>((declines out)) !>(`(list [wire flag:g])`~))
+  (ex-equal !>(~(key by by-id.approvals.w)) !>((silt ~['g0001'])))
+::  ~dev's request closed and its id went to ~wes's, in flight, while the
+::  block was on its way: %chat's acknowledgement bans ~dev, and leaves
+::  ~wes's request open and in flight.
+::
+++  test-a-block-acknowledged-after-its-requests-id-went-to-another-leaves-that-one
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  den  `flag:g`[~lux %den]
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/ban g0001' told)]])
+  =/  moved  s(approvals (open:ask (close:ask approvals.s 'g0001') 'g0001' [~wes [%group den] later]))
+  =.  busy.approvals.moved  (silt ~['g0001'])
+  ;<  ~  bind:m  (boot moved later *stream:v10:a ~)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block caz)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals.moved))
+  ;<  ~  bind:m  (ex-equal !>((declines out)) !>(`(list [wire flag:g])`~))
+  %+  ex-equal  !>((answered out))
+  !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
+::  As above, %chat refuses the block: ~wes's request stays in flight.
+::
+++  test-a-block-refused-after-its-requests-id-went-to-another-leaves-that-one-in-flight
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  den  `flag:g`[~lux %den]
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/ban g0001' told)]])
+  =/  moved  s(approvals (open:ask (close:ask approvals.s 'g0001') 'g0001' [~wes [%group den] later]))
+  =.  busy.approvals.moved  (silt ~['g0001'])
+  ;<  ~  bind:m  (boot moved later *stream:v10:a ~)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block-with caz `~[leaf+"no"])
+  (ex-equal !>(approvals.w) !>(approvals.moved))
+::  ~dev withdrew its invite before the owner tapped Allow: nothing is
+::  joined, the request closes and the owner is told.
+::
+++  test-allow-after-the-invite-was-withdrawn-joins-nothing-and-says-so
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-held asked later ~[[told (said ~nec '/allow g0001' told)]] ~)
+  ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-invite-gone')) !>(1))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  :-  'dm/~nec'
+      (rap 3 'The group invite from ~dev to ' label ' is no longer on the ship; nothing to join.' ~)
+  ==
+::  A request in flight is still open: /pending lists it, and a bare
+::  command counts it among the open ones.
+::
+++  test-pending-lists-a-request-in-flight-and-a-bare-command-counts-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  approvals.saved  (open:ask approvals.saved 'd0001' [~bus [%place ~] (add start ~m1)])
+  =.  busy.approvals.saved  (silt ~['g0001'])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  saved  later
+    :~  [told (said ~nec '/pending' told)]
+        [(add told ~s1) (said ~nec '/reject' (add told ~s1))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.saved))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  :-  'dm/~nec'
+      %+  rap  3
+      :~  'Pending requests (2):'
+          '\0a  #g0001 - Group invite from ~dev to '  label
+          '\0a  #d0001 - DM from ~bus'
+          '\0aUse /allow, /reject, or /ban with the ID.'
+      ==
+    ::
+      :-  'dm/~nec'
+      %+  rap  3
+      :~  'More than one approval is pending. Send the command again with an ID:'
+          '\0ag0001 ~dev ~lux/club'
+          '\0ad0001 ~bus dm/~bus'
+      ==
   ==
 ++  test-pending-lists-a-group-request
   %-  eval-mare

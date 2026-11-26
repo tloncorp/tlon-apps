@@ -869,7 +869,11 @@
   ?~  found  |
   ?~  from  (invited:~(. group-tool bowl) u.found)
   (invited-by:~(. group-tool bowl) u.found u.from)
-::  +invites-from: the groups .who's pending invites on the ship are to
+::  +invites-from: the groups whose only pending invites on the ship are
+::  .who's
+::
+::    %groups declines every invite to a group at once, so declining one
+::    another ship also invited would take that ship's invite too.
 ::
 ++  invites-from
   |=  who=@p
@@ -878,6 +882,7 @@
   %+  murn  ~(tap by foreigns:~(. group-tool bowl))
   |=  [=flag:gv =foreign:v8:gv]
   ?.  (invited-by:~(. group-tool bowl) foreign who)  ~
+  ?.  (levy invites.foreign |=(=invite:v8:gv |(!valid.invite =(who from.invite))))  ~
   `flag
 ::  +group-title: the title of .flag in its invite's preview, if it has one
 ::
@@ -2778,7 +2783,7 @@
     [%approval @ @ @ ~]  (agent-approval wire sign)
     [%approval-waiting @ ~]  (agent-approval-waiting wire sign)
     [%approval-full @ ~]  (agent-approval-full wire sign)
-    [%approval-ban @ @ @ ~]  (agent-approval-ban wire sign)
+    [%approval-ban @ @ @ @ ~]  (agent-approval-ban wire sign)
     [%approval-decline @ @ ~]  (agent-approval-decline wire sign)
     [%approval-join @ @ ~]  (agent-approval-join wire sign)
     [%approval-unban @ @ ~]  (agent-approval-unban wire sign)
@@ -3672,10 +3677,9 @@
   ::  A comet costs nothing to make, so its requests would be unbounded.
   ?:  ?=(%pawn (clan:title who))  |
   ?:  ?=(%group -.topic)
-    ::  One request per group, whoever invited the bot; and none for an
-    ::  invite no longer on the ship, as Activity outlives a decline.
+    ::  One request per group, whoever invited the bot. +activity has
+    ::  checked that the ship's invite is still on the ship.
     ?^  (find-group:ask approvals flag.topic)  |
-    ?.  (group-invited flag.topic `who)  |
     !(blocked:messenger who)
   =/  =place:t  place.topic
   ?^  (find:ask approvals who place)  |
@@ -3833,16 +3837,21 @@
     =?  cor  ?=(~ place)  (decline-invitation who.approval)
     (answer-order to (confirmation:ask %reject who.approval (place-label place)))
   ::
-      %ban  (ban who.approval id to)
+      %ban  (ban id approval to)
   ==
-::  +ban: block .who, carrying out the ban once %chat has the block, so that
-::  a refused block leaves the request open
+::  +ban: block the ship of request .id, carrying out the ban once %chat
+::  has the block, so that a refused block leaves the request open
+::
+::    The block's acknowledgement names the request by its token, as the
+::    card's does, for its id may have gone to another request by then.
 ::
 ++  ban
-  |=  [who=@p id=@t to=destination:t]
+  |=  [id=@t =approval:t to=destination:t]
   ^+  cor
+  =*  who  who.approval
   ?:  (blocked:messenger who)  (banned who id to)
-  (emit (block:messenger /approval-ban/(scot %p who)/[id]/(scot %uv (jam to)) who))
+  =/  token  (scot %uv (button-token:ask id approval))
+  (emit (block:messenger /approval-ban/(scot %p who)/[id]/[token]/(scot %uv (jam to)) who))
 ::  +carry-group: carry out the owner's answer to a group request
 ::
 ::    Allowing joins the group and its channels and stores no grant: the
@@ -3858,11 +3867,11 @@
   =*  flag  flag.topic.approval
   =.  busy.approvals  (~(put in busy.approvals) id)
   ?-    action
-      %ban  (ban who.approval id to)
+      %ban  (ban id approval to)
       %reject  (decline-request %reject id approval to)
   ::
       %allow
-    ?.  (group-invited flag ~)  (group-answered %allow id approval to)
+    ?.  (group-invited flag ~)  (group-gone id approval to)
     =/  =wire  /approval-join/[id]/(scot %uv (jam [approval to]))
     (emit (join:~(. group-tool bowl) wire flag))
   ==
@@ -3902,6 +3911,17 @@
     =/  label  (group-label:ask flag.topic.approval (group-title flag.topic.approval))
     (answer-order to (group-confirmation:ask why who.approval label))
   ==
+::  +group-gone: close a group request allowed after its invite left the
+::  ship, as when its inviter withdrew it, and tell the owner
+::
+++  group-gone
+  |=  [id=@t =approval:t to=destination:t]
+  ^+  cor
+  ?>  ?=(%group -.topic.approval)
+  =.  approvals  (close:ask approvals id)
+  =.  cor  (note 'approval-invite-gone' who.approval (address:ask approval) id)
+  =/  label  (group-label:ask flag.topic.approval (group-title flag.topic.approval))
+  (answer-order to (invite-gone:ask who.approval label))
 ::
 ++  agent-approval-join
   |=  [=wire =sign:agent:gall]
@@ -4053,18 +4073,24 @@
 ++  agent-approval-ban
   |=  [=wire =sign:agent:gall]
   ^+  cor
-  ?>  ?=([%approval-ban @ @ @ ~] wire)
+  ?>  ?=([%approval-ban @ @ @ @ ~] wire)
   ?.  ?=(%poke-ack -.sign)  cor
   =/  who=@p  (slav %p i.t.wire)
-  =/  id  i.t.t.wire
-  =/  to  ;;(destination:t (cue (slav %uv i.t.t.t.wire)))
+  =/  to  ;;(destination:t (cue (slav %uv i.t.t.t.t.wire)))
+  ::  The request the block was for, unless it has closed and its id gone
+  ::  to another: a ban acknowledged then acts on none.
+  =/  id=@t
+    =/  held  (~(get by by-id.approvals) i.t.t.wire)
+    ?~  held  ''
+    ?.  =(i.t.t.t.wire (scot %uv (button-token:ask i.t.t.wire u.held)))  ''
+    i.t.t.wire
   ?~  p.sign  (banned who id to)
   ::  A second tap's block, sent before the first was acknowledged, is
   ::  refused because the first took: the ban stands.
   ?:  (blocked:messenger who)  (banned who id to)
   %-  (slog 'harness-tlon: block rejected' u.p.sign)
   =.  cor  (emit (crash:observe bowl %approval-ban u.p.sign))
-  =.  busy.approvals  (~(del in busy.approvals) id)
+  =?  busy.approvals  !=('' id)  (~(del in busy.approvals) id)
   =.  error  block-refused
   =.  cor  (note 'approval-ban-failed' who (scot %p who) id)
   (answer-order to (block-failed:ask who))
