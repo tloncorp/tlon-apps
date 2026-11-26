@@ -2294,7 +2294,10 @@
   ;<  ~  bind:m
     %-  set-scry-gate
     |=  =path
-    ?:  &(?=([%gx *] path) (lien path |=(part=@ta =(%groups part))))
+    ?:  ?&  =(%gx (snag 0 path))
+            (lien path |=(part=@ta =(%groups part)))
+            !(lien path |=(part=@ta =(%can-read part)))
+        ==
       `!>((my ~[[[~lux %test] group]]))
     ((scries events) path)
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
