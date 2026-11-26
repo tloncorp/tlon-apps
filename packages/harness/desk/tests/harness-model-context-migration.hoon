@@ -20,6 +20,8 @@
   =/  migrated  (migrate-memory-prefixes:storage (envelope:storage !>(old)))
   ::  The fixture saves no schedule; compare in the frozen schedule type.
   =/  frozen  migrated(schedules *(map @uv schedule-s0))
+  ::  Older shapes lack the token-usage ledger; compare without it.
+  =/  frozen  [%0 +>.frozen]
   ;:  weld
       (expect-eq !>(+.old) !>(+>+>.frozen))
       (expect-eq !>(~) !>(model-contexts.migrated))
