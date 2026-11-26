@@ -752,7 +752,7 @@ The owner answers a request with an approval command, `/allow <id>`,
 `/reject <id>` or `/ban <id>`, typed or sent by the card's button, in a DM
 with the bot, and lists requests and blocked ships with the approval
 commands `/pending`, `/banned` and `/unban <ship>` below, and takes a
-ship's access back where it is typed with `/revoke <ship>`. The Tlon hand reads these itself, as the OpenClaw plugin does,
+ship's grant in one place back with `/revoke <ship> [place]`. The Tlon hand reads these itself, as the OpenClaw plugin does,
 before a message would reach the head: an approval command never starts a
 turn and is not passed to the model as a message. The model's Tlon history
 tools, where granted, can still read it like any message on the ship. `/help`, which lists the head's commands, does not list them. The
@@ -777,10 +777,8 @@ hand handles no message from its own ship.
   channel, the text of a command, from anyone, the apparent owner included,
   is not a command: it is an ordinary message, admitted or treated as an
   attempt as any other message there would be. OpenClaw takes them in a
-  channel too; this differs on purpose. The one exception is the owner's
-  `/revoke`, below, which can only take access away in the channel it is
-  posted in. Catch-up carries out no command from before the owner's
-  admission cutoff.
+  channel too; this differs on purpose. Catch-up carries out no command from
+  before the owner's admission cutoff.
 - The id is the rest of the text, trimmed, matched as OpenClaw matches it:
   the exact id, else the one open id it begins, case as typed. With no id the
   command acts on the open request only when it is the only one. With more
@@ -904,51 +902,49 @@ not one of these commands.
   ~ship-name`. Unblocking gives nothing back: the DM grant `/ban` removed and
   the requests it closed stay gone, and the ship may simply ask again.
 
-`/revoke <ship>` takes back the per-place grant a ship holds where the
-command is typed; OpenClaw has no such command. The ship is read as `/unban`
-reads it. Only the owner's is taken, and not in a message that holds code or
-a quote.
+`/revoke <ship> [place]` takes back one per-place grant a ship holds;
+OpenClaw has no such command. Like the other approval commands it counts
+only in the owner's DM with the bot, as a post or a thread reply; in a
+channel it is an ordinary message. Anyone else's in a DM is dropped as their
+`/allow` is. The ship is read as `/unban` reads it, and the place after it
+and one space is `dm` for the ship's DM grant or a channel's nest, as
+`chat/~host/name`.
 
-- In the owner's DM with the bot, as a post or a thread reply, it removes the
-  ship's DM grant. Anyone else's there is dropped as their `/allow` is: it
-  changes nothing, gets no reply, starts no turn and opens no request.
-- In a channel, as a post or a reply, it removes the ship's grant for that
-  channel. It is addressed as the head's commands are there: in a channel
-  that requires a mention, the bot's native mention comes first (see
-  [Shared memory](#shared-memory)), and a reply in a thread under the bot's
-  post needs none. It is the one approval command a channel takes: a
-  channel's host could post it as the owner, but it can only take access away
-  in the host's own channel, whose members the host controls already. From
-  any other ship it is an ordinary message there, admitted as a turn from a
-  ship with access, which the head answers as any slash text it does not know
-  (`Unknown command. Send /help for the available commands.`), or an attempt
-  from one without. In a channel that answers nobody it is not taken.
+- Without a place, a ship that holds one per-place grant, its DM grant or
+  one channel's, loses it. A ship that holds several loses none, and the
+  reply lists them, its DM first and then its channels by nest, with what to
+  type for each: `~ship has access in more than one place. Send the command
+  again with one:`, then lines such as `/revoke ~ship dm` and `/revoke ~ship
+  chat/~host/name`. A ship with none gets `~ship has no access to revoke.`
+- With a place, the ship's grant there is removed.
 - The grant is removed as a settings save that removes it would remove it,
   with the same cutoffs and cancellation: the ship's DM route is retired, or
   its running and queued work in that channel is cancelled. Its grants in
   other places are kept. It is not a ban: nothing is blocked, and the ship's
   next attempt there opens a new request. No request can be open for the ship
   in that place while it holds the grant, since gaining access closes one.
-- The reply goes where the command was typed, in the same thread, outside a
-  turn; in a channel its members see it. It is `Revoked DM access for ~ship.
+- The reply goes to the owner's DM, in the same thread, outside a turn. It
+  is `Revoked DM access for ~ship.
   They will no longer be able to message the bot.` or `Revoked ~ship for
   <channel>. They will no longer be able to interact in this channel.`, with
   the channel named as the `/allow` reply names it, recorded in the activity
   feed as `approval-revoked`.
 - A ship on a ship-wide list, or an owner, keeps its access, and the reply is
   `~ship has access everywhere from settings; change it there.` A per-place
-  grant it also holds is kept. A ship with no grant there gets `~ship has no
-  DM access to revoke.` or `~ship has no access to revoke in <channel>.`, and
-  nothing changes. Without a ship, or with text that is not one, the reply
-  is `Usage: /revoke ~ship-name`.
+  grant it also holds is kept. A ship with no grant in the place named gets
+  `~ship has no DM access to revoke.` or `~ship has no access to revoke in
+  <channel>.`, and nothing changes. Without a ship, or with text that is not
+  one or not a place, the reply is `Usage: /revoke ~ship-name`.
 - In a channel open to everyone the grant is removed, but the channel still
   answers the ship, and the reply says so instead: `Removed ~ship's grant
   for <channel>, but they still have access there from settings; change it
   there.`
 - Catch-up does not hold an approval command back behind a full queue, as
-  it holds a message that would start a turn: the owner's `/revoke` in a
-  channel whose queue the ship has filled is carried out at once, dropping
-  that work.
+  it holds a message that would start a turn: the owner's command is carried
+  out at once when the owner's DM's queue is full, and when the adapter's
+  64 jobs are, provided it is the next Activity event. An approval command
+  behind another message still waits for that message, which catch-up does
+  not pass.
 
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership
@@ -1618,16 +1614,19 @@ and 25 lines; `/banned` with ships and with none; `/unban` confirmed once
 `%chat` acknowledges it, its refusal, a second unban refused as not blocked,
 a ship not blocked, no ship and text that is not one; the three from ships
 that are not the owner; and the owner's `/pending` in a channel, an
-ordinary message, as are its other approval commands there. For `/revoke`
-it covers a channel grant taken back in that channel and a DM grant in the
-owner's DM, each leaving the ship answered where it kept access; the ship's
-work cancelled in that channel only; a ship with access everywhere, one with
-no grant there and no ship; the command from ships that are not the owner,
-in a DM and in a channel; and a revoked ship's new request.
-`tests-js/tlon-approval-commands-revoke-conformance.mjs` checks on the same
-three ships that the owner's `/revoke` in the channel takes a guest's
-settings grant there and is answered there, without reaching the model, and
-that the guest's next mention is not answered and opens a request.
+ordinary message, as are its other approval commands there, `/revoke`
+included. For `/revoke` it covers a ship's one grant taken back without a
+place; a ship with several losing none and getting the list; a named place's
+grant taken back alone, leaving the ship answered where it kept access; the
+ship's work cancelled in that place only; a full queue in the owner's DM and
+a full adapter queue not holding it back; a channel open to everyone; a ship
+with access everywhere, one with no grant there or anywhere, and no ship or
+place; the command from ships that are not the owner; and a revoked ship's
+new request. `tests-js/tlon-approval-commands-revoke-conformance.mjs` checks
+on the same three ships that the owner's `/revoke` in its DM takes a guest's
+settings grant in the channel and is answered in the DM, without reaching
+the model, and that the guest's next mention is not answered and opens a
+request.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending

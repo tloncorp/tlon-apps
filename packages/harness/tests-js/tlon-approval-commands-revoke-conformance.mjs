@@ -1,20 +1,20 @@
-// The owner revokes a guest's channel access from that channel, on three real ships:
-// the bot, the peer as its owner and the guest, which holds a settings grant for the
-// channel on the peer that the bot and the guest have joined. The guest's mention is
-// answered; the owner then mentions the bot with /revoke and the guest's ship in the
-// channel, and is told there that the guest's access is revoked, while the command
-// reaches no model. The guest's next mention is not answered and opens a request, with
-// a card for the owner. Runs apart from the other approval command scripts: the denial
-// limit lets a ship open one request per five minutes. Restores policy and defaults.
-// Leaves the fixture messages, the card and the replies.
+// The owner revokes a guest's channel access from its DM with the bot, on three real
+// ships: the bot, the peer as its owner and the guest, which holds a settings grant for
+// the channel on the peer that the bot and the guest have joined, and no other grant.
+// The guest's mention is answered; the owner then sends /revoke and the guest's ship in
+// its DM, and is told there that the guest's access in the channel is revoked, while
+// the command reaches no model. The guest's next mention is not answered and opens a
+// request, with a card for the owner. Runs apart from the other approval command
+// scripts: the denial limit lets a ship open one request per five minutes. Restores
+// policy and defaults. Leaves the fixture messages, the card and the replies.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { approvalShips } from './lib/approval-ships.mjs'
 
-const marker = `revoke-channel-${randomUUID().slice(0, 8)}`
+const marker = `revoke-dm-${randomUUID().slice(0, 8)}`
 const t = await approvalShips(marker)
-const { peer, guest, nest, until, status } = t
+const { bot, peer, guest, nest, until, status } = t
 const sentText = (label) => `${marker}-${label}`
 const answered = (posts) => posts.some((post) => t.words(post).includes(`${marker}-answer`))
 try {
@@ -28,17 +28,17 @@ try {
   await until('the guest holding the channel is answered there', async () => answered(await t.channelFromBot(start)))
 
   const typed = `/revoke ${guest.ship}`
-  await t.post(peer, typed)
-  const reply = await until('the owner is told in the channel that the guest\'s access is revoked', async () => (await t.channelFromBot(start))
+  await t.dm(peer, bot, typed)
+  const reply = await until('the owner is told in its DM that the guest\'s access is revoked', async () => (await t.dmFromBot(peer, start))
     .find((post) => t.words(post).startsWith(`Revoked ${guest.ship} for `)))
   assert.ok(t.words(reply).includes(nest) && t.words(reply).endsWith('. They will no longer be able to interact in this channel.'), t.words(reply))
   const revoked = await status()
   assert.ok(!revoked.policy.channelGrants.some((grant) => grant.channel === nest), 'the channel\'s emptied grant entry is still saved')
   assert.ok(revoked.events.some((notice) => notice.kind === 'approval-revoked' && notice.actor === guest.ship), 'the revoke was not recorded')
   assert.deepEqual(revoked.requests, [], 'the revoke opened a request')
-  assert.ok(!(await t.dmFromBot(peer, start)).some((post) => t.words(post).startsWith('Revoked ')), 'the revoke was answered in the owner\'s DM')
+  assert.ok(!(await t.channelFromBot(start)).some((post) => t.words(post).startsWith('Revoked ')), 'the revoke was answered in the channel')
   assert.ok(!t.seen(typed), 'the owner\'s command reached the model')
-  console.log('PASS the owner\'s /revoke in the channel takes the guest\'s grant there and is answered there')
+  console.log('PASS the owner\'s /revoke in its DM takes the guest\'s one grant, in the channel, and is answered in the DM')
 
   const after = t.da(Date.now())
   await t.post(guest, sentText('after'))
@@ -52,7 +52,7 @@ try {
   await sleep(3000)
   assert.ok(!answered(await t.channelFromBot(after)), 'the revoked guest was answered')
   assert.ok(!t.seen(sentText('after')), 'the revoked guest\'s mention reached the model')
-  assert.ok(!(await t.channelFromBot(start)).some((post) => t.words(post).startsWith('Unknown command')), 'the head answered the owner\'s /revoke')
+  assert.ok(!(await t.dmFromBot(peer, start)).some((post) => t.words(post).startsWith('Unknown command')), 'the head answered the owner\'s /revoke')
   console.log('PASS the revoked guest is not answered in the channel, and its mention opens a request')
 } finally {
   await t.stop()
