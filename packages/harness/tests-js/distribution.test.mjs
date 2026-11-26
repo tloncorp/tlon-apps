@@ -18,6 +18,13 @@ test('Context Lens includes the versioned Steward protocol, not another agent', 
   await access(new URL('mar/steward/lens/action-1.hoon', desk))
   await access(new URL('mar/steward/lens/update-1.hoon', desk))
 })
+test('Scheduled Tasks include the versioned Steward automation protocol', async () => {
+  await access(new URL('sur/steward/automation.hoon', desk))
+  await access(new URL('lib/harness-tlon-automation.hoon', desk))
+  await access(new URL('lib/harness-zones.hoon', desk))
+  await access(new URL('mar/steward/automation/action-1.hoon', desk))
+  await access(new URL('mar/steward/automation/dispatch-1.hoon', desk))
+})
 test('the desk reports the package.json version', async () => {
   const defaults = await readFile(new URL('lib/harness-defaults.hoon', desk), 'utf8')
   const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))

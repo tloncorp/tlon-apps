@@ -7,7 +7,7 @@
 /-  notes
 /-  hooks
 /-  hosted=harness-hosted
-/-  steward, steward-gateway, steward-lens
+/-  steward, steward-gateway, steward-lens, sa=steward-automation
 /+  default-agent, dbug, p=harness-tlon-policy,
     continuity=harness-tlon-continuity, io=harness-tlon-io,
     publication=harness-tlon-publication, profile=harness-tlon-profile,
@@ -29,17 +29,19 @@
 /+  migration=harness-tlon-migrate
 /+  permissions=harness-tlon-permissions
 /+  story=harness-tlon-story, input=harness-tlon-input
+/+  paths=harness-tlon-paths
 /+  observe=harness-observe
 /+  lens-codec=harness-tlon-lens
 /+  browser=harness-browser-entry
 /+  workspace-plan=harness-tlon-workspace-plan, group-policy=harness-tlon-group-policy,
     conversation-tool=harness-tlon-conversation-tool
+/+  automation-lib=harness-tlon-automation
 |%
 +$  card  card:agent:gall
 +$  storage-source  $%([%credentials creds=credentials:s3] [%hosted token=@t config=json])
 --
 %-  agent:dbug
-=|  state-6:t
+=|  state-7:t
 =*  state  -
 ^-  agent:gall
 =<
@@ -122,7 +124,7 @@
         [%x %browser-owner @ ~]
       ``noun+!>((browser-owner:cor i.t.t.path))
         [%x %context @ @ ~]
-      ``noun+!>((thread-context:cor i.t.t.path i.t.t.t.path))
+      ``noun+!>((turn-context:cor i.t.t.path i.t.t.t.path))
     ==
   ::
   ++  on-agent
@@ -131,21 +133,21 @@
       =^  cards  state  abet:(browser-posted:cor (slav %uv i.t.wire) ?=(~ p.sign))
       [cards this]
     ?:  =(/telemetry wire)  `this
-    ::  A failed profile edit retries on the next adapter event, not its nack.
-    ?:  =(/claims wire)
-      ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
-        %-  (slog 'harness-tlon: profile claim update failed' u.error)
-        `this
-      `this
-    ::  Steward's acks send Steward nothing. Gall hands back the owner's ack
+    ::  These pokes' acks send nothing on, and a refusal is only logged. A
+    ::  failed profile edit retries on the next adapter event. Steward's acks
+    ::  must not send Steward anything: Gall hands back the owner's ack
     ::  before it delivers the lease poke behind it, so taking the lease here
-    ::  would poke without end. A refusal retries on the next adapter event.
-    ::  The event that sends a lease schedules before Steward applies it, so
-    ::  the lease's ack arms the wake that renews it.
-    ?:  =(/steward/lease wire)
+    ::  would poke without end. A refused lease retries on the next adapter
+    ::  event, a refused projection waits for the next schedule change or
+    ::  Steward restart, and a refused answer leaves the command for
+    ::  Steward's sweep. The event that sends a lease schedules before
+    ::  Steward applies it, so the lease's ack arms the wake that renews it,
+    ::  with Behn cards alone.
+    ?:  ?=(?([%claims ~] [%steward ?(%lease %project %finalize) ~]) wire)
       ?^  error=?:(?=(%poke-ack -.sign) p.sign ~)
-        %-  (slog 'harness-tlon: steward lease refused' u.error)
+        %-  (slog (poke-refused:cor wire) u.error)
         `this
+      ?.  =(/steward/lease wire)  `this
       =^  cards  state  rearm:cor
       [cards this]
     ?:  =(/steward/configure wire)
@@ -158,6 +160,19 @@
       %=  this  lens
         lens(error 'Steward is unavailable on this ship. Install or update Tlon, then retry sync.')
       ==
+    ::  The ack of the watch on Steward's automation feed must not run +abet
+    ::  either: Gall hands it back before the lease poke sent behind the
+    ::  watch, so +abet would find no lease and watch again, and a Steward
+    ::  without the automation module refuses every watch. Gall acknowledges
+    ::  a watch once, so the first projection is sent once per watch, and its
+    ::  poke's ack sends nothing. After a refusal the hand watches again only
+    ::  when it loads or next takes a lease Steward does not hold.
+    ?:  &(=(/steward/dispatch wire) ?=(%watch-ack -.sign))
+      ?^  p.sign
+        %-  (slog 'harness-tlon: steward automation feed refused' u.p.sign)
+        `this
+      =^  cards  state  rearm:first-projection:cor
+      [cards this]
     ::  Only the watch's ack builds effects: it is how a Steward that starts
     ::  late gets the owner and the lease. Steward gives a fact in answer to
     ::  the lease poke, so a fact that took the lease would poke without end.
@@ -226,6 +241,17 @@
 ++  rearm
   =/  engine  schedule
   [(flop cards.engine) state.engine]
+::  What the log says when a poke whose ack sends nothing is refused.
+::
+++  poke-refused
+  |=  =wire
+  ^-  @t
+  ?+  wire  'harness-tlon: poke refused'
+    [%claims ~]              'harness-tlon: profile claim update failed'
+    [%steward %lease ~]      'harness-tlon: steward lease refused'
+    [%steward %project ~]    'harness-tlon: steward projection refused'
+    [%steward %finalize ~]   'harness-tlon: steward edit answer refused'
+  ==
 ::
 ++  sync-liveness
   ^+  cor
@@ -298,6 +324,10 @@
   ::  The owner goes with the lease, so a Steward that starts after this hand
   ::  still learns it.
   =.  cor  configure-steward
+  ::  A lease of now is none held: Steward is new to this hand, so the hand
+  ::  watches its automation feed, whose ack makes the first projection, and
+  ::  projects again if it already has. Neither reads Steward's tasks.
+  =?  cor  =(u.lease now.bowl)  project:watch-automation
   %-  emit
   :*  %pass  /steward/lease  %agent  [our.bowl %steward]  %poke
       %steward-gateway-action-1
@@ -323,6 +353,415 @@
   ^-  card
   [%pass /steward/gateway %agent [our.bowl %steward] %watch /v1/gateway]
 ::
+::  The hand plays the harness of Steward's automation module: it mirrors the
+::  owner's Tlon schedules into Steward for Messenger and applies the owner's
+::  edits to them through the head's cron API. Both need an owner and a
+::  running Steward.
+::
+++  watch-automation
+  ^+  cor
+  ?:  =(~ owner.policy)  cor
+  ?.  steward-running  cor
+  =.  cor  (watch-once /steward/schedules %harness /v1/schedule-events)
+  (watch-once /steward/dispatch %steward /v1/automation/harness)
+::
+::  Booting and a new Steward can both ask in one event; Gall refuses a
+::  second watch on one wire.
+::
+++  watch-once
+  |=  [=wire app=term =path]
+  ^+  cor
+  ?:  (~(has by wex.bowl) wire our.bowl app)  cor
+  ?:  %+  lien  cards
+      |=(=card &(?=([%pass * %agent * %watch *] card) =(wire p.card)))
+    cor
+  (emit [%pass wire %agent [our.bowl app] %watch path])
+::
+++  leave-automation
+  ^+  cor
+  =?  cor  (~(has by wex.bowl) /steward/schedules our.bowl %harness)
+    (emit [%pass /steward/schedules %agent [our.bowl %harness] %leave ~])
+  ?.  (~(has by wex.bowl) /steward/dispatch our.bowl %steward)  cor
+  (emit [%pass /steward/dispatch %agent [our.bowl %steward] %leave ~])
+::
+++  projection
+  ^-  (list identified-task:v1:sa)
+  ?~  owner.policy  ~
+  (project:automation-lib schedules.automation names.automation u.owner.policy)
+::
+::  +automation-ready: whether Steward acknowledged the watch on its
+::  automation feed. Steward before %groups v12.3.0 has no automation
+::  module: it refuses that watch and serves none of the module's paths, and
+::  a read of one crashes the event whatever +mole is around it. So the hand
+::  projects only to a Steward that acknowledged the watch, and reads its
+::  tasks only in the acknowledgement's event, never while loading.
+::
+++  automation-ready
+  ^-  ?
+  =/  watch  (~(get by wex.bowl) /steward/dispatch our.bowl %steward)
+  ?~(watch | acked.u.watch)
+::
+::  Steward replaces the whole task set with each projection, and ignores
+::  one equal to what it holds. Until the hand has projected, an empty set
+::  waits for +first-projection, which knows whether Steward holds tasks it
+::  would replace.
+::
+++  project
+  ^+  cor
+  ?:  &(!projected.automation =(~ projection))  cor
+  send-projection
+::
+::  +first-projection: the projection of an acknowledged watch on Steward's
+::  feed. Steward may hold tasks another runtime wrote for this bot, such as
+::  OpenClaw's; while this hand has no task of its own it leaves them, for
+::  the operator's import, rather than replace them with nothing. Its first
+::  own task ends the wait, and once it has projected it never reads
+::  Steward's tasks again. A Steward that cannot answer is not overwritten
+::  either.
+::
+++  first-projection
+  ^+  cor
+  ?:  |(projected.automation !=(~ projection))  project
+  =/  left
+    %-  mole
+    |.
+    ;;  (map @p tasks:v1:sa)
+    .^  *  %gx
+      /(scot %p our.bowl)/steward/(scot %da now.bowl)/v1/automation/tasks/steward-automation-tasks-1
+    ==
+  ?~  left  cor
+  ?^  (~(gut by u.left) our.bowl ~)  cor
+  send-projection
+::
+++  send-projection
+  ^+  cor
+  ?:  =(~ owner.policy)  cor
+  ?.  steward-running  cor
+  ?.  automation-ready  cor
+  =.  projected.automation  &
+  %-  emit
+  :*  %pass  /steward/project  %agent  [our.bowl %steward]  %poke
+      %steward-automation-action-1
+      !>(`action:v1:sa`[%project projection])
+  ==
+::
+::  +held: whether the hand leaves Steward's tasks as they are, as
+::  +first-projection decided
+::
+++  held
+  ^-  ?
+  ?&  ?=(^ owner.policy)
+      automation-ready
+      !projected.automation
+      =(~ projection)
+  ==
+::
+++  reproject
+  |=  before=(list identified-task:v1:sa)
+  ^+  cor
+  ?:  =(before projection)  cor
+  project
+::
+++  agent-steward-schedules
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?+  -.sign  cor
+    %kick  watch-automation
+  ::
+  ::  Projecting on every new watch fills a Steward that has no entry for
+  ::  this bot yet, even with no schedules; the snapshot behind the ack
+  ::  projects again only if it differs.
+  ::
+      %watch-ack
+    ?~  p.sign  project
+    %-  (slog 'harness-tlon: head schedule feed refused' u.p.sign)
+    cor
+  ::
+      %fact
+    ?.  =(%harness-schedules-1 p.cage.sign)  cor
+    =/  before  projection
+    =.  schedules.automation  !<(schedules:cr q.cage.sign)
+    =.  names.automation
+      %-  my
+      %+  skim  ~(tap by names.automation)
+      |=([id=@uv *] (~(has by schedules.automation) id))
+    (reproject before)
+  ==
+::
+++  agent-steward-dispatch
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?+  -.sign  cor
+    %kick  watch-automation
+  ::
+      %fact
+    ?.  =(%steward-automation-dispatch-1 p.cage.sign)  cor
+    (take-dispatch !<(dispatch:v1:sa q.cage.sign))
+  ==
+::
+::  Steward replays every unanswered command to a new subscriber, so one
+::  already applying is not started twice. Steward admits a command only
+::  from its owner, which this hand keeps equal to its own.
+::
+++  take-dispatch
+  |=  =dispatch:v1:sa
+  ^+  cor
+  ?:  (~(has by edits.automation) id.dispatch)  cor
+  =/  owner  owner.policy
+  ?~  owner  cor
+  =/  planned
+    %:  plan:automation-lib
+      edit.dispatch
+      id.dispatch
+      now.bowl
+      u.owner
+      schedules.automation
+      names.automation
+      conversation-binding
+    ==
+  ?:  ?=(%| -.planned)
+    (finalize id.dispatch [%error type.p.planned ~[leaf+(trip message.p.planned)]])
+  =/  edit  p.planned
+  =?  open.edit  &(?=(^ open.edit) ?=(^ (ready-binding u.open.edit)))  ~
+  (apply-edit id.dispatch edit)
+::
+::  The head binding of the bot's conversation at a destination, one already
+::  set up. A channel's is shared by everyone who speaks there, so the owner's
+::  job runs in it as the owner's own message would; +deliver admits no DM
+::  but the owner's.
+::
+++  ready-binding
+  |=  to=destination:t
+  ^-  (unit @t)
+  =/  sid  (~(get by identities) to)
+  ?~  sid  ~
+  =/  route  (~(get by routes) u.sid)
+  ?.  &(?=(^ route) =(%ready phase.u.route))  ~
+  `binding.u.route
+::
+::  +conversation-binding: the binding a job at .to runs in: the ready
+::  conversation's, or the one opening it will set up, which a route being
+::  set up already names. Or why the bot cannot have a conversation there.
+::
+++  conversation-binding
+  |=  to=destination:t
+  ^-  (each @t @t)
+  =/  ready  (ready-binding to)
+  ?^  ready  [%& u.ready]
+  =/  reason  (unopenable to)
+  ?^  reason  [%| u.reason]
+  =/  [sid=@t generation=@ud]  (lane-for to)
+  =/  route  (~(get by routes) sid)
+  [%& ?~(route (binding:continuity sid generation) binding.u.route)]
+::
+::  +unopenable: why the hand cannot open a conversation at .to, the checks
+::  +start-route makes and, for a channel, that the bot can post there.
+::  +deliver admits no DM but the owner's.
+::
+++  unopenable
+  |=  to=destination:t
+  ^-  (unit @t)
+  =/  where  (target:automation-lib (address:p to))
+  ?.  enabled.policy  `'the bot is turned off; turn it on in its Tlon settings'
+  ?-  -.to
+      %dm
+    ?^  (speaker-grants who.to to ~)  ~
+    `(cat 3 'the bot cannot reply in the DM with ' where)
+  ::
+      %channel
+    ?:  =(%off response:(channel-rule:p policy nest.to))
+      `(rap 3 'the bot\'s replies are off in ' where '; turn them on in its Tlon settings' ~)
+    ?:  =(`& (mole |.((can-write:~(. directory:permissions bowl) nest.to))))  ~
+    `(rap 3 'the bot cannot post in ' where '; add it to the channel with permission to write' ~)
+  ==
+::
+::  +lane-for: the session of the bot's conversation at .to, and the
+::  authorization generation it has or would open under
+::
+++  lane-for
+  |=  to=destination:t
+  ^-  [sid=@t generation=@ud]
+  =/  sid  (fall (~(get by identities) to) (identity:continuity to))
+  =/  existing  (~(get by lanes) sid)
+  [sid ?~(existing epoch epoch.u.existing)]
+::
+::  +open-lane: record the conversation at .to, if it has no lane yet, with
+::  its route still to be set up by +start-route
+::
+++  open-lane
+  |=  to=destination:t
+  ^+  cor
+  =/  [sid=@t generation=@ud]  (lane-for to)
+  =.  identities  (~(put by identities) to sid)
+  ?:  (~(has by lanes) sid)  cor
+  =.  lanes  (~(put by lanes) sid [to generation ~])
+  =.  routes  (~(put by routes) sid [(binding:continuity sid generation) %fence])
+  cor
+::
+::  +open-conversation: set up the conversation at .to for edit .id waiting
+::  on it. A route a job or another waiting edit is already setting up is
+::  left to finish; one with neither has stalled and starts again. A ready
+::  route needs only the binding.
+::
+++  open-conversation
+  |=  [id=(unit @uv) to=destination:t]
+  ^+  cor
+  =/  [sid=@t *]  (lane-for to)
+  ?.  (~(has by lanes) sid)
+    (start-route:(open-lane to) sid)
+  =/  route  (~(got by routes) sid)
+  ?:  =(%ready phase.route)  (bind-route sid)
+  ?:  ?|  (lien ~(val by jobs) |=(=job:t &(=(sid sid.job) =(%create stage.job))))
+          (lien (waiting sid) |=([other=@uv *] !=(id `other)))
+      ==
+    cor
+  (start-route sid)
+::
+::  +waiting: the edits waiting for the conversation of session .sid
+::
+++  waiting
+  |=  sid=@t
+  ^-  (list [id=@uv edit=task-edit:t])
+  %+  skim  ~(tap by edits.automation)
+  |=  [id=@uv edit=task-edit:t]
+  ?~  open.edit  |
+  =(`sid (~(get by identities) u.open.edit))
+::
+::  +bind-route: bind a ready conversation for the edits waiting on it.
+::  Messages bind it through their jobs; an opened one has none.
+::
+++  bind-route
+  |=  sid=@t
+  ^+  cor
+  =/  lane  (~(got by lanes) sid)
+  =/  route  (~(got by routes) sid)
+  (hand %open (sham [sid epoch.lane]) [%bind binding.route (route-binding sid to.lane)])
+::
+::  +route-binding: the head binding of a conversation. A channel's admits
+::  any speaker; each turn's authority is decided per speaker. A DM's
+::  admits only its partner.
+::
+++  route-binding
+  |=  [sid=@t to=destination:t]
+  ^-  binding:hh
+  =/  actors=(list @t)
+    ?:(?=(%channel -.to) ~['*'] ~[(scot %p who.to)])
+  ['tlon' (address:p to) sid actors &]
+::
+::  +resume: the edits waiting on the open whose hand request is .id, once
+::  it is answered. .refusal is the head's reason when it refused. A kick
+::  lost the answer; resuming then leaves a missing binding to the head's
+::  refusal of the add. An edit planned for another owner is refused: its
+::  command came from an owner this bot no longer has.
+::
+++  resume
+  |=  [id=@uv refusal=(unit @t)]
+  ^+  cor
+  %+  roll  ~(tap by edits.automation)
+  |=  [[edit-id=@uv edit=task-edit:t] engine=_cor]
+  ?~  open.edit  engine
+  =/  sid  (~(get by identities.engine) u.open.edit)
+  ?~  sid  engine
+  =/  lane  (~(get by lanes.engine) u.sid)
+  ?~  lane  engine
+  ?.  =(id (sham [u.sid epoch.u.lane]))  engine
+  ?^  refusal  (fail-edit:engine edit-id u.refusal)
+  ?.  =(owner.policy.engine `owner.edit)
+    (fail-edit:engine edit-id 'the bot\'s owner changed; send the change again')
+  (apply-edit:engine edit-id edit(open ~))
+::
+::  +fail-waiting: answer the edits waiting on session .sid with an error
+::
+++  fail-waiting
+  |=  [sid=@t reason=@t]
+  ^+  cor
+  %+  roll  (waiting sid)
+  |=  [[id=@uv *] engine=_cor]
+  (fail-edit:engine id reason)
+::
+::  Send the edit's next head action, or, with none left, keep its names
+::  and answer. Each action is its own head request, answered on its path.
+::  An edit waiting on a conversation is kept until the hand has opened it.
+::
+++  apply-edit
+  |=  [id=@uv edit=task-edit:t]
+  ^+  cor
+  ?^  open.edit
+    =.  edits.automation  (~(put by edits.automation) id edit)
+    (open-conversation `id u.open.edit)
+  =/  wire  /steward/edit/(scot %uv id)
+  =?  cor  (~(has by wex.bowl) wire our.bowl %harness)
+    (emit [%pass wire %agent [our.bowl %harness] %leave ~])
+  ?~  steps.edit
+    =/  before  projection
+    =?  names.automation  ?=(^ names.edit)
+      (~(put by names.automation) id.u.names.edit task-names.u.names.edit)
+    =.  edits.automation  (~(del by edits.automation) id)
+    =.  cor  (finalize id answer.edit)
+    (reproject before)
+  =.  edits.automation  (~(put by edits.automation) id edit(steps t.steps.edit))
+  =/  request=@t  (rap 3 'steward-' (scot %uv id) '-' (scot %ud (lent steps.edit)) ~)
+  =.  cor  (emit [%pass wire %agent [our.bowl %harness] %watch /crons/[request]])
+  %-  emit
+  :*  %pass  wire  %agent  [our.bowl %harness]  %poke  %harness-cron
+      !>(`request:cr`[request i.steps.edit])
+  ==
+::
+++  agent-steward-edit
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%steward %edit @ ~] wire)
+  =/  id  (slav %uv i.t.t.wire)
+  =/  edit  (~(get by edits.automation) id)
+  ?~  edit  cor
+  ?-  -.sign
+      %poke-ack
+    ?~  p.sign  cor
+    (fail-edit id 'the head refused the change')
+  ::
+      %watch-ack
+    ?~  p.sign  cor
+    (fail-edit id 'the head refused to report the change')
+  ::
+  ::  The head gives one result per request and holds the watch until the
+  ::  hand leaves it, so a kick lost the result. Steward's replay of the
+  ::  request would find it still applying and be ignored, so the edit
+  ::  ends here.
+  ::
+      %kick
+    %+  fail-edit  id
+    'the head dropped the result; the change may have applied, so check the task'
+  ::
+      %fact
+    ?.  =(%noun p.cage.sign)  cor
+    =/  result  !<((each json @t) q.cage.sign)
+    ?:  ?=(%| -.result)  (fail-edit id p.result)
+    (apply-edit id u.edit)
+  ==
+::
+++  fail-edit
+  |=  [id=@uv message=@t]
+  ^+  cor
+  =.  edits.automation  (~(del by edits.automation) id)
+  =/  wire  /steward/edit/(scot %uv id)
+  =?  cor  (~(has by wex.bowl) wire our.bowl %harness)
+    (emit [%pass wire %agent [our.bowl %harness] %leave ~])
+  (finalize id [%error %harness-error ~[leaf+(trip message)]])
+::
+::  Unlike the other Steward pokes, an answer is sent whether or not Steward
+::  is running: it follows a dispatch, so Steward ran a moment ago, and Gall
+::  queues it for a Steward that stopped since. Dropping it would leave the
+::  command to be replayed and applied again.
+::
+++  finalize
+  |=  [id=@uv body=response-body:v1:sa]
+  ^+  cor
+  %-  emit
+  :*  %pass  /steward/finalize  %agent  [our.bowl %steward]  %poke
+      %steward-automation-action-1
+      !>(`action:v1:sa`[%finalize id body])
+  ==
+::
 ++  refresh-peers
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/harness/(scot %da now.bowl)/$)  cor
@@ -335,6 +774,7 @@
   ?.  enabled.policy  cor
   =.  cor  accept-granted-invitations
   =.  cor  boot-lens
+  =.  cor  watch-automation
   =.  cor  watch-head
   ::  Gall owns the subscription. An acknowledged watch survives even when
   ::  processing its acknowledgement crashes before saving our local flag.
@@ -477,6 +917,7 @@
       ['publicationsConnected' %b publications-connected]
       ['deliveryMode' %s 'events']
       ['lens' lens-status]
+      ['automationHeld' %b held]
       ['maintenanceWake' ?~(wake ~ [%s (scot %da u.wake)])]
       ['leaseRenewal' =/(renew lease-renewal ?~(renew ~ [%s (scot %da u.renew)]))]
       ['error' %s error]
@@ -662,6 +1103,36 @@
     ==
   ++  work-method
     ?+  method.inbound  (emit (fail '-32601' 'Unknown Tlon method'))
+        %'harness/tlon/schedule-destination'
+      =/  parsed
+        %-  mole
+        |.
+        =,  dejs:format
+        ((ot ~[['owner' (se %p)] ['address' so] ['open' bo]]) (need params.inbound))
+      ?~  parsed  (emit (fail '-32602' 'Expected owner, address and open'))
+      =/  [owner=@p address=@t open=?]  u.parsed
+      ?.  =(`owner owner.policy)  (emit (fail '-32602' 'Tlon owner changed'))
+      =/  to  (conversation:automation-lib address)
+      ?~  to  (emit (fail '-32602' 'Expected a DM or channel address'))
+      ?:  &(?=(%dm -.u.to) !=(owner who.u.to))
+        (emit (fail '-32602' 'A scheduled DM must go to the owner'))
+      ?.  head-live  (emit (fail '-32603' 'Harness head disconnected'))
+      =/  reason  (unopenable u.to)
+      ?^  reason  (emit (reply (pairs:enjs:format ~[['refuse' %s u.reason]])))
+      =/  source  (conversation-binding u.to)
+      ?>  ?=(%& -.source)
+      =/  hands  ledger
+      =/  held  (~(get by bindings.hands) p.source)
+      ?:  &(?=(^ held) !enabled.u.held)
+        (emit (reply (pairs:enjs:format ~[['refuse' %s 'The conversation is disabled']])))
+      =/  ready
+        ?&  ?=(^ (ready-binding u.to))
+            ?=(^ held)
+            =('tlon' hand.u.held)
+            =((address:p u.to) address.u.held)
+        ==
+      =?  cor  &(open !ready)  (open-conversation ~ u.to)
+      (emit (reply (pairs:enjs:format ~[['binding' %s p.source] ['ready' %b ready]])))
         %'harness/tlon/work'
       =/  connected  head-live
       =/  found
@@ -1935,7 +2406,7 @@
   =/  authority  (speaker-authority sid `speaker)
   &(live.authority ?=(~ ceiling.authority))
 ::
-++  thread-context
+++  turn-context
   |=  [sid=@t binding=@t]
   ^-  (unit @t)
   =/  lane  (~(get by lanes) sid)
@@ -1946,29 +2417,56 @@
           (lane-live sid (scheduled sid))
       ==
     ~
-  ::  The owner's own DM carries the workspace rule, except beside a tap.
-  ?:  ?=(%dm -.to.u.lane)
-    ?.  &(?=(~ parent.to.u.lane) (actor-owner who.to.u.lane))  ~
-    ?:  %+  lien  ~(val by jobs)
-        |=(=job:t &(=(sid sid.job) (noted:workspace-plan text.input.job)))
+  =/  to  to.u.lane
+  ::  Inputs still waiting on this conversation, here or queued in the head
+  ::  behind a running turn: their messages are not repeated as history.
+  =/  waiting=(list input:t)
+    %+  murn  ~(val by jobs)
+    |=(=job:t ?.(=(sid sid.job) ~ `input.job))
+  =/  hands  ledger
+  =/  events
+    %-  ~(gas in *(set @t))
+    %+  weld  (turn waiting |=(=input:t event.input))
+    %+  murn  ~(tap in open:hand-index)
+    |=  id=@uv
+    =/  seen  (~(get by observations.hands) id)
+    ?~  seen  ~
+    ?.  ?&  =(binding binding.u.seen)
+            ?=(?(%queued %running) phase.u.seen)
+        ==
       ~
-    `rule:workspace-plan
-  ?~  parent.to.u.lane  ~
-  ?.  .^(? %gu /(scot %p our.bowl)/channels/(scot %da now.bowl)/$)  ~
+    `event.u.seen
+  =/  render
+    |=  [parent=(unit message:history-page) rows=(list row:history-page)]
+    (render:public-context to parent rows events nickname:messenger)
+  ?:  ?=(%dm -.to)
+    =/  contact  (render ~ ~)
+    ::  The owner's own DM carries the workspace rule, except beside a tap.
+    ?.  &(?=(~ parent.to) (actor-owner who.to))  contact
+    ?:  (lien waiting |=(=input:t (noted:workspace-plan text.input)))  contact
+    ?~  contact  `rule:workspace-plan
+    `(rap 3 rule:workspace-plan '\0a\0a' u.contact ~)
   ::  A removed channel or parent is an ordinary miss, not a failed scry that
   ::  can prevent the original human input from being admitted by the head.
+  ?.  .^(? %gu /(scot %p our.bowl)/channels/(scot %da now.bowl)/$)
+    ~
+  ::  Room for the waiting messages, which the reference leaves out.
+  =/  count  (min 65 (add ?~(parent.to 20 8) ~(wyt in events)))
+  ?~  parent.to
+    ?.  .^(? %gu (channel:~(. paths [our now]:bowl) %v4 nest.to))
+      ~
+    =/  found  (mole |.((load:~(. history-read bowl) to ~ count)))
+    ?~  found  ~
+    (render ~ rows.u.found)
   =/  channels=v-channels:v9:dv
     .^(v-channels:v9:dv %gx /(scot %p our.bowl)/channels/(scot %da now.bowl)/v4/v-channels/noun)
-  =/  channel  (~(get by channels) nest.to.u.lane)
+  =/  channel  (~(get by channels) nest.to)
   ?~  channel  ~
-  =/  parent  (get:on-v-posts:v9:dv posts.u.channel u.parent.to.u.lane)
+  =/  parent  (get:on-v-posts:v9:dv posts.u.channel u.parent.to)
   ?.  ?=([~ %& *] parent)  ~
-  =/  found
-    %-  mole
-    |.
-    =/  snapshot  (load:~(. history-read bowl) to.u.lane ~ 8)
-    (render:public-context to.u.lane parent.snapshot rows.snapshot)
-  ?~(found ~ u.found)
+  =/  found  (mole |.((load:~(. history-read bowl) to ~ count)))
+  ?~  found  ~
+  (render parent.u.found rows.u.found)
 ::
 ++  route-ready
   |=  sid=@t
@@ -2051,6 +2549,7 @@
   =.  error  ''
   ?:  &(=(updated-policy policy) =(siblings sibling-moon-owners))  cor
   =/  before  policy
+  =/  mirrored  projection
   ::  Changing owners never retargets retained private run contents.
   =?  lens  !=(owner.updated-policy owner.policy)  *lens-sync:t
   =/  sibling-change  !=(siblings sibling-moon-owners)
@@ -2103,6 +2602,9 @@
     =?  engine  &(?=(^ route) (~(has by bindings.hands) binding.u.route))
       (hand:engine %disable (sham [sid epoch.engine]) [%enable binding.u.route |])
     =.  engine  (head:engine /cancel [%fence sid])
+    =.  engine
+      %+  fail-waiting:engine  sid
+      'the bot\'s settings for this conversation changed; send the change again'
     engine(lanes (~(del by lanes.engine) sid), routes (~(del by routes.engine) sid))
   =.  jobs
     %-  ~(gas by *(map @uv job:t))
@@ -2183,6 +2685,10 @@
   =.  error  ''
   =.  cor  (sync-presence hands)
   =?  cor  !=(owner.before owner.updated-policy)  configure-steward
+  ::  Steward's tasks are the owner's own, so a new owner gets a new set.
+  =?  cor  !=(owner.before owner.updated-policy)
+    ?~  owner.updated-policy  leave-automation
+    (reproject:watch-automation mirrored)
   ?:  =(enabled.before enabled.updated-policy)  schedule:accept-granted-invitations
   ?:  enabled.updated-policy  boot
   =?  cor  (~(has by wex.bowl) /activity our.bowl %activity)
@@ -2193,6 +2699,9 @@
   |=  [wire=wire sign=sign:agent:gall]
   ^+  cor
   ?+  wire  cor
+    [%steward %schedules ~]  (agent-steward-schedules wire sign)
+    [%steward %dispatch ~]  (agent-steward-dispatch wire sign)
+    [%steward %edit @ ~]  (agent-steward-edit wire sign)
     [%lens %events ~]  (agent-lens-events wire sign)
     [%lens %send @ @ @ ~]  (agent-lens-send wire sign)
     [%channel-join @ @ @ ~]  (agent-channel-join wire sign)
@@ -2616,6 +3125,10 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?>  ?=([%hand @ @ ~] wire)
+  ::  A kicked open lost its answer, and nothing else would resume the
+  ::  edits waiting on it.
+  ?:  &(=(%open i.t.wire) ?=(%kick -.sign))
+    (resume (slav %uv i.t.t.wire) ~)
   ?.  ?=(%fact -.sign)  cor
   =.  cor  (emit [%pass wire %agent [our.bowl %harness] %leave ~])
   =/  phase=term  i.t.wire
@@ -2625,6 +3138,7 @@
     (refused id (~(got by jobs) id) p.result)
   ::  Disabling a binding that no longer exists is expected, not an error.
   ?:  =(%disable phase)  cor
+  ?:  =(%open phase)  (resume id ?:(?=(%| -.result) `p.result ~))
   ?:  ?=(%| -.result)  cor(error p.result)
   ?:  =(%bind phase)
     =/  job  (~(get by jobs) id)
@@ -2639,7 +3153,8 @@
     ::  Anything else, a path included, reaches the model with its speaker.
     =/  text
       ?^  (parse:command text.input.u.job)  text.input.u.job
-      (attribute:input actor.input.u.job to.input.u.job text.input.u.job)
+      =/  name  (nickname:messenger actor.input.u.job)
+      (attribute:input actor.input.u.job name to.input.u.job text.input.u.job)
     [%observe binding.route event.input.u.job (scot %p actor.input.u.job) text]
   ?:  =(%observe phase)  cor(jobs (~(del by jobs) id))
   ?:  =(%receipt phase)
@@ -2903,9 +3418,8 @@
   ?:  (lte (posted-at:continuity event) cutoff)  cor
   ::  A ready route does not recheck native read permission on its own.
   ?~  (speaker-grants actor.u.input to.u.input ~)  cor
-  =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))
+  =/  [sid=@t generation=@ud]  (lane-for to.u.input)
   =/  existing  (~(get by lanes) sid)
-  =/  generation  ?~(existing epoch epoch.u.existing)
   =/  id=@uv  (sham [generation u.input])
   ?:  (~(has by jobs) id)  cor
   ?:  (gte ~(wyt by jobs) 64)  cor(error 'Admission queue full; inspect Tlon pending work.')
@@ -2921,14 +3435,12 @@
   =/  =job:t  [u.input sid %create '']
   =.  jobs  (~(put by jobs) id job)
   =.  cor  (note ?:(=(`& bot) 'bot-message' 'message') actor.u.input (address:p to.u.input) event.u.input)
-  =.  identities  (~(put by identities) to.u.input sid)
+  =.  cor  (open-lane to.u.input)
   ?:  ?=(^ existing)
     ?:  (route-ready sid)  (bind-job id job)
     ?:  (lien ~(val by jobs) |=(pending=job:t &(=(sid sid.pending) =(%error stage.pending))))
       (start-route sid)
     cor
-  =.  lanes  (~(put by lanes) sid [to.u.input generation ~])
-  =.  routes  (~(put by routes) sid [(binding:continuity sid generation) %fence])
   (start-route sid)
 ::
 ++  deny-unpermissioned
@@ -3462,7 +3974,9 @@
       :~  'at '
           (address:p to.u.lane)
           ', shared with everyone in that channel. Each message there begins'
-          ' with the ship that sent it and a colon'
+          ' with the ship that sent it, then its display name in Contacts in'
+          ' parentheses when it has one, and a colon. A display name is a'
+          ' label, not identity or permission'
       ==
     ==
   =.  system.config
@@ -3501,7 +4015,8 @@
     |=  [[id=@uv job=job:t] jobs=(map @uv job:t)]
     =/  updated  ?:(=(sid sid.job) job(stage %error, error reason) job)
     (~(put by jobs) id updated)
-  cor(error reason)
+  =.  error  reason
+  (fail-waiting sid reason)
 ::
 ::  A setup the head refused is over. Its waiting messages would hold the
 ::  single Activity cursor for every conversation, so end them as refused,
@@ -3516,6 +4031,8 @@
     |=  [[id=@uv job=job:t] engine=_cor]
     ?.  =(sid sid.job)  engine
     (refused:engine id job reason)
+  ::  A Steward create waiting on this conversation is answered too.
+  =.  cor  (fail-waiting sid reason)
   cor(lanes (~(del by lanes) sid), routes (~(del by routes) sid))
 ::
 ++  route-complete
@@ -3523,10 +4040,14 @@
   ^+  cor
   =/  route  (~(got by routes) sid)
   =.  routes  (~(put by routes) sid route(phase %ready))
-  %+  roll  ~(tap by jobs)
-  |=  [[id=@uv job=job:t] engine=_cor]
-  ?.  &(=(sid sid.job) !=(%error stage.job))  engine
-  (bind-job:engine id job)
+  =.  cor
+    %+  roll  ~(tap by jobs)
+    |=  [[id=@uv job=job:t] engine=_cor]
+    ?.  &(=(sid sid.job) !=(%error stage.job))  engine
+    (bind-job:engine id job)
+  ::  An importer can open a route with neither an input nor a Steward edit.
+  ?:  &(?=(~ (waiting sid)) (lien ~(val by jobs) |=(=job:t =(sid sid.job))))  cor
+  (bind-route sid)
 ::
 ++  bind-job
   |=  [id=@uv job=job:t]
@@ -3536,12 +4057,7 @@
     cor(jobs (~(del by jobs) id))
   =/  route  (~(got by routes) sid.job)
   =.  jobs  (~(put by jobs) id job(stage %bind))
-  %^  hand  %bind  id
-  ::  A channel's binding admits any speaker; each turn's authority is
-  ::  decided per speaker. A DM's admits only its partner.
-  =/  actors=(list @t)
-    ?:(?=(%channel -.to.input.job) ~['*'] ~[(scot %p who.to.input.job)])
-  [%bind binding.route ['tlon' (address:p to.input.job) sid.job actors &]]
+  (hand %bind id [%bind binding.route (route-binding sid.job to.input.job)])
 ::
 ++  head-live
   ^-  ?
@@ -3614,8 +4130,10 @@
   =.  cor
     %+  roll  ~(tap by routes)
     |=  [[sid=@t route=route:t] engine=_cor]
-    ?:  =(%ready phase.route)  engine
-    (start-route:engine sid)
+    ?.  =(%ready phase.route)  (start-route:engine sid)
+    ::  An opened conversation's binding may have been lost with the head.
+    ?~  (waiting:engine sid)  engine
+    (bind-route:engine sid)
   ::  Recover the durable dispatch boundary, not just the pending outbox.
   ::  %claim means no Messenger card has been emitted; %send means its
   ::  outcome may be unknown; %receipt means the outcome is already recorded.

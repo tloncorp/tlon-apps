@@ -250,7 +250,7 @@ For runtime performance characteristics and benchmark instructions, see
 ### Saved state across upgrades
 
 `tests/harness-upgrade.hoon` holds populated saved states: `populated` for
-`%harness`, `populated-6` for `%harness-tlon` and `acp-populated` for `%acp`,
+`%harness`, `populated-7` for `%harness-tlon` and `acp-populated` for `%acp`,
 with the unowned hand `unowned` for owner initialization. In a populated
 state every field holds a value that is not its default, and every collection
 has an entry whose fields are set. `test-populated-state-is-populated` checks
@@ -279,9 +279,9 @@ When you add a migration step:
 1. Freeze the shape being replaced under its own name, beside the agent's
    earlier shapes: `state-m0` and the head's others in
    `sur/harness-store.hoon`, with `state-before-maintenance` in
-   `lib/harness-store.hoon`; the Tlon hand's `state-0` to `state-5` in
+   `lib/harness-store.hoon`; the Tlon hand's `state-0` to `state-6` in
    `lib/harness-tlon-migrate.hoon`. The current shapes are the head's
-   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-6` in
+   `state-0` in `sur/harness-store.hoon` and the Tlon hand's `state-7` in
    `sur/harness-tlon.hoon`.
 2. Move the populated fixture to the new shape, with a distinct value in
    every new field. Add a projection of it onto the frozen shape as the new

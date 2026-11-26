@@ -33,10 +33,13 @@ const RUNTIMES: { harness: BotAgentType; fixture: string }[] = [
     harness: 'hermes',
     fixture: '../../../hermes-tlon-adapter/fixtures/commands.json',
   },
+  { harness: 'harness', fixture: '../../../harness/fixtures/commands.json' },
 ];
 
 // The engagement parity contract reads each runtime's engagement fixture: the
 // token set that engages bare from the owner in a watched group channel.
+// Harness is absent: its commands are offered in DMs only, never bare in a
+// group channel.
 const ENGAGEMENT_FIXTURES: { harness: BotAgentType; fixture: string }[] = [
   {
     harness: 'openclaw',
