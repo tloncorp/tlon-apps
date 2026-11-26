@@ -655,7 +655,9 @@ where granted, read messages by every author.
   which closes the request, it says instead `~ship: I need approval from my
   owner, ~owner, before I can respond in this channel. I couldn't reach them
   just now — please mention me again later.` The ship's next mention opens
-  the request again. A later message that joins the open request is
+  the request again. Neither is said when the owner has changed since the
+  card was sent, as it would name an owner the card never reached, nor when
+  the request has closed or its id gone to another meanwhile. A later message that joins the open request is
   answered with nothing, and a DM attempt never is. Nor is a known bot, a
   ship whose message carries a bot's author profile, as OpenClaw leaves
   bots unanswered: two bots without access to each other would otherwise
@@ -832,12 +834,16 @@ hand handles no message from its own ship.
   post is not read; the answer is to the text Activity reported.
   It is let past the cutoff the grant sets, which still stops every earlier
   message and a later catch-up of this one. If the ship wrote several times,
-  only the newest is answered; if the newest was deleted, or the bot has
-  left the channel, nothing is. A grant made by a settings save, `/reject`
+  only the newest is answered; if the newest was deleted, or is itself an
+  approval command, which is the owner's alone, or the bot has left the
+  channel, nothing is. A grant made by a settings save, `/reject`
   and `/ban` answer nothing. The reply is `Approved DM access for ~ship. They will be able
   to message the bot.` or `Approved ~ship for <channel>. They will be able to
   interact in this channel.`, where the channel is named `Title in Group
-  (chat/~host/name)`, or with what of the titles it has.
+  (chat/~host/name)`, or with what of the titles it has. Wherever a card, a
+  reply or `/pending` names a channel, each title over 80 characters is cut
+  to 77 and `...`, as OpenClaw cuts a group's, since the host sets it and
+  Messenger limits a card's text.
 - `/reject` closes the request and gives nothing, so the ship can ask again.
   For a DM request it also declines the ship's pending DM invitation, as
   expiry does, so its next message invites the bot again. The reply is

@@ -458,6 +458,18 @@
   |=  text=@t
   ^-  @t
   (crip (tufa (scag 100 (tuba (trip text)))))
+::  +bounded: a channel's or a group's title cut to eighty characters, the
+::  last three an ellipsis, as OpenClaw bounds a group's title
+::
+::    A host sets the title, and it goes into cards and replies whose text
+::    Messenger limits.
+::
+++  bounded
+  |=  text=@t
+  ^-  @t
+  =/  chars  (tuba (trip text))
+  ?:  (lte (lent chars) 80)  text
+  (cat 3 (crip (tufa (scag 77 chars))) '...')
 ::  +card: the notice text and the card for a request
 ::
 ::    .where is the channel's name and group, or ~ for a DM.

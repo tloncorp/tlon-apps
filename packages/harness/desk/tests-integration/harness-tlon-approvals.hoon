@@ -1409,6 +1409,22 @@
     ==
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
   (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+::  ~dev's newest DM message is an approval command, which only the owner
+::  gives. As a deleted newest message, it is answered with nothing.
+::
+++  test-allow-answers-nothing-when-the-newest-dm-message-is-an-approval-command
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %:  admit-holding  asked  later  ~[[told (said ~nec '/allow d0001' told)]]
+        (dm-page ~[[one-at 'one' &] [two-at '/allow d0001' &]])  ~
+    ==
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  ;<  ~  bind:m  (ex-equal !>((admitted s)) !>(`(list [@p destination:t @t])`~))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  ~[['dm/~nec' 'Approved DM access for ~dev. They will be able to message the bot.']]
 ::  ~dev's DM grant was taken back at .two-at. What it wrote before then was
 ::  past its cutoff, never an attempt of this request.
 ::
@@ -2255,6 +2271,73 @@
   =/  cards  (carded caz)
   ?>  ?=([[~ @] ~] cards)
   (ex-equal !>((lent (tappable u.i.cards))) !>(12))
+::  Channel and group titles longer than a card's or a listing's room, and
+::  what they are cut to
+::
+++  long-channel  (crip (reap 100 'c'))
+++  long-group  (crip (reap 90 'g'))
+++  cut-channel  (cat 3 (crip (reap 77 'c')) '...')
+++  cut-group  (cat 3 (crip (reap 77 'g')) '...')
+::  As +admit, with .room-nest and its group titled .long-channel and
+::  .long-group
+::
+++  admit-titled
+  |=  [saved=state-7:t now=@da events=(list [@da incoming-event:v8:a])]
+  =/  m  (mare ,[(list card) state-7:t])
+  ^-  form:m
+  =/  events  (stream events)
+  =/  group  room-group
+  =.  title.meta.group  long-group
+  =.  channels.group
+    %+  ~(jab by channels.group)  room-nest
+    |=(=channel:v9:g channel(title.meta long-channel))
+  ;<  ~  bind:m  (boot saved now events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?&  =(%gx (snag 0 path))
+            (lien path |=(part=@ta =(%groups part)))
+            !(lien path |=(part=@ta =(%can-read part)))
+        ==
+      `!>((my ~[[[~lux %test] group]]))
+    ((scries events) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-7:t vase))
+++  test-a-card-cuts-a-long-channel-and-group-title
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  at  ~2026.9.9..12.00.00
+  ;<  [caz=(list card) *]  bind:m  (admit-titled fixture start ~[[at (mention ~dev room-nest at)]])
+  =/  cards  (sent caz)
+  ?>  ?=([* ~] cards)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((says blob.i.cards (rap 3 'Let the bot reply to ~dev in ' cut-channel '?' ~)))
+    !>(&)
+  ;<  ~  bind:m  (ex-equal !>((says blob.i.cards (cat 3 'Channel: ' cut-channel))) !>(&))
+  (ex-equal !>((says blob.i.cards (cat 3 'Group: ' cut-group))) !>(&))
+++  test-pending-cuts-a-long-channel-and-group-title-in-its-text-and-card
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m  (admit-titled asked later ~[[told (said ~nec '/pending' told)]])
+  =/  label  (rap 3 cut-channel ' in ' cut-group ' (chat/~lux/test)' ~)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    :~  :-  'dm/~nec'
+        %+  rap  3
+        :~  'Pending requests (3):'
+            '\0a  #d0001 - DM from ~dev'
+            '\0a  #c0001 - Mention in '  label  ' by ~dev'
+            '\0a  #c0002 - Mention in '  label  ' by ~wes'
+            pending-tail
+        ==
+    ==
+  =/  cards  (carded caz)
+  ?>  ?=([[~ @] ~] cards)
+  (ex-equal !>((says u.i.cards (cat 3 'Channel: ' label))) !>(&))
 ++  test-banned-lists-the-blocked-ships
   %-  eval-mare
   =/  m  (mare ,~)
@@ -2691,4 +2774,56 @@
   ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~bus `room-nest]])))
   ;<  ~  bind:m  (ex-equal !>((lent (sent caz))) !>(1))
   (ex-equal !>(jobs.w) !>(`(map @uv job:t)`~))
+::  Open ~dev's request by a mention in .room-nest, reload the adapter at
+::  .now with .change made to its state, then acknowledge the card with
+::  .ack: the replies that tell a ship the bot waits, and the state after
+::
+++  ack-after
+  |=  [change=$-(state-7:t state-7:t) now=@da ack=(unit tang)]
+  =/  m  (mare ,[(list [@t @t]) state-7:t])
+  ^-  form:m
+  =/  at  ~2026.9.9..12.00.00
+  ;<  [caz=(list card) s=state-7:t]  bind:m  (admit fixture start ~[[at (mention ~dev room-nest at)]])
+  ;<  ~  bind:m  (boot (change s) now *stream:v10:a)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-card caz ack)
+  (pure:m (waiting out) w)
+::  The acknowledgement names its request by id and opening time, so a
+::  request that closed, expired or gave its id to another meanwhile is
+::  told nothing.
+::
+++  test-a-card-acknowledged-after-its-request-closed-expired-or-gave-up-its-id-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  closed
+    |=  s=state-7:t
+    s(approvals (close:ask approvals.s (requested s ~dev `room-nest)))
+  =/  reused
+    |=  s=state-7:t
+    =/  id  (requested s ~dev `room-nest)
+    s(approvals (open:ask (close:ask approvals.s id) id [~wes `room-nest (add start ~m1)]))
+  ;<  [told=(list [@t @t]) *]  bind:m  (ack-after closed start ~)
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) *]  bind:m  (ack-after closed start `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m
+    (ack-after |=(s=state-7:t s) (add start ~h49) ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after reused start ~)
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
+  (ex-equal !>(told) !>(`(list [@t @t])`~))
+::  The reply would name the owner now; the card went to the one before.
+::
+++  test-a-card-acknowledged-after-the-owner-changed-tells-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  moved  |=(s=state-7:t s(owner.policy `~bus))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after moved start ~)
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by by-id.approvals.w)) !>(1))
+  ;<  [told=(list [@t @t]) w=state-7:t]  bind:m  (ack-after moved start `~[leaf+"no"])
+  ;<  ~  bind:m  (ex-equal !>(told) !>(`(list [@t @t])`~))
+  (ex-equal !>(approvals.w) !>(*approvals:t))
 --
