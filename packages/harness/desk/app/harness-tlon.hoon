@@ -3326,8 +3326,11 @@
   =/  handed  (allow-to event)
   ?~  handed  &
   (room u.handed)
-::  +allow-to: where the owner's allow in .event hands on its request's
-::  waiting message, if it acts on a request
+::  +allow-to: the conversation the owner's allow in .event hands its
+::  request's waiting message on to, if it acts on a request with one
+::
+::    The lookup is +answer-waiting's, with the cutoff the request's
+::    attempts were judged by, before the grant moves it.
 ::
 ++  allow-to
   |=  event=incoming-event:v8:a
@@ -3338,7 +3341,24 @@
   ?.  (actor-owner who.u.order)  ~
   =/  found  (pick:ask (live:ask approvals now.bowl) [id token]:order.u.order)
   ?~  found  ~
-  `(place-to:p [who place]:approval.u.found)
+  =*  approval  approval.u.found
+  =/  floor  (admission-cutoff who.approval (place-to:p [who place]:approval))
+  ::  The message is read as it will be once the grant lets it in.
+  %+  bind
+    (waiting-message:cor(policy (granting approval)) who.approval place.approval floor)
+  tail
+::  +granting: the policy with .approval's ship granted its place
+::
+++  granting
+  |=  =approval:t
+  ^-  policy:t
+  ?~  place.approval
+    policy(dm-grants (~(put in dm-grants.policy) who.approval))
+  =/  ships  (fall (~(get by channel-grants.policy) u.place.approval) ~)
+  %=  policy
+    channel-grants
+      (~(put by channel-grants.policy) u.place.approval (~(put in ships) who.approval))
+  ==
 ::  +room: whether input to .to fits the head's queues now
 ::
 ++  room
@@ -3709,14 +3729,7 @@
     ::  The cutoff the request's attempts were judged by, before the grant
     ::  moves it.
     =/  floor  (admission-cutoff who.approval (place-to:p [who place]:approval))
-    =/  granted=policy:t
-      ?~  place.approval
-        policy(dm-grants (~(put in dm-grants.policy) who.approval))
-      =/  ships  (fall (~(get by channel-grants.policy) u.place.approval) ~)
-      %=  policy
-        channel-grants
-          (~(put by channel-grants.policy) u.place.approval (~(put in ships) who.approval))
-      ==
+    =/  granted  (granting approval)
     ::  The settings save closes the request, sets cutoffs and, for a DM,
     ::  accepts the ship's pending invitation.
     =.  cor  (configure granted sibling-moon-owners)
@@ -3752,18 +3765,27 @@
 ++  answer-waiting
   |=  [who=@p =place:t floor=@da]
   ^+  cor
-  ?:  (blocked:messenger who)  cor
-  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
+  =/  waiting  (waiting-message who place floor)
+  ?~  waiting  cor
+  (admit event.u.waiting `floor)
+::  +waiting-message: the message +answer-waiting would admit, and the
+::  conversation it would be admitted to, if there is one
+::
+++  waiting-message
+  |=  [who=@p =place:t floor=@da]
+  ^-  (unit [event=incoming-event:v8:a to=destination:t])
+  ?:  (blocked:messenger who)  ~
+  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  ~
   =/  event  (waiting-attempt who place floor)
-  ?~  event  cor
-  ?^  (approval-order u.event)  cor
+  ?~  event  ~
+  ?^  (approval-order u.event)  ~
   =/  heard  (normalize-owned:p our.bowl policy u.event actor-owner)
-  ?~  heard  cor
+  ?~  heard  ~
   ::  A settings save drops the cutoff of a ship that lost its access and
   ::  has no conversation left, so .floor need not stop a message an earlier
   ::  allow answered. Whatever binding took it, it is not answered again.
-  ?:  (answered event.u.heard)  cor
-  (admit u.event `floor)
+  ?:  (answered event.u.heard)  ~
+  `[u.event to.u.heard]
 ::  +waiting-attempt: the newest message .who sent the bot in .place after
 ::  .floor that counts as an attempt there, as it would toward a request
 ::
