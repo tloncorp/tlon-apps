@@ -1483,13 +1483,12 @@
   =/  w  !<(state-7:t vase)
   ;<  ~  bind:m  (ex-equal !>(jobs.w) !>(`(map @uv job:t)`~))
   (ex-equal !>((kinds w 'message')) !>(1))
-::  .s with eight of ~bus's messages queued in .nest's conversation, a full
+::  .s with eight of ~bus's messages queued in conversation .to, a full
 ::  lane
 ::
 ++  full-lane
-  |=  [s=state-7:t nest=nest:dv]
+  |=  [s=state-7:t to=destination:t]
   ^-  state-7:t
-  =/  to  `destination:t`[%channel nest ~]
   =/  sid  (identity:continuity to)
   %=  s
     identities  (my ~[[to sid]])
@@ -1512,7 +1511,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
-  =/  saved  (full-lane asked room-nest)
+  =/  saved  (full-lane asked [%channel room-nest ~])
   =.  activity-through.saved  one-at
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit-holding saved later events (dm-page ~) ~[[one-at &]])
@@ -1534,7 +1533,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
-  =/  saved  (full-lane asked all-nest)
+  =/  saved  (full-lane asked [%channel all-nest ~])
   =.  activity-through.saved  one-at
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit-holding saved later events (dm-page ~) ~[[one-at &]])
@@ -1542,6 +1541,62 @@
   %+  ex-equal  !>((skim (admitted s) |=([who=@p *] =(~dev who))))
   !>  ^-  (list [@p destination:t @t])
   ~[[~dev [%channel room-nest ~] (mention-text 'may I ask?')]]
+::  The bot's post in .room-nest whose thread ~dev replied in
+::
+++  parent-at  ~2026.9.9..10.00.00
+::  As +admit-holding, with no DM page and local %channels holding the bot's
+::  post at .parent-at and, live in its thread, ~dev's reply at .at
+::
+++  admit-replied
+  |=  [saved=state-7:t now=@da events=(list [@da incoming-event:v8:a]) at=@da]
+  =/  m  (mare ,[(list card) state-7:t])
+  ^-  form:m
+  =/  events  (stream events)
+  ;<  ~  bind:m  (boot saved now events)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  (lien path |=(part=@ta =(%replies part)))
+      =/  blank  *reply:v9:dv
+      `!>(`replies:v9:dv`(gas:on-replies:v9:dv ~ ~[[at %& blank(id at, author ~dev)]]))
+    ((holding events (dm-page ~) ~[[parent-at &]]) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  =vase  bind:m  get-save
+  (pure:m caz !<(state-7:t vase))
+::  ~dev's waiting message is a reply in the thread of the bot's post, whose
+::  lane is full though the channel's has room: the allow waits for room in
+::  the thread, then runs and the reply is answered there.
+::
+++  test-an-allow-waits-for-room-in-the-thread-its-message-goes-to
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  thread  `destination:t`[%channel room-nest `parent-at]
+  =/  events  ~[[one-at (reply ~dev room-nest one-at)] [told (said ~nec '/allow c0001' told)]]
+  =/  saved  (full-lane asked thread)
+  =.  activity-through.saved  one-at
+  ;<  [caz=(list card) s=state-7:t]  bind:m  (admit-replied saved later events one-at)
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
+  ;<  [caz=(list card) w=state-7:t]  bind:m  (admit-replied s(jobs ~) later events one-at)
+  ;<  ~  bind:m  (ex-equal !>((channel-ships w room-nest)) !>((silt ~[~dev])))
+  %+  ex-equal
+    !>((turn (admitted w) |=([who=@p to=destination:t *] [who to])))
+  !>(`(list [@p destination:t])`~[[~dev thread]])
+::  ~dev's newest message was deleted, so the allow hands nothing on and
+::  needs no room: it runs at once, though .room-nest's lane is full.
+::
+++  test-an-allow-with-nothing-to-hand-on-does-not-wait-for-room
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[(mentioned 'may I ask?' one-at) [told (said ~nec '/allow c0001' told)]]
+  =/  saved  (full-lane asked [%channel room-nest ~])
+  =.  activity-through.saved  one-at
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding saved later events (dm-page ~) ~[[one-at |]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~dev])))
+  (ex-equal !>((skim (admitted s) |=([who=@p *] =(~dev who)))) !>(`(list [@p destination:t @t])`~))
 ++  test-allow-answers-only-the-newest-of-three-waiting-channel-mentions
   %-  eval-mare
   =/  m  (mare ,~)
