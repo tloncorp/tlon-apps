@@ -2754,40 +2754,70 @@
   ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~bus])))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(8))
   (ex-equal !>((answered caz)) !>(`(list [@t @t])`~[['dm/~nec' (room-revoked ~dev)]]))
-::  Sixty-four jobs fill the adapter's queue, so catch-up stops before the
-::  next message. The owner's /revoke next in line starts no turn, so it is
-::  carried out at once.
+::  .s with sixty-four of ~bus's jobs in .all-nest, a full adapter queue
+::
+++  busy-jobs
+  |=  s=state-7:t
+  ^-  state-7:t
+  =/  busy  `destination:t`[%channel all-nest ~]
+  =/  busy-sid  (identity:continuity busy)
+  %=  s
+    identities  (my ~[[busy busy-sid]])
+    lanes  (my ~[[busy-sid [busy 1 ~[%web]]]])
+    routes  (my ~[[busy-sid ['binding-busy' %ready]]])
+    jobs
+      %-  malt
+      %+  turn  (gulf 1 64)
+      |=  n=@ud
+      ^-  [@uv job:t]
+      [`@uv`n [[~bus (scot %ud n) busy 'hi'] busy-sid %bind '']]
+  ==
+::  Catch-up stops before the next message at a full queue. The owner's
+::  /revoke and /pending next in line start no turn, so they are carried
+::  out at once; ~bus's mention in .room-nest, whose lane has room, waits.
 ::
 ++  test-a-full-adapter-queue-does-not-delay-the-owners-revoke-next-in-line
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  busy  `destination:t`[%channel all-nest ~]
-  =/  busy-sid  (identity:continuity busy)
-  =/  saved  revoking
-  =.  saved
-    %=  saved
-      identities  (my ~[[busy busy-sid]])
-      lanes  (my ~[[busy-sid [busy 1 ~[%web]]]])
-      routes  (my ~[[busy-sid ['binding-busy' %ready]]])
-      jobs
-        %-  malt
-        %+  turn  (gulf 1 64)
-        |=  n=@ud
-        ^-  [@uv job:t]
-        [`@uv`n [[~bus (scot %ud n) busy 'hi'] busy-sid %bind '']]
-    ==
-  =/  after  (add told ~s1)
+  =/  next  (add told ~s1)
+  =/  after  (add told ~s2)
   ;<  [caz=(list card) s=state-7:t]  bind:m
-    %^  admit  saved  later
+    %^  admit  (busy-jobs revoking)  later
     :~  [told (said ~nec '/revoke ~dev' told)]
-        [after (addressed ~bus all-nest 'one more' after)]
+        [next (said ~nec '/pending' next)]
+        [after (addressed ~bus room-nest 'one more' after)]
     ==
   ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~bus])))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(64))
-  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(told))
+  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(next))
   ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
-  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~[['dm/~nec' (room-revoked ~dev)]]))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  ['dm/~nec' (room-revoked ~dev)]
+      ['dm/~nec' 'No pending approval requests.']
+  ==
+::  An allow answers the message waiting on its request, which a full
+::  queue would refuse behind the cutoff the grant moves: it waits for room
+::  as that message would, then runs and the message is answered.
+::
+++  test-an-allow-waits-for-room-in-a-full-queue-then-answers-its-message
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[[told (said ~nec '/allow d0001' told)]]
+  =/  page  (dm-page ~[[one-at 'may I ask?' &]])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding (busy-jobs asked) later events page ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>(dm-grants.policy:asked))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
+  ;<  [caz=(list card) w=state-7:t]  bind:m
+    (admit-holding s(jobs ~) later events page ~)
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.w) !>((silt ~[~bus ~dev])))
+  %+  ex-equal  !>((admitted w))
+  !>(`(list [@p destination:t @t])`~[[~dev [%dm ~dev ~] 'may I ask?']])
 ::  .open-nest answers every reader: once ~bus's grant there is gone, the
 ::  owner is told ~bus still has access.
 ::

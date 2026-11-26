@@ -3297,9 +3297,9 @@
   =/  event  (supported:activity-read event.row)
   ::  Leave the cursor before work we cannot retain. A later head fact or
   ::  bounded catch-up wake can continue without dropping an accepted input.
-  ::  An approval command next in line is carried out: it starts no turn.
-  =/  order  ?~(event ~ (approval-order:engine u.event))
-  ?:  &((gte ~(wyt by jobs.engine) 64) ?=(~ order))  engine(catching-up &)
+  ::  An approval command next in line that starts no turn is carried out.
+  =/  free  ?~(event | (turnless:engine u.event))
+  ?:  &((gte ~(wyt by jobs.engine) 64) !free)  engine(catching-up &)
   ?~  event  $(rows t.rows, engine engine(activity-through at.row))
   =/  actor  (actor:continuity u.event)
   ?:  ?&  ?=(^ actor)
@@ -3318,12 +3318,24 @@
   =.  engine  (activity:engine(activity-through at.row) u.event)
   $(rows t.rows)
 ::
+::  +turnless: whether .event is an approval command that starts no turn
+::
+::    An allow answers the message waiting on its request, so it waits for
+::    room as that message would.
+::
+++  turnless
+  |=  event=incoming-event:v8:a
+  ^-  ?
+  =/  order  (approval-order event)
+  ?~  order  |
+  !?=(%allow -.order.u.order)
+::
 ++  activity-room
   |=  event=incoming-event:v8:a
   ^-  ?
-  ::  An approval command starts no turn, so a full queue in the owner's DM
-  ::  must not hold it back.
-  ?^  (approval-order event)  &
+  ::  A full queue in the owner's DM does not hold back an approval command
+  ::  that starts no turn.
+  ?:  (turnless event)  &
   =/  input  (normalize-owned:p our.bowl policy event actor-owner)
   ?~  input  &
   =/  sid  (fall (~(get by identities) to.u.input) (identity:continuity to.u.input))

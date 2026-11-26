@@ -3,7 +3,7 @@
 ::  ordinary owner commands and approve nothing themselves.
 /-  t=harness-tlon
 /+  p=harness-tlon-policy, work-card=harness-tlon-work-card,
-    command=harness-command
+    command=harness-command, cj=channel-json
 |%
 ::  $order: an owner command: an answer to a request, typed or sent by a
 ::  card's button, a listing of the open requests or of the blocked ships,
@@ -129,7 +129,7 @@
   |=  text=@t
   ^-  (unit place:t)
   ?:  =('dm' text)  `~
-  =/  parsed  (rush text ;~((glue fas) sym ;~(pfix sig fed:ag) sym))
+  =/  parsed  (rush text nest-rule:dejs:cj)
   ?~  parsed  ~
   =/  [kind=@tas host=@p name=@tas]  u.parsed
   ?.  ?=(?(%chat %diary %heap) kind)  ~
