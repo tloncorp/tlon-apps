@@ -2574,8 +2574,8 @@
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
-  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
-  ;<  ~  bind:m  (ex-equal !>((unblocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-unblock-ship caz)) !>(`(list [wire @p])`~))
   %+  ex-equal  !>((turn ~(val by jobs.s) |=(=job:t actor.input.job)))
   !>(`(list @p)`~[~nec])
 ::
@@ -2638,7 +2638,7 @@
         ['dm/~nec' 'Revoked DM access for ~wes. They will no longer be able to message the bot.']
     ==
   ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-revoked')) !>(2))
-  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship caz)) !>(`(list [wire @p])`~))
   ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
   (ex-equal !>((turned caz)) !>(|))
 ::  ~bus holds three grants: nothing is taken back, and the owner is told
@@ -2897,7 +2897,7 @@
   ^-  form:m
   ;<  [revoked=(list card) s=state-7:t]  bind:m
     (admit revoking later ~[[told (said ~nec '/revoke ~dev' told)]])
-  ;<  ~  bind:m  (ex-equal !>((blocks revoked)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship revoked)) !>(`(list [wire @p])`~))
   =/  at  (add later ~m1)
   ;<  [caz=(list card) w=state-7:t]  bind:m
     (admit s afterwards ~[[at (addressed ~dev room-nest 'may I again?' at)]])
