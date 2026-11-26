@@ -37,8 +37,9 @@ const server = createServer(async (req, res) => {
   res.writeHead(200, { 'content-type': 'application/json' })
   res.end(JSON.stringify({ choices: [{ finish_reason: done.length ? 'stop' : 'tool_calls', message }] }))
 })
-async function scry(path, remote = false) {
+async function scry(path, remote = false, missing) {
   const r = await fetch(`${remote ? peerUrl : base}/~/scry/${path}.json`, { headers: { cookie: remote ? peerCookie : cookie }, signal: AbortSignal.timeout(15000) })
+  if (r.status === 404 && missing !== undefined) return missing
   assert.ok(r.ok, `${path}: ${r.status}`); return r.json()
 }
 async function until(description, check) {
@@ -49,7 +50,8 @@ async function until(description, check) {
   }
   throw new Error(`Timed out: ${description}`)
 }
-const messages = async () => Object.entries((await scry(`chat/v4/dm/${ship}/writs/newest/100/heavy`, true)).writs).map(([id, p]) => ({ id, ...p.essay }))
+// The peer has no DM with the bot until its first message.
+const messages = async () => Object.entries((await scry(`chat/v4/dm/${ship}/writs/newest/100/heavy`, true, { writs: {} })).writs).map(([id, p]) => ({ id, ...p.essay }))
 async function send(text) {
   stamp = Math.max(Date.now(), stamp + 1)
   const da = (((BigInt(stamp) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
