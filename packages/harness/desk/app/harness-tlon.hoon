@@ -3302,8 +3302,11 @@
   =.  cor  (emit (crash:observe bowl %approval-card u.p.sign))
   =.  error  'Messenger rejected an approval card; inspect the ship log.'
   ?~  found  cor
-  =.  approvals  (close:ask approvals id)
   =.  cor  (note 'approval-card-rejected' who.u.found (address:ask u.found) id)
+  ::  An invite is reported once, so a group request closed here would never
+  ::  open again: it stays for /pending to show.
+  ?:  ?=(%group -.topic.u.found)  cor
+  =.  approvals  (close:ask approvals id)
   (tell-waiting who.u.found to |)
 ::
 ++  agent-approval-full
@@ -3509,6 +3512,11 @@
     ::  the group's members access.
     ?~  (actor-grants ship.event ~)  (ask-owner ship.event [%group group.event] event after)
     =.  cor  (note 'group-invite' ship.event (rap 3 (scot %p p.group.event) '/' q.group.event ~) '')
+    ::  The join answers the group's open request, unless an answer to it is
+    ::  in flight.
+    =/  asked  (find-group:ask approvals group.event)
+    =?  approvals  &(?=(^ asked) !(~(has in busy.approvals) u.asked))
+      (close:ask approvals (need asked))
     (join-group group.event)
   ?:  ?=(%dm-invite -.event)
     ?.  ?=(%ship -.whom.event)  cor

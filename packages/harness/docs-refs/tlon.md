@@ -1037,7 +1037,13 @@ approval commands above, with these differences.
   invite decline failed. The invite stays on the ship.`
 - `/pending` lists it as `#g1a2b - Group invite from ~ship to <group>`, and
   its card's row as `Group invite from ~ship` with `Group: <group>`.
-- Gaining ship-wide access does not close it; `/allow` still joins.
+- Gaining ship-wide access does not close it; `/allow` still joins. An
+  invitation to the group from the owner or a ship on a ship-wide list,
+  which joins it at once, closes it, unless an answer to it is in flight.
+- If `%chat` rejects its card, it stays open, unlike a DM or channel
+  request, since `%groups` reports an invitation once and nothing would ask
+  again; the failure is recorded as `approval-card-rejected`, and `/pending`
+  lists the request.
 
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership

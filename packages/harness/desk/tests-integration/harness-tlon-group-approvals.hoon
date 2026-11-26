@@ -705,6 +705,42 @@
     (ex-equal !>(text.i.cards) !>((cat 3 'Group invite request from ~bus for ' label)))
   %+  ex-equal  !>((answered out))
   !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
+::  %chat rejects the card of ~dev's group request. An invite is reported
+::  once, so the request stays open, and /pending lists it.
+::
+++  test-a-rejected-card-leaves-a-group-request-open-for-pending
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) *]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~dev)]])
+  =/  wires
+    %+  murn  caz
+    |=(c=card ?.(?=([%pass [%approval @ @ *] %agent [@ %chat] *] c) ~ `p.c))
+  ?>  ?=([* ~] wires)
+  ;<  *  bind:m  (do-agent i.wires [~zod %chat] [%poke-ack `~[leaf+"no"]])
+  ;<  =vase  bind:m  get-save
+  =/  w  !<(state-8:t vase)
+  ;<  ~  bind:m  (ex-equal !>((requests w)) !>(`(list approval:t)`~[[~dev [%group club] start]]))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-card-rejected')) !>(1))
+  ;<  [out=(list card) *]  bind:m  (admit w later ~[[told (said ~nec '/pending' told)]])
+  %+  ex-equal
+    !>((lien (answered out) |=([* text=@t] ?=(^ (find "Group invite from ~dev" (trip text))))))
+  !>(&)
+::  ~wes, on the ship-wide list, invites the bot to .club too: the bot
+::  joins, and ~dev's request for .club closes.
+::
+++  test-a-trusted-invite-that-joins-a-group-closes-its-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [* s=state-8:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~dev)]])
+  ;<  ~  bind:m  (ex-equal !>((lent (requests s))) !>(1))
+  ;<  [caz=(list card) w=state-8:t]  bind:m
+    (admit-held s later ~[[told (invite ~wes)]] ~[[club ~dev] [club ~wes]])
+  ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~[club]))
+  (ex-equal !>(approvals.w) !>(*approvals:t))
 ++  test-pending-lists-a-group-request
   %-  eval-mare
   =/  m  (mare ,~)
