@@ -210,7 +210,7 @@
           ['destination' %s destination.job]
           ['schedule' %s expression.job]
           ['next' %s (scot %da next.job)]
-          ['remaining' (numb:enjs:format remaining.job)]
+          ['remaining' ?~(remaining.job ~ (numb:enjs:format u.remaining.job))]
           ['lastInput' ?~(last.job ~ [%s (scot %uv u.last.job)])]
       ==
         %notes

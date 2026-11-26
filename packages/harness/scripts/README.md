@@ -11,3 +11,10 @@ This directory contains scripts useful for development.
 
 ## Running tests
 
+
+## Zone table
+
+`generate-zones.py` rewrites `desk/lib/harness-zones.hoon`, the IANA zone
+names with the UTC offset each has on the day it runs, from the system tz
+database. Run it from `packages/harness` with `python3
+scripts/generate-zones.py`; the file header records the date.

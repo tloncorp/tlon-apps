@@ -12,8 +12,21 @@
       allowed=(set @p)
       channels=(map nest:c channel-rule)
   ==
-+$  state-5
-  $:  %5
++$  lane-3  [to=destination epoch=@ud tools=(list tool-grant:h)]
+::  Version 4 added pending browser handoffs ahead of the version 3 fields.
+::  Its lanes are version 3's.
++$  browser-result-4  $%([%form url=@t] [%payment id=@t])
++$  browser-phase-4
+  $%  [%authorize ~]  [%prepare local=?]  [%payment ~]
+      [%post result=browser-result-4]  [%wait result=browser-result-4]
+      [%check result=browser-result-4]
+      [%revoke ~]
+  ==
++$  browser-entry-4  [next=@da phase=browser-phase-4]
+::  Version 6 added per-place grants and their cutoffs.
++$  state-6
+  $:  %6
+      automation=automation
       browser-entries=(map @uv browser-entry)
       lens=lens-sync
       owner-initialized=@ud
@@ -34,7 +47,7 @@
       policy=policy
       epoch=@ud
       after=@da
-      lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
+      lanes=(map @t lane)
       jobs=(map @uv job)
       deliveries=(map @uv delivery)
       notices=(list notice)
@@ -44,9 +57,12 @@
       wake=(unit @da)
       error=@t
   ==
-+$  state-4
-  $:  %4
-      browser-entries=(map @uv browser-entry)
+::  Version 5 added the Steward automation ahead of the version 4 fields.
+::  Its policy, lanes and browser handoffs are version 4's.
++$  state-5
+  $:  %5
+      automation=automation
+      browser-entries=(map @uv browser-entry-4)
       lens=lens-sync
       owner-initialized=@ud
       sibling-moon-owners=$~(| ?)
@@ -65,7 +81,38 @@
       policy=policy-3
       epoch=@ud
       after=@da
-      lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
+      lanes=(map @t lane-3)
+      jobs=(map @uv job)
+      deliveries=(map @uv delivery)
+      notices=(list notice)
+      next-notice=@ud
+      listeners=(set @t)
+      watching=?
+      wake=(unit @da)
+      error=@t
+  ==
++$  state-4
+  $:  %4
+      browser-entries=(map @uv browser-entry-4)
+      lens=lens-sync
+      owner-initialized=@ud
+      sibling-moon-owners=$~(| ?)
+      sibling-owner-after=@da
+      activity-through=@da
+      catching-up=$~(| ?)
+      identities=(map destination @t)
+      routes=(map @t route)
+      cuts=(map @p @da)
+      channel-after=@da
+      channel-cuts=(map nest:c @da)
+      uploads=(map @uv upload)
+      last-sent=@da
+      tool-receipts=(map @uv tool-receipt)
+      computing=(map path presence-lease)
+      policy=policy-3
+      epoch=@ud
+      after=@da
+      lanes=(map @t lane-3)
       jobs=(map @uv job)
       deliveries=(map @uv delivery)
       notices=(list notice)
@@ -95,7 +142,7 @@
       policy=policy-3
       epoch=@ud
       after=@da
-      lanes=(map @t lane)  ::  admitted authorization generations; head keeps history
+      lanes=(map @t lane-3)
       jobs=(map @uv job)
       deliveries=(map @uv delivery)
       notices=(list notice)
@@ -192,14 +239,19 @@
       wake=(unit @da)
       error=@t
   ==
+::  Each saved version steps forward one version at a time: a %3 through
+::  +three-to-four, every %4 through +four-to-five, every %5 through
+::  +five-to-six, then every %6 through +six-to-seven.
+::
 ++  load
   |=  old=vase
-  ^-  state-6
+  ^-  state-7
   ?>  ?=(^ q.old)
-  ?:  =(%6 -.q.old)  !<(state-6 old)
-  ?:  =(%5 -.q.old)  (five-to-six !<(state-5 old))
-  ?:  =(%4 -.q.old)  (five-to-six (four-to-five !<(state-4 old)))
-  (five-to-six (four-to-five (three-to-four (three old))))
+  ?:  =(%7 -.q.old)  !<(state-7 old)
+  ?:  =(%6 -.q.old)  (six-to-seven !<(state-6 old))
+  ?:  =(%5 -.q.old)  (six-to-seven (five-to-six !<(state-5 old)))
+  ?:  =(%4 -.q.old)  (six-to-seven (five-to-six (four-to-five !<(state-4 old))))
+  (six-to-seven (five-to-six (four-to-five (three-to-four (three old)))))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -208,7 +260,7 @@
   |=  old=vase
   ^-  (list [sid=@t binding=@t])
   ?>  ?=(^ q.old)
-  ?:  |(=(%3 -.q.old) =(%4 -.q.old) =(%5 -.q.old) =(%6 -.q.old))  ~
+  ?:  ?=(?(%3 %4 %5 %6 %7) -.q.old)  ~
   =/  saved  (two old)
   %+  murn  ~(tap by lanes.saved)
   |=  [sid=@t lane=lane-2]
@@ -239,6 +291,13 @@
     ?:  =(%0 -.q.old)  (zero-to-one !<(state-0 old))
     !<(state-1 old)
   [%2 *lens-sync +.saved]
+::  Steward names, edits and the schedule snapshot start empty; the head's
+::  first /v1/schedule-events fact fills the snapshot.
+::
+++  four-to-five
+  |=  old=state-4
+  ^-  state-5
+  [%5 *automation +.old]
 ::  A conversation is keyed by its destination alone. A DM's speaker is its
 ::  partner, so its identity already is; a channel's per-speaker
 ::  conversations are dropped and the channel starts one shared afresh.
@@ -251,7 +310,7 @@
 ++  two-to-three
   |=  old=state-2
   ^-  state-3
-  =/  dms=(map @t lane)
+  =/  dms=(map @t lane-3)
     %-  malt
     %+  murn  ~(tap by lanes.old)
     |=  [sid=@t old=lane-2]
@@ -274,10 +333,11 @@
 ::  Per-place grants and their cutoffs start empty; the ship-wide lists and
 ::  channel rules are kept as saved.
 ::
-++  four-to-five
-  |=  old=state-4
-  ^-  state-5
-  :*  %5
+++  five-to-six
+  |=  old=state-5
+  ^-  state-6
+  :*  %6
+      automation.old
       browser-entries.old
       lens.old
       owner-initialized.old
@@ -310,10 +370,10 @@
   ==
 ::  Approval requests start empty; everything else is kept as saved.
 ::
-++  five-to-six
-  |=  old=state-5
-  ^-  state-6
-  [%6 *approvals +.old]
+++  six-to-seven
+  |=  old=state-6
+  ^-  state-7
+  [%7 *approvals +.old]
 ::
 ++  zero-to-one
   |=  saved=state-0

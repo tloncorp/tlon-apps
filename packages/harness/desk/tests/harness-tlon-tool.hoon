@@ -257,7 +257,7 @@
   !>  ^-  [@ud [? ?] [? ?]]
       [(lent full) (bot-run:deny here full) (bot-run:deny here next)]
 ++  test-tool-deadline-with-tlon-replies-disabled
-  =/  state=state-6:t  *state-6:t
+  =/  state=state-7:t  *state-7:t
   =.  enabled.policy.state  |
   =.  tool-receipts.state
     %-  my

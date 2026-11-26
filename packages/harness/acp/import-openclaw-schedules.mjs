@@ -1,27 +1,36 @@
 // One-time import of an OpenClaw bot's scheduled tasks into Harness schedules.
 // It reads the file `openclaw cron list --json --all` prints, which the
 // operator saves while OpenClaw still runs; it never contacts OpenClaw. Each
-// task becomes a schedule of the existing Tlon conversation it delivered to,
+// task becomes a schedule of the Tlon conversation it delivered to,
 // made as the owner, or is refused with the reason.
 //
 //   cd packages/harness
 //   SHIP_URL=https://moon.example SHIP_COOKIE=/path/to/cookie.txt \
 //     node acp/import-openclaw-schedules.mjs --from export.json --owner '~sampel-palnet' [--dry-run]
+//
+// A recurring task runs until it is cancelled, as it did in OpenClaw;
+// --runs N limits each one to N runs.
+import { setTimeout as sleep } from 'node:timers/promises'
 import { createHash } from 'node:crypto'
 import { readFileSync, realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { canonicalShip } from './people.mjs'
 
-export const runs = 100
+// The head's largest run count.
+export const maxRuns = 1_000_000
 export const capacity = 64
-const maxPromptBytes = 4096
+const maxPromptBytes = 8192
 const day = 86_400_000
 const horizon = 3653 * day
 const soon = 30 * day
+const century = 36525 * day
 // The @da of the Unix epoch.
 const epoch = 170141184475152167957503069145530368000n
 const flags = { '--dry-run': 'dryRun', '--widen-tools': 'widenTools', '--none-to-owner-dm': 'noneToOwnerDm', '--threads-to-parent': 'threadsToParent' }
-const usage = `Usage: SHIP_URL=https://moon.example SHIP_COOKIE=/path/to/cookie.txt node acp/import-openclaw-schedules.mjs --from export.json --owner '~sampel-palnet' [${Object.keys(flags).join('] [')}]\n`
+const usage = `Usage: SHIP_URL=https://moon.example SHIP_COOKIE=/path/to/cookie.txt node acp/import-openclaw-schedules.mjs --from export.json --owner '~sampel-palnet' [${Object.keys(flags).join('] [')}] [--runs N]\n`
+// What a head from before optional run counts answers a recurring create
+// without one: its general validation refusal.
+const countRequired = 'Require an authorized actor and prompt 1..4096 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field schedule with timezone UTC or a fixed +HH:MM/-HH:MM offset and runs 1..100. Literal reminders require at and text, and a destination only if it names this conversation.'
 
 const bytes = (text) => Buffer.byteLength(text, 'utf8')
 const minute = (ms) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
@@ -115,11 +124,13 @@ export function nextRun(pattern, offset, after) {
   }
   return null
 }
-// When the schedule stops: the time of its hundredth run, or of its last if
-// the search ends first.
-export function lastRun(pattern, offset, now) {
-  let at = now.getTime(), count = 0
-  for (; count < runs; count++) {
+// When a schedule of `limit` runs stops: the time of its last run, or of the
+// last the search finds if it ends first. A count can reach a million, so the
+// walk stops a century on, and `beyond` says the schedule outlasts it.
+export function lastRun(pattern, offset, now, limit, first) {
+  let at = first ?? now.getTime(), count = first === undefined ? 0 : 1
+  for (; count < limit; count++) {
+    if (at - now.getTime() > century) return { count, at, beyond: true }
     const next = nextRun(pattern, offset, at)
     if (next === null) break
     at = next
@@ -128,17 +139,19 @@ export function lastRun(pattern, offset, now) {
 }
 
 // The note saying when a schedule stops, from its last run and how many runs
-// it has left.
-function stopText({ count, at }, now, fresh) {
+// it has, or would have, left.
+function stopText({ count, at, beyond }, now, fresh) {
   if (!count) return 'never runs within four years, so Harness will refuse it'
+  if (beyond) return 'runs for more than a hundred years'
   const warning = at - now.getTime() <= soon ? 'ENDS WITHIN 30 DAYS: tell its owner. ' : ''
-  if (fresh && count === runs) return `${warning}hundredth and last run ${minute(at)}`
   return `${warning}${fresh ? 'ends after' : 'last of its'} ${count} runs${fresh ? ',' : ''} on ${minute(at)}`
 }
 
 // When a schedule Harness already holds stops: its next run and the runs it
-// has left, as the returned row says, not a fresh hundred.
+// has left, as the returned row says. remaining is null for a schedule with no
+// count, which runs until it is cancelled.
 export function stopOf(row, now) {
+  if (row.remaining === null) return row.state === 'active' ? 'runs until cancelled' : row.state
   if (row.state !== 'active') return `${row.state}, with ${row.remaining} runs left`
   const first = timeOf(row.next)
   let pattern
@@ -148,13 +161,7 @@ export function stopOf(row, now) {
     // A one-time schedule's row holds its time, and it runs once.
     return Number.isNaN(Date.parse(row.schedule)) ? 'last run unknown' : stopText({ count: 1, at: first }, now, false)
   }
-  let at = first, count = 1
-  for (; count < row.remaining; count++) {
-    const next = nextRun(pattern, row.timezone, at)
-    if (next === null) break
-    at = next
-  }
-  return stopText({ count, at }, now, false)
+  return stopText(lastRun(pattern, row.timezone, now, row.remaining, first), now, false)
 }
 
 // A delivery target, by the rules of the OpenClaw Tlon plugin's targets.ts.
@@ -252,8 +259,9 @@ function destinationOf(job, owner, options) {
 
 // Plans one task without the ship: { import: {id, destination, kind, args},
 // notes, stop }, or { refuse, notes, stop }, or { disabled: true, notes }.
-// stop says when a new schedule would stop.
-export function plan(job, { owner, now, widenTools = false, noneToOwnerDm = false }) {
+// stop says when a new schedule would stop. runs, when given, limits a
+// recurring schedule to that many runs; without it the schedule has no count.
+export function plan(job, { owner, now, widenTools = false, noneToOwnerDm = false, runs }) {
   const notes = notesOf(job)
   let stop
   const refuse = (reason) => ({ refuse: reason, notes, stop })
@@ -281,7 +289,7 @@ export function plan(job, { owner, now, widenTools = false, noneToOwnerDm = fals
       return refuse(`unknown timezone ${schedule.tz}`)
     }
     if (!timezone) return refuse(`${schedule.tz} has no whole-minute offset`)
-    args = { schedule: schedule.expr, timezone, prompt, runs: String(runs) }
+    args = { schedule: schedule.expr, timezone, prompt, ...(runs ? { runs: String(runs) } : {}) }
     if (timezone !== 'UTC' || schedule.tz !== 'UTC') {
       const shifts = offsetOf(schedule.tz, new Date(now.getTime() + 182 * day)) !== timezone
       notes.push(`${schedule.tz} sent as the fixed offset ${timezone}${shifts ? ', which does not follow daylight saving' : ''}`)
@@ -290,9 +298,12 @@ export function plan(job, { owner, now, widenTools = false, noneToOwnerDm = fals
     try {
       pattern = parseCron(schedule.expr)
     } catch {
-      stop = 'hundredth run unknown: the expression is outside Harness\'s cron grammar, so Harness will likely refuse it'
+      stop = 'the expression is outside Harness\'s cron grammar, so Harness will likely refuse it'
     }
-    if (pattern) stop = stopText(lastRun(pattern, timezone, now), now, true)
+    if (pattern) {
+      const last = lastRun(pattern, timezone, now, runs ?? 1)
+      stop = !last.count || runs ? stopText(last, now, true) : 'runs until cancelled'
+    }
   } else {
     const at = Date.parse(schedule.at)
     if (Number.isNaN(at)) return refuse(`unreadable time ${schedule.at}`)
@@ -319,8 +330,8 @@ export function plan(job, { owner, now, widenTools = false, noneToOwnerDm = fals
 
 const sameParent = (a, b) => a.id === b.id && (!a.author || !b.author || a.author === b.author)
 
-// The binding of the existing conversation at that destination: { binding,
-// address, notes } or { refuse }. conversations are { binding, destination }.
+// Match the exact thread first. A top-level address without a recorded
+// input is resolved by the Tlon hand under the current delivery policy.
 export function resolve(destination, conversations, { threadsToParent = false } = {}) {
   const find = (parent) => conversations.find(({ destination: address }) => {
     const parsed = addressOf(address)
@@ -333,8 +344,24 @@ export function resolve(destination, conversations, { threadsToParent = false } 
     if (!threadsToParent) return { refuse: 'no conversation in that thread yet; --threads-to-parent posts to its DM or channel instead' }
   }
   const found = find(null)
-  if (!found) return { refuse: `no conversation in ${destination.address} yet; send the bot a message in it first` }
-  return { binding: found.binding, address: found.destination, notes: destination.parent ? ['posts to the conversation, not the thread'] : [] }
+  const notes = destination.parent ? ['posts to the conversation, not the thread'] : []
+  return found ? { binding: found.binding, address: found.destination, notes } : { address: destination.address, notes }
+}
+
+// Opening a lane and binding it to the head completes asynchronously. Poll
+// read-only after the first request so a slow setup is never restarted.
+async function openDestination(client, owner, address, expected) {
+  const params = { owner, address }
+  const deadline = Date.now() + 30_000
+  let result = await client.call('harness/tlon/schedule-destination', { ...params, open: true })
+  for (;;) {
+    if (result.refuse) throw new Error(result.refuse)
+    if (result.binding !== expected) throw new Error('Destination changed during import; rerun the preview')
+    if (result.ready) return
+    if (Date.now() >= deadline) throw new Error('Timed out waiting for the conversation binding')
+    await sleep(250)
+    result = await client.call('harness/tlon/schedule-destination', { ...params, open: false })
+  }
 }
 
 // The Tlon conversations that can take a schedule now, one per binding.
@@ -356,14 +383,17 @@ const scheduleText = ({ schedule = {} }) =>
   schedule.kind === 'cron' ? `cron "${schedule.expr}" ${schedule.tz ?? '(no zone)'}` : schedule.kind === 'at' ? `at ${schedule.at}` : schedule.kind === 'every' ? `every ${schedule.everyMs} ms` : String(schedule.kind)
 
 // Does the schedule Harness holds do what this import asks? An edit in
-// Harness keeps the id, so a repeated create returns the edited row.
+// Harness keeps the id, so a repeated create returns the edited row. Under a
+// count, a row with no count or more runs left than it was given differs; fewer
+// left are runs used up.
 export const matches = (row, { binding, address, kind, args }, owner) =>
   row.sourceBinding === binding && row.destination === address && row.kind === kind && row.actor === owner && row.prompt === args.prompt &&
-  (args.at ? row.schedule === args.at : row.schedule === args.schedule && row.timezone === args.timezone)
+  (args.at ? row.schedule === args.at : row.schedule === args.schedule && row.timezone === args.timezone) &&
+  (args.runs === undefined || (row.remaining !== null && row.remaining <= Number(args.runs)))
 
 // Returns the exit code: 1 when a create failed, a schedule differs from its
 // task or the ship is not set up for the owner, 0 otherwise, refusals included. client needs call(method, params).
-export async function run({ client, exported, owner, now = new Date(), dryRun = false, widenTools = false, noneToOwnerDm = false, threadsToParent = false, print = console.log }) {
+export async function run({ client, exported, owner, now = new Date(), dryRun = false, widenTools = false, noneToOwnerDm = false, threadsToParent = false, runs, print = console.log }) {
   const jobs = exported?.jobs ?? [], tasks = tasksOf(exported)
   const { policy } = await client.call('harness/tlon')
   if (!policy.enabled || policy.owner !== owner) {
@@ -375,19 +405,29 @@ export async function run({ client, exported, owner, now = new Date(), dryRun = 
   const status = new Map()
   const rows = []
   for (const job of tasks) {
-    const row = { job, label: labelOf(job), ...plan(job, { owner, now, widenTools, noneToOwnerDm }) }
+    const row = { job, label: labelOf(job), ...plan(job, { owner, now, widenTools, noneToOwnerDm, runs }) }
     rows.push(row)
     if (!row.import) continue
     const found = resolve(row.import.destination, conversations, { threadsToParent })
     if (found.refuse) { row.refuse = found.refuse; continue }
     row.notes.push(...found.notes)
     Object.assign(row.import, found)
+    if (!found.binding) {
+      const target = await client.call('harness/tlon/schedule-destination', { owner, address: found.address, open: false })
+      if (target.refuse) row.refuse = target.refuse
+      else {
+        row.import.binding = target.binding
+        row.import.needsOpen = !target.ready
+        if (!target.ready) row.notes.push('opens the conversation for delivery')
+      }
+      continue
+    }
     if (!status.has(found.binding)) status.set(found.binding, await client.call('harness/hand', { status: { binding: found.binding } }))
     const hand = status.get(found.binding)
     if (!hand?.enabled || hand.hand !== 'tlon') row.refuse = `the conversation in ${found.address} is not enabled`
   }
-  print(`${tasks.length} tasks from the export, ${jobs.length - tasks.length} built-in OpenClaw jobs left out, ${conversations.length} Tlon conversations on the ship${dryRun ? ' (dry run, nothing will be created)' : ''}`)
-  const totals = Object.fromEntries(['imported', 'would import', 'already there', 'exists but differs', 'refused', 'disabled', 'failed'].map((kind) => [kind, 0]))
+  print(`${tasks.length} tasks from the export, ${jobs.length - tasks.length} built-in OpenClaw jobs left out, ${conversations.length} Tlon conversations with recorded input${dryRun ? ' (dry run, nothing will be created)' : ''}`)
+  const totals = Object.fromEntries(['imported', 'would import', 'already there', 'exists with a run limit', 'exists but differs', 'refused', 'disabled', 'failed'].map((kind) => [kind, 0]))
   // Capacity counts every kept record and each create that succeeds; a repeat
   // of an id Harness holds needs no room.
   let room = capacity - existing.size
@@ -397,19 +437,29 @@ export async function run({ client, exported, owner, now = new Date(), dryRun = 
     const prior = row.import && existing.get(row.import.id)
     if (!row.refuse && row.import && !prior && room <= 0) row.refuse = `would pass Harness's limit of ${capacity} schedules`
     const planned = row.import && !row.refuse
+    // A create without a count over a schedule an earlier import made with
+    // one would be refused as a different request, so none is sent; the
+    // schedule is the same task unless it was edited since.
+    const limited = planned && prior && !runs && row.import.args.schedule && prior.remaining !== null
     if (row.disabled) [kind, detail] = ['disabled', ', not imported']
     else if (row.refuse) [kind, detail] = ['refused', `: ${row.refuse}`]
+    else if (limited) {
+      const same = matches(prior, row.import, owner)
+      ;[kind, detail, stop] = [same ? 'exists with a run limit' : 'exists but differs', same ? ' (imported earlier); left as it is' : '', stopOf(prior, now)]
+    }
     else if (dryRun) {
       if (!prior) [kind, room] = ['would import', room - 1]
       else [kind, detail, stop] = [matches(prior, row.import, owner) ? 'already there' : 'exists but differs', '', stopOf(prior, now)]
     } else {
       try {
+        if (row.import.needsOpen) await openDestination(client, owner, row.import.address, row.import.binding)
         const made = await client.call('harness/cron/add', { id: row.import.id, binding: row.import.binding, actor: owner, kind: row.import.kind, args: row.import.args })
         detail = `, next run ${minute(timeOf(made.next))}`
         if (!prior) [kind, room] = ['imported', room - 1]
         else [kind, stop] = [matches(made, row.import, owner) ? 'already there' : 'exists but differs', stopOf(made, now)]
       } catch (error) {
-        [kind, detail] = ['failed', `: ${error.message}`]
+        const hint = !runs && row.import.args.schedule && error.message === countRequired ? '; if this desk predates optional run counts, rerun with --runs 100' : ''
+        ;[kind, detail] = ['failed', `: ${error.message}${hint}`]
       }
     }
     if (kind === 'exists but differs') detail = ` (edited since import?); left as it is${detail}`
@@ -439,8 +489,12 @@ export function options(args) {
   for (let index = 0; index < args.length; index++) {
     const arg = args[index]
     if (flags[arg]) parsed[flags[arg]] = true
-    else if ((arg === '--from' || arg === '--owner') && index + 1 < args.length) parsed[arg.slice(2)] = args[++index]
+    else if ((arg === '--from' || arg === '--owner' || arg === '--runs') && index + 1 < args.length) parsed[arg.slice(2)] = args[++index]
     else return null
+  }
+  if (parsed.runs !== undefined) {
+    if (!/^\d+$/.test(parsed.runs) || Number(parsed.runs) < 1 || Number(parsed.runs) > maxRuns) return null
+    parsed.runs = Number(parsed.runs)
   }
   const owner = parsed.owner && canonicalShip(parsed.owner)
   return parsed.from && owner ? { ...parsed, owner } : null

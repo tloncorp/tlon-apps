@@ -90,6 +90,43 @@
       'without hiding decisions from its user.'
   ==
 ::
+::  The byte limit on one default-instructions layer, and on the hosted soul,
+::  which is the AGENTS.md layer.
+++  prompt-limit  65.536
+::  The byte limit on the text new conversations inherit, every composed layer
+::  together.
+++  composed-limit  131.072
+::  New conversations inherit the layers in this order. MEMORY.md is the
+::  owner's private memory: it is stored and readable on the ship, but every
+::  conversation inherits this text, shared channels and other ships' DMs
+::  included, so it is never composed.
+++  prompt-order
+  ^-  (list prompt-name:h)
+  :~  %'AGENTS.md'  %'SOUL.md'  %'IDENTITY.md'  %'USER.md'
+      %'TOOLS.md'  %'BOOTSTRAP.md'
+  ==
+::  The inherited text adds nothing but a blank line between present layers,
+::  so a lone layer composes to itself byte for byte.
+++  compose-prompts
+  |=  layers=prompts:h
+  ^-  @t
+  %+  rap  3
+  %+  join  '\0a\0a'
+  (murn prompt-order |=(name=prompt-name:h (~(get by layers) name)))
+::  An empty layer is absent, so equal texts compare equal.
+++  put-prompt
+  |=  [layers=prompts:h name=prompt-name:h body=@t]
+  ^-  prompts:h
+  ?:  =('' body)  (~(del by layers) name)
+  (~(put by layers) name body)
+::  Whether a layer write keeps the inherited text within its limit. A text an
+::  upgrade loaded over the limit may still shrink, or stay as it is.
+++  prompt-fits
+  |=  [layers=prompts:h name=prompt-name:h body=@t]
+  ^-  ?
+  =/  after  (met 3 (compose-prompts (put-prompt layers name body)))
+  |((lte after composed-limit) (lte after (met 3 (compose-prompts layers))))
+::
 ++  builtin-config
   ^-  config:h
   :*  |
