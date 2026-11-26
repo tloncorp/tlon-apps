@@ -65,6 +65,16 @@
   ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ::  Every ship here may read both channels natively.
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
+  ::  Each ship's own group invite is on the ship.
+  ?:  ?=([%gx @ %groups @ %v1 %foreigns %noun ~] path)
+    =/  invite  *invite:v8:g
+    =/  held=(list flag:g)  ~[[~bus %one] [~dev %two] [~bud %three]]
+    :-  ~
+    !>  ^-  foreigns:v8:g
+    %-  malt
+    %+  turn  held
+    |=  =flag:g
+    [flag `foreign:v8:g`[~[invite(flag flag, from p.flag, valid &)] ~ ~ ~ ~]]
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[[~lux %test] room-group]]))
   ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(~)
   ?:  ?=([%gu @ %channels @ %v4 *] path)  `!>(|)
