@@ -3204,7 +3204,7 @@
 ::  opens it again
 ::
 ::    Either way, a channel mention that opened the request is then told
-::    whether the owner was sent it.
+::    whether the owner was sent it, unless the owner has changed since.
 ::
 ++  agent-approval
   |=  [=wire =sign:agent:gall]
@@ -3216,7 +3216,12 @@
     =/  held  (~(get by by-id.approvals) id)
     ?.  &(?=(^ held) =(i.t.t.wire (scot %da at.u.held)))  ~
     held
-  =/  to  ;;((unit destination:t) (cue (slav %uv i.t.t.t.wire)))
+  ::  The reply would name the owner now, who was never sent the card.
+  =/  to=(unit destination:t)
+    =/  told  ;;((unit [owner=@p to=destination:t]) (cue (slav %uv i.t.t.t.wire)))
+    ?~  told  ~
+    ?.  =(`owner.u.told owner.policy)  ~
+    `to.u.told
   ?~  p.sign
     ?~  found  cor
     (tell-waiting who.u.found to &)
@@ -3504,10 +3509,12 @@
     (card:ask id [who place now.bowl] (approval-channel place) (approval-preview who event cutoff))
   =.  last-sent  (next-message-stamp:p now.bowl last-sent)
   ::  The card's acknowledgement carries where to tell the ship the bot
-  ::  waits, as no request keeps anything of its message.
+  ::  waits, as no request keeps anything of its message, and whom the card
+  ::  went to.
+  =/  told  (bind (waiting-to event) |=(to=destination:t [u.owner to]))
   %-  emit
   %:  publish:messenger
-    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam (waiting-to event)))
+    /approval/[id]/(scot %da now.bowl)/(scot %uv (jam told))
     [%dm u.owner ~]
     text
     last-sent

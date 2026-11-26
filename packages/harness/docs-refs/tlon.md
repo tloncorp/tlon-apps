@@ -655,7 +655,9 @@ where granted, read messages by every author.
   which closes the request, it says instead `~ship: I need approval from my
   owner, ~owner, before I can respond in this channel. I couldn't reach them
   just now — please mention me again later.` The ship's next mention opens
-  the request again. A later message that joins the open request is
+  the request again. Neither is said when the owner has changed since the
+  card was sent, as it would name an owner the card never reached, nor when
+  the request has closed or its id gone to another meanwhile. A later message that joins the open request is
   answered with nothing, and a DM attempt never is. Nor is a known bot, a
   ship whose message carries a bot's author profile, as OpenClaw leaves
   bots unanswered: two bots without access to each other would otherwise
