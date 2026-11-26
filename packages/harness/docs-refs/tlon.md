@@ -931,8 +931,9 @@ and one space is `dm` for the ship's DM grant or a channel's nest, as
   its running and queued work in that channel is cancelled, unless the
   channel answers everyone, when the ship keeps its access there and its
   work runs on (see below). Its grants in
-  other places are kept. It is not a ban: nothing is blocked, and the ship's
-  next attempt there opens a new request. No request can be open for the ship
+  other places are kept. It is not a ban: nothing is blocked, and where the
+  ship has no access left, its next attempt there opens a new request; in a
+  channel open to everyone it is still answered. No request can be open for the ship
   in that place while it holds the grant, since gaining access closes one.
 - The reply goes to the owner's DM, in the same thread, outside a turn. It
   is `Revoked DM access for ~ship.
