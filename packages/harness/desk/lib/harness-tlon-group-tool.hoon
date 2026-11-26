@@ -50,6 +50,23 @@
 ++  invited
   |=  foreign=foreign:v8:g
   (lien invites.foreign |=(invite=invite:v8:g valid.invite))
+::  +invited-by: whether .foreign holds a pending invite from .who
+::
+++  invited-by
+  |=  [foreign=foreign:v8:g who=@p]
+  (lien invites.foreign |=(invite=invite:v8:g &(valid.invite =(who from.invite))))
+::  +join: join .flag and its channels with the invite on the ship
+::
+++  join
+  |=  [=wire flag=[@p @tas]]
+  ^-  card:agent:gall
+  [%pass wire %agent [our.bowl %groups] %poke %group-join !>([flag &])]
+::  +decline: decline the invites to .flag on the ship
+::
+++  decline
+  |=  [=wire flag=[@p @tas]]
+  ^-  card:agent:gall
+  [%pass wire %agent [our.bowl %groups] %poke %invite-decline !>(flag)]
 ::
 ++  run
   |=  [args=json wire=wire]
@@ -166,8 +183,8 @@
       [%pass wire %agent [our.bowl %groups] %poke %group-cancel !>(flag)]
     ?>  (invited foreign)
     ?:  =('accept_group_invite' action)
-      [%pass wire %agent [our.bowl %groups] %poke %group-join !>([flag &])]
-    [%pass wire %agent [our.bowl %groups] %poke %invite-decline !>(flag)]
+      (join wire flag)
+    (decline wire flag)
   =/  group  (~(got by groups) flag)
   :*  %pass  wire  %agent  [our.bowl %groups]  %poke  %group-action-4
       !>(`a-groups:v8:g`[%group flag (manage:policy args our.bowl flag group)])

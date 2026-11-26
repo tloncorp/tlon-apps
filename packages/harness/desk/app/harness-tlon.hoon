@@ -850,13 +850,8 @@
 ++  decline-group
   |=  =flag:gv
   ^+  cor
-  ?.  (group-invited flag)  cor
-  (emit (group-decline /invite/group-decline flag))
-::
-++  group-decline
-  |=  [=wire =flag:gv]
-  ^-  card
-  [%pass wire %agent [our.bowl %groups] %poke %invite-decline !>(flag)]
+  ?.  (group-invited flag ~)  cor
+  (emit (decline:~(. group-tool bowl) /invite/group-decline flag))
 ::  +foreign: %groups' record of .flag, a group the bot is invited to
 ::
 ++  foreign
@@ -864,14 +859,26 @@
   ^-  (unit foreign:v8:gv)
   ?.  .^(? %gu /(scot %p our.bowl)/groups/(scot %da now.bowl)/$)  ~
   (~(get by foreigns:~(. group-tool bowl)) flag)
-::  +group-invited: whether an invite to .flag is pending on the ship
+::  +group-invited: whether an invite to .flag is pending on the ship, from
+::  .from when it names a ship
 ::
 ++  group-invited
-  |=  =flag:gv
+  |=  [=flag:gv from=(unit @p)]
   ^-  ?
   =/  found  (foreign flag)
   ?~  found  |
-  (invited:~(. group-tool bowl) u.found)
+  ?~  from  (invited:~(. group-tool bowl) u.found)
+  (invited-by:~(. group-tool bowl) u.found u.from)
+::  +invites-from: the groups .who's pending invites on the ship are to
+::
+++  invites-from
+  |=  who=@p
+  ^-  (list flag:gv)
+  ?.  .^(? %gu /(scot %p our.bowl)/groups/(scot %da now.bowl)/$)  ~
+  %+  murn  ~(tap by foreigns:~(. group-tool bowl))
+  |=  [=flag:gv =foreign:v8:gv]
+  ?.  (invited-by:~(. group-tool bowl) foreign who)  ~
+  `flag
 ::  +group-title: the title of .flag in its invite's preview, if it has one
 ::
 ++  group-title
@@ -882,7 +889,7 @@
   =/  foreign  u.found
   ?~  preview.foreign  ~
   =*  title  title.meta.u.preview.foreign
-  ?:(=('' title) ~ `title)
+  ?:(=('' title) ~ `(bounded:ask title))
 ::
 ++  publications-connected
   ^-  ?
@@ -2773,6 +2780,7 @@
     [%approval-full @ ~]  (agent-approval-full wire sign)
     [%approval-ban @ @ @ ~]  (agent-approval-ban wire sign)
     [%approval-decline @ @ ~]  (agent-approval-decline wire sign)
+    [%approval-join @ @ ~]  (agent-approval-join wire sign)
     [%approval-unban @ @ ~]  (agent-approval-unban wire sign)
     [%approval-reply @ ~]  (agent-approval-reply wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
@@ -3429,6 +3437,10 @@
     ?~  (actor-grants who.event ~)  cor
     (note 'contact' who.event (scot %p who.event) '')
   ?:  ?=(%group-invite -.event)
+    ::  Only an invite of this ship's still on the ship is acted on: Activity
+    ::  outlives a decline, and another ship's invite, or a public group,
+    ::  is not what this ship sent.
+    ?.  (group-invited group.event `ship.event)  cor
     ::  Anyone else's invite is the owner's to answer; joining gives none of
     ::  the group's members access.
     ?~  (actor-grants ship.event ~)  (ask-owner ship.event [%group group.event] event after)
@@ -3445,7 +3457,7 @@
 ++  join-group
   |=  =flag:gv
   ^+  cor
-  (emit [%pass /invite %agent [our.bowl %groups] %poke %group-join !>([flag &])])
+  (emit (join:~(. group-tool bowl) /invite flag))
 ::
 ++  admit-message
   |=  event=incoming-event:v8:a
@@ -3648,7 +3660,7 @@
     ::  One request per group, whoever invited the bot; and none for an
     ::  invite no longer on the ship, as Activity outlives a decline.
     ?^  (find-group:ask approvals flag.topic)  |
-    ?.  (group-invited flag.topic)  |
+    ?.  (group-invited flag.topic `who)  |
     !(blocked:messenger who)
   =/  =place:t  place.topic
   ?^  (find:ask approvals who place)  |
@@ -3711,9 +3723,12 @@
   |=  [[id=@t =approval:t] engine=_cor]
   =.  approvals.engine  (close:ask approvals.engine id)
   =.  engine  (note:engine 'approval-expired' who.approval (address:ask approval) id)
-  ?-  -.topic.approval
-    %group  (decline-group:engine flag.topic.approval)
-    %place  ?^(place.topic.approval engine (decline-invitation:engine who.approval))
+  ?-    -.topic.approval
+      %place  ?^(place.topic.approval engine (decline-invitation:engine who.approval))
+  ::
+      %group
+    ?~  owner.policy.engine  (decline-group:engine flag.topic.approval)
+    (decline-request:engine %expire id approval [%dm u.owner.policy.engine ~])
   ==
 ::  +approval-order: an approval command in a DM, and its author
 ::
@@ -3770,6 +3785,9 @@
   ?~  found  (answer-order to (unknown:ask id.order))
   =/  [id=@t =approval:t]  u.found
   =/  address  (address:ask approval)
+  ::  An answer %groups has yet to acknowledge settles the request; another
+  ::  sent meanwhile would act on it twice.
+  ?:  (~(has in busy.approvals) id)  (answer-order to (in-flight:ask id))
   ?:  ?=(%group -.topic.approval)  (carry-group -.order id approval to)
   =/  =place:t  place.topic.approval
   ?-    -.order
@@ -3814,43 +3832,81 @@
 ::
 ::    Allowing joins the group and its channels and stores no grant: the
 ::    inviter and the group's members each still need access of their own.
-::    A reject is carried out once %groups has the decline, so a refused
-::    decline leaves the request open.
+::    Each answer is carried out once %groups acknowledges its join or
+::    decline, so a refused one leaves the request open; until then the
+::    request takes no other answer.
 ::
 ++  carry-group
   |=  [action=?(%allow %reject %ban) id=@t =approval:t to=destination:t]
   ^+  cor
   ?>  ?=(%group -.topic.approval)
   =*  flag  flag.topic.approval
-  =/  label  (group-label:ask flag (group-title flag))
+  =.  busy.approvals  (~(put in busy.approvals) id)
   ?-    action
-      %allow
-    =.  approvals  (close:ask approvals id)
-    =.  cor  (note 'approval-allowed' who.approval (address:ask approval) id)
-    =.  cor  (join-group flag)
-    (answer-order to (group-confirmation:ask %allow who.approval label))
-  ::
-      %reject
-    ?.  (group-invited flag)  (group-rejected id approval to)
-    =/  =wire  /approval-decline/[id]/(scot %uv (jam [approval to]))
-    (emit (group-decline wire flag))
-  ::
       %ban  (ban who.approval id to)
+      %reject  (decline-request %reject id approval to)
+  ::
+      %allow
+    ?.  (group-invited flag ~)  (group-answered %allow id approval to)
+    =/  =wire  /approval-join/[id]/(scot %uv (jam [approval to]))
+    (emit (join:~(. group-tool bowl) wire flag))
   ==
-::  +group-rejected: close a rejected group request once its invite is
-::  declined
+::  +decline-request: decline a group request's invite for .why, carried out
+::  once %groups has the decline; at once when no invite is left
 ::
-++  group-rejected
-  |=  [id=@t =approval:t to=destination:t]
+::    An expired request has closed already; a refused decline is told to
+::    the owner.
+::
+++  decline-request
+  |=  [why=?(%reject %ban %expire) id=@t =approval:t to=destination:t]
   ^+  cor
   ?>  ?=(%group -.topic.approval)
-  ::  The request closed meanwhile, as by a second reject, may have left its
-  ::  id to another.
+  ?.  (group-invited flag.topic.approval ~)  (group-answered why id approval to)
+  =/  =wire  /approval-decline/[id]/(scot %uv (jam [why approval to]))
+  (emit (decline:~(. group-tool bowl) wire flag.topic.approval))
+::  +group-answered: close a group request once its answer is carried out,
+::  and tell the owner
+::
+++  group-answered
+  |=  [why=?(%allow %reject %ban %expire) id=@t =approval:t to=destination:t]
+  ^+  cor
+  ?>  ?=(%group -.topic.approval)
+  ?:  ?=(%expire why)  cor
+  ::  The request closed meanwhile, as by expiry, may have left its id to
+  ::  another.
   =?  approvals  =(`approval (~(get by by-id.approvals) id))
     (close:ask approvals id)
-  =.  cor  (note 'approval-rejected' who.approval (address:ask approval) id)
-  =/  label  (group-label:ask flag.topic.approval (group-title flag.topic.approval))
-  (answer-order to (group-confirmation:ask %reject who.approval label))
+  =/  address  (address:ask approval)
+  ?-    why
+      %ban
+    =.  cor  (note 'approval-banned' who.approval address id)
+    (answer-order to (confirmation:ask %ban who.approval ~))
+  ::
+      ?(%allow %reject)
+    =.  cor  (note ?:(?=(%allow why) 'approval-allowed' 'approval-rejected') who.approval address id)
+    =/  label  (group-label:ask flag.topic.approval (group-title flag.topic.approval))
+    (answer-order to (group-confirmation:ask why who.approval label))
+  ==
+::
+++  agent-approval-join
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%approval-join @ @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  =/  id  i.t.wire
+  =/  [=approval:t to=destination:t]
+    ;;([approval:t destination:t] (cue (slav %uv i.t.t.wire)))
+  ?>  ?=(%group -.topic.approval)
+  =.  approvals  (settle:ask approvals id approval)
+  ::  %groups refuses a join without an invite, as once the bot declined it
+  ::  meanwhile: nothing is left to answer.
+  ?:  |(?=(~ p.sign) !(group-invited flag.topic.approval ~))
+    (group-answered %allow id approval to)
+  %-  (slog 'harness-tlon: group join rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-join u.p.sign))
+  =.  error  'Groups rejected a group join; inspect the ship log.'
+  =.  cor  (note 'approval-join-failed' who.approval (address:ask approval) id)
+  (answer-order to (join-failed:ask flag.topic.approval))
 ::
 ++  agent-approval-decline
   |=  [=wire =sign:agent:gall]
@@ -3858,18 +3914,25 @@
   ?>  ?=([%approval-decline @ @ ~] wire)
   ?.  ?=(%poke-ack -.sign)  cor
   =/  id  i.t.wire
-  =/  [=approval:t to=destination:t]
-    ;;([approval:t destination:t] (cue (slav %uv i.t.t.wire)))
+  =/  [why=?(%reject %ban %expire) =approval:t to=destination:t]
+    ;;([?(%reject %ban %expire) approval:t destination:t] (cue (slav %uv i.t.t.wire)))
   ?>  ?=(%group -.topic.approval)
+  =.  approvals  (settle:ask approvals id approval)
   ::  %groups refuses a decline of a group it has no record of, as once the
   ::  bot joined it meanwhile: no invite is left to decline.
-  ?:  |(?=(~ p.sign) !(group-invited flag.topic.approval))
-    (group-rejected id approval to)
+  ?:  |(?=(~ p.sign) !(group-invited flag.topic.approval ~))
+    (group-answered why id approval to)
   %-  (slog 'harness-tlon: group invite decline rejected' u.p.sign)
   =.  cor  (emit (crash:observe bowl %approval-decline u.p.sign))
   =.  error  'Groups rejected a group invite decline; inspect the ship log.'
   =.  cor  (note 'approval-decline-failed' who.approval (address:ask approval) id)
-  (answer-order to (decline-failed:ask flag.topic.approval))
+  =*  flag  flag.topic.approval
+  %+  answer-order  to
+  ?-  why
+    %reject  (decline-failed:ask flag)
+    %ban  (ban-decline-failed:ask who.approval flag)
+    %expire  (expiry-decline-failed:ask flag)
+  ==
 ::  +answer-waiting: admit the newest message an allowed ship sent the bot
 ::  in .place after .floor
 ::
@@ -3934,28 +3997,38 @@
       %+  lien  ~(val by observations:ledger)
       |=(=observation:hh =(event event.observation))
   ==
-::  +banned: close a blocked ship's requests, decline the invites of its
-::  group requests and take back its DM grant
+::  +banned: close a blocked ship's requests, decline its group invites
+::  and take back its DM grant
+::
+::    Every invite of the ship's on the ship is declined. A group request
+::    the ban answers closes once %groups has its decline, so a refused one
+::    leaves it open for another ban, which declines again; the ship's other
+::    requests close at once.
 ::
 ++  banned
   |=  [who=@p id=@t to=destination:t]
   ^+  cor
   =/  found  (~(get by by-id.approvals) id)
-  =/  address
-    ?~  found  (scot %p who)
-    (address:ask u.found)
+  =/  group=(unit approval:t)
+    ?.  &(?=(^ found) ?=(%group -.topic.u.found))  ~
+    found
+  =/  answered=(unit flag:gv)
+    ?~  group  ~
+    ?>  ?=(%group -.topic.u.group)
+    `flag.topic.u.group
   =.  cor
-    %+  roll  ~(val by by-id.approvals)
-    |=  [=approval:t engine=_cor]
-    ?.  &(=(who who.approval) ?=(%group -.topic.approval))  engine
-    (decline-group:engine flag.topic.approval)
-  =.  approvals  (keep:ask approvals |=(=approval:t !=(who who.approval)))
+    %+  roll  (invites-from who)
+    |=  [=flag:gv engine=_cor]
+    ?:  =(`flag answered)  engine
+    (emit:engine (decline:~(. group-tool bowl) /invite/group-decline flag))
+  =.  approvals  (keep:ask approvals |=(=approval:t |(!=(who who.approval) =(`approval group))))
   =?  cor  (~(has in dm-grants.policy) who)
     (configure policy(dm-grants (~(del in dm-grants.policy) who)) sibling-moon-owners)
   =.  cor  (decline-invitation who)
-  =.  cor  (note 'approval-banned' who address id)
   ::  A block refused earlier is no longer the hand's state once one took.
   =?  error  =(error block-refused)  ''
+  ?^  group  (decline-request %ban id u.group to)
+  =.  cor  (note 'approval-banned' who ?~(found (scot %p who) (address:ask u.found)) id)
   (answer-order to (confirmation:ask %ban who ~))
 ::
 ++  block-refused  'Messenger rejected a block; inspect the ship log.'
@@ -3974,6 +4047,7 @@
   ?:  (blocked:messenger who)  (banned who id to)
   %-  (slog 'harness-tlon: block rejected' u.p.sign)
   =.  cor  (emit (crash:observe bowl %approval-ban u.p.sign))
+  =.  busy.approvals  (~(del in busy.approvals) id)
   =.  error  block-refused
   =.  cor  (note 'approval-ban-failed' who (scot %p who) id)
   (answer-order to (block-failed:ask who))

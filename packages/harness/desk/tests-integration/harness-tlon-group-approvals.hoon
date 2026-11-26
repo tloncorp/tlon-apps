@@ -45,17 +45,24 @@
   =.  title.meta.room  'Room'
   =.  title.meta.group  'Club'
   group(channels (my ~[[room-nest room]]))
-::  .club's record on the ship: its preview, and its invite while .pending,
-::  as a decline leaves it
+::  The groups' records on the ship: .club's preview, which a decline
+::  leaves, and an invite to each group in .held from its ship
 ::
 ++  invites
-  |=  pending=?
+  |=  held=(list [=flag:g who=@p])
   ^-  foreigns:v8:g
   =/  =preview:v8:g  *preview:v8:g
   =.  title.meta.preview  'Club'
+  =/  base=foreigns:v8:g  (my ~[[club `foreign:v8:g`[~ ~ `preview ~ ~]]])
+  %+  roll  held
+  |:  [[flag=*flag:g who=*@p] foreigns=base]
   =/  =invite:v8:g  *invite:v8:g
-  =.  invite  invite(flag club, from ~dev, preview preview, valid &)
-  (my ~[[club `foreign:v8:g`[?:(pending ~[invite] ~) ~ `preview ~ ~]]])
+  =.  invite  invite(flag flag, from who, preview preview, valid &)
+  =/  had  (~(gut by foreigns) flag `foreign:v8:g`[~ ~ `preview ~ ~])
+  (~(put by foreigns) flag had(invites [invite invites.had]))
+::  ~dev's invite to .club, on the ship
+::
+++  dev-invite  `(list [flag:g @p])`~[[club ~dev]]
 ++  head-connected
   %-  jab-bowl
   |=  b=bowl
@@ -78,10 +85,10 @@
   %+  roll  events
   |=  [[at=@da event=incoming-event:v8:a] =stream:v10:a]
   (put:on-stream:v10:a stream at [event | |])
-::  The ship's agents, with .club's invite on the ship while .pending
+::  The ship's agents, with the invites in .held on the ship
 ::
 ++  scries
-  |=  [events=stream:v10:a pending=?]
+  |=  [events=stream:v10:a held=(list [flag:g @p])]
   |=  =path
   ^-  (unit vase)
   ?:  ?=([%gu @ %contacts @ %$ ~] path)  `!>(|)
@@ -89,7 +96,7 @@
   ?:  ?=([%gu @ %steward @ %$ ~] path)  `!>(|)
   ?:  ?=([%gu @ %channels @ %v4 %chat %'~lux' %test ~] path)  `!>(&)
   ?:  ?=([%gu @ %chat @ %dm @ ~] path)  `!>(|)
-  ?:  ?=([%gx @ %groups @ %v1 %foreigns %noun ~] path)  `!>((invites pending))
+  ?:  ?=([%gx @ %groups @ %v1 %foreigns %noun ~] path)  `!>((invites held))
   ?:  (lien path |=(part=@ta =(%can-read part)))  `!>(|=([who=@p *] &))
   ?:  (lien path |=(part=@ta =(%groups part)))  `!>((my ~[[club room-group]]))
   ?:  (lien path |=(part=@ta =(%cron-session part)))  `!>(~)
@@ -104,35 +111,46 @@
   ?:  ?=([%gx @ %harness @ %sessions %json ~] path)  `!>(`json`[%a ~])
   ~
 ++  boot
-  |=  [saved=state-7:t now=@da events=stream:v10:a pending=?]
+  |=  [saved=state-7:t now=@da events=stream:v10:a held=(list [flag:g @p])]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now, eny (shax 'groups')))
   ;<  ~  bind:m  head-connected
-  ;<  ~  bind:m  (set-scry-gate (scries events pending))
+  ;<  ~  bind:m  (set-scry-gate (scries events held))
   ;<  *  bind:m  (do-load adapter `!>(saved))
   head-connected
 ::  Load .saved at .now, then deliver .events through Activity catch-up,
-::  with .club's invite on the ship
+::  with ~dev's invite to .club on the ship
 ::
 ++  admit
   |=  [saved=state-7:t now=@da events=(list [@da incoming-event:v8:a])]
+  (admit-held saved now events dev-invite)
+::  As +admit, with the invites in .held on the ship
+::
+++  admit-held
+  |=  $:  saved=state-7:t  now=@da  events=(list [@da incoming-event:v8:a])
+          held=(list [flag:g @p])
+      ==
   =/  m  (mare ,[(list card) state-7:t])
   ^-  form:m
-  ;<  ~  bind:m  (boot saved now (stream events) &)
+  ;<  ~  bind:m  (boot saved now (stream events) held)
   ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
   ;<  =vase  bind:m  get-save
   (pure:m caz !<(state-7:t vase))
-::  %groups' acknowledgement, with .ack, of the one decline in .caz, while
-::  .club's invite is on the ship if .pending
+::  %groups' acknowledgement, with .ack, of the one join or decline in .caz,
+::  while the invites in .held are on the ship
 ::
-++  ack-decline
-  |=  [caz=(list card) ack=(unit tang) pending=?]
+++  ack-groups
+  |=  [caz=(list card) ack=(unit tang) held=(list [flag:g @p])]
   =/  m  (mare ,[(list card) state-7:t])
   ^-  form:m
-  =/  wires  (turn (declines caz) head)
+  =/  wires
+    %+  murn  caz
+    |=  c=card
+    ?.  ?=([%pass * %agent [@ %groups] %poke ?(%group-join %invite-decline) *] c)  ~
+    `p.c
   ?>  ?=([* ~] wires)
-  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a pending))
+  ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a held))
   ;<  out=(list card)  bind:m  (do-agent i.wires [~zod %groups] [%poke-ack ack])
   ;<  =vase  bind:m  get-save
   (pure:m out !<(state-7:t vase))
@@ -266,9 +284,11 @@
     (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~dev)]])
   ;<  ~  bind:m  (ex-equal !>((lent (requests s))) !>(1))
   ;<  [caz=(list card) w=state-7:t]  bind:m
-    %^  admit  s  later
-    :~  [~2026.9.10..00.06.00 (invite ~dev)]
-        [~2026.9.10..00.07.00 (invite ~bus)]
+    %:  admit-held  s  later
+      :~  [~2026.9.10..00.06.00 (invite ~dev)]
+          [~2026.9.10..00.07.00 (invite ~bus)]
+      ==
+      ~[[club ~dev] [club ~bus]]
     ==
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(`(list [@p @t @t])`~))
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
@@ -278,26 +298,58 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  [caz=(list card) s=state-7:t]  bind:m
-    (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~wes)]])
+    (admit-held fixture start ~[[~2026.9.9..12.00.00 (invite ~wes)]] ~[[club ~wes]])
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~[club]))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(`(list [@p @t @t])`~))
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
   ;<  [caz=(list card) s=state-7:t]  bind:m
-    (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~nec)]])
+    (admit-held fixture start ~[[~2026.9.9..12.00.00 (invite ~nec)]] ~[[club ~nec]])
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~[club]))
   (ex-equal !>(approvals.s) !>(*approvals:t))
+::  The owner's and ~wes's invites are reported, but the ship holds only
+::  ~dev's, or none: the bot joins nothing, through another ship's invite
+::  or a public group.
+::
+++  test-a-trusted-invite-no-longer-on-the-ship-joins-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events
+    :~  [~2026.9.9..12.00.00 (invite ~wes)]
+        [~2026.9.9..12.00.01 (invite ~nec)]
+    ==
+  ;<  [caz=(list card) s=state-7:t]  bind:m  (admit-held fixture start events dev-invite)
+  ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
+  ;<  [caz=(list card) s=state-7:t]  bind:m  (admit-held fixture start events ~)
+  ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
+  (ex-equal !>(approvals.s) !>(*approvals:t))
+::  ~bus's invite is reported, but the ship holds only ~dev's: no request
+::  opens, so no card names ~bus for an invite it did not send.
+::
+++  test-an-invite-no-longer-on-the-ship-opens-no-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit fixture start ~[[~2026.9.9..12.00.00 (invite ~bus)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(`(list [@p @t @t])`~))
+  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
 ++  test-an-invite-from-a-blocked-ship-or-a-comet-opens-no-request
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  [caz=(list card) s=state-7:t]  bind:m
-    %^  admit  fixture  start
-    :~  [~2026.9.9..12.00.00 (invite ~bel)]
-        [~2026.9.9..12.00.01 (invite comet)]
+    %:  admit-held  fixture  start
+      :~  [~2026.9.9..12.00.00 (invite ~bel)]
+          [~2026.9.9..12.00.01 (invite comet)]
+      ==
+      ~[[club ~bel] [club comet]]
     ==
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(`(list [@p @t @t])`~))
   (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
+::  The request closes and the owner is told once %groups has the join.
 ::  Allowing stores no grant, so after the join neither the inviter nor
 ::  another member of the group is answered in its channel: each mention
 ::  opens a request of its own instead.
@@ -309,12 +361,15 @@
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit asked later ~[[told (said ~nec '/allow g0001' told)]])
   ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~[club]))
+  ;<  ~  bind:m  (ex-equal !>(by-id.approvals.s) !>(by-id.approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  [out=(list card) s=state-7:t]  bind:m  (ack-groups caz ~ ~)
   ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:asked))
-  ;<  ~  bind:m  (ex-equal !>((turned caz)) !>(|))
+  ;<  ~  bind:m  (ex-equal !>((turned out)) !>(|))
   ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-allowed')) !>(1))
   ;<  ~  bind:m
-    %+  ex-equal  !>((answered caz))
+    %+  ex-equal  !>((answered out))
     !>  ^-  (list [@t @t])
     ~[['dm/~nec' (rap 3 'Approved group invite from ~dev to ' label '. Joining group...' ~)]]
   =/  next  ~2026.9.10..00.20.00
@@ -328,6 +383,50 @@
   %+  ex-equal
     !>((silt (turn (requests w) |=(=approval:t [who topic]:approval))))
   !>((silt `(list [@p topic:t])`~[[~dev %place `room-nest] [~bus %place `room-nest]]))
+::  The request stays open and takes the same command again.
+::
+++  test-a-refused-join-leaves-the-request-open-and-tells-the-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/allow g0001' told)]])
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-join-failed')) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-allowed')) !>(0))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered out))
+    !>  ^-  (list [@t @t])
+    ~[['dm/~nec' 'Could not join ~lux/club: invite accept failed. Request stays pending, try again.']]
+  ;<  [caz=(list card) *]  bind:m
+    (admit w later ~[[(add told ~s1) (said ~nec '/allow g0001' (add told ~s1))]])
+  (ex-equal !>((joins caz)) !>(`(list flag:g)`~[club]))
+::  A reject sent, a second answer before %groups has the decline runs
+::  nothing; the owner is told the first is under way.
+::
+++  test-a-request-whose-answer-is-in-flight-takes-no-other-answer
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  asked  later
+    :~  [told (said ~nec '/reject g0001' told)]
+        [(add told ~s1) (said ~nec '/allow g0001' (add told ~s1))]
+        [(add told ~s2) (said ~nec '/ban g0001' (add told ~s2))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((turn (declines caz) tail)) !>(`(list flag:g)`~[club]))
+  ;<  ~  bind:m  (ex-equal !>((joins caz)) !>(`(list flag:g)`~))
+  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list @p)`~))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    :~  ['dm/~nec' 'Request #g0001 is already being answered; wait for its result.']
+        ['dm/~nec' 'Request #g0001 is already being answered; wait for its result.']
+    ==
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz ~ ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  (ex-equal !>((kinds w 'approval-rejected')) !>(1))
 ::  Nothing changes until %groups has the decline.
 ::
 ++  test-reject-declines-the-invite-and-closes-the-request
@@ -337,9 +436,9 @@
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit asked later ~[[told (said ~nec '/reject g0001' told)]])
   ;<  ~  bind:m  (ex-equal !>((turn (declines caz) tail)) !>(`(list flag:g)`~[club]))
-  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(by-id.approvals.s) !>(by-id.approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-decline caz ~ |)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz ~ ~)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>(policy.w) !>(policy:asked))
   ;<  ~  bind:m  (ex-equal !>((joins out)) !>(`(list flag:g)`~))
@@ -355,16 +454,17 @@
   ^-  form:m
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit asked later ~[[told (said ~nec '/reject g0001' told)]])
-  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-decline caz `~[leaf+"no"] &)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals:asked))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-decline-failed')) !>(1))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-rejected')) !>(0))
   %+  ex-equal  !>((answered out))
   !>  ^-  (list [@t @t])
   ~[['dm/~nec' 'Could not decline ~lux/club: invite decline failed. Request stays pending, try again.']]
-::  ~dev also holds a DM grant, which the ban takes back.
+::  ~dev also holds a DM grant, which the ban takes back once %chat has the
+::  block; the request closes once %groups has the decline.
 ::
-++  test-ban-blocks-the-ship-declines-the-invite-and-removes-its-dm-grant
+++  test-ban-blocks-the-ship-removes-its-dm-grant-and-closes-on-the-declines-ack
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -373,14 +473,66 @@
   ;<  [caz=(list card) s=state-7:t]  bind:m
     (admit saved later ~[[told (said ~nec '/ban g0001' told)]])
   ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list @p)`~[~dev]))
-  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals.saved))
+  ;<  ~  bind:m  (ex-equal !>(by-id.approvals.s) !>(by-id.approvals.saved))
   ;<  [out=(list card) w=state-7:t]  bind:m  (ack-block caz)
-  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>((turn (declines out) tail)) !>(`(list flag:g)`~[club]))
   ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.w) !>((silt ~[~bus])))
+  ;<  ~  bind:m  (ex-equal !>(by-id.approvals.w) !>(by-id.approvals.saved))
+  ;<  ~  bind:m  (ex-equal !>((answered out)) !>(`(list [@t @t])`~))
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups out ~ ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>((joins out)) !>(`(list flag:g)`~))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-banned')) !>(1))
   %+  ex-equal  !>((answered out))
   !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
+::  ~dev is blocked, but %groups refuses the decline with the invite still
+::  on the ship: the request stays open, and a second ban, finding ~dev
+::  blocked, sends no block and declines again.
+::
+++  test-a-refused-decline-after-a-ban-leaves-the-request-open-and-a-second-ban-declines-again
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit asked later ~[[told (said ~nec '/ban g0001' told)]])
+  ;<  [out=(list card) *]  bind:m  (ack-block caz)
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups out `~[leaf+"no"] dev-invite)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-decline-failed')) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-banned')) !>(0))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered out))
+    !>  ^-  (list [@t @t])
+    ~[['dm/~nec' 'Blocked ~dev, but could not submit the decline for ~lux/club. Request stays pending, try again.']]
+  ::  %chat now blocks ~dev, as the fixture's ~bel.
+  =/  again  (add told ~s1)
+  ;<  ~  bind:m  (boot w later (stream ~[[again (said ~nec '/ban g0001' again)]]) dev-invite)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =path
+    ?:  ?=([%gx @ %chat @ %blocked %ships ~] path)  `!>((silt ~[~bel ~dev]))
+    ((scries (stream ~[[again (said ~nec '/ban g0001' again)]]) dev-invite) path)
+  ;<  caz=(list card)  bind:m  (do-agent /activity [~zod %activity] [%watch-ack ~])
+  ;<  ~  bind:m  (ex-equal !>((blocks caz)) !>(`(list @p)`~))
+  ;<  ~  bind:m  (ex-equal !>((turn (declines caz) tail)) !>(`(list flag:g)`~[club]))
+  ;<  [out=(list card) u=state-7:t]  bind:m  (ack-groups caz ~ ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.u) !>(*approvals:t))
+  %+  ex-equal  !>((answered out))
+  !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
+::  ~dev also invited the bot to .den, with no request: the ban declines
+::  every invite of ~dev's on the ship.
+::
+++  test-ban-declines-every-invite-of-the-ships-on-the-ship
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  den  `flag:g`[~lux %den]
+  =/  held  `(list [flag:g @p])`~[[club ~dev] [den ~dev] [[~lux %other] ~bus]]
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-held asked later ~[[told (said ~nec '/ban g0001' told)]] held)
+  ;<  [out=(list card) *]  bind:m  (ack-block caz)
+  %+  ex-equal  !>((silt (turn (declines out) tail)))
+  !>((silt `(list flag:g)`~[club den]))
 ::  As a reject does, expiry declines the invite, then the inviter's next
 ::  invite opens a new request with a new card.
 ::
@@ -389,7 +541,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  due  (add start ~h48)
-  ;<  ~  bind:m  (boot asked due *stream:v10:a &)
+  ;<  ~  bind:m  (boot asked due *stream:v10:a dev-invite)
   ;<  ~  bind:m
     %-  jab-bowl
     |=(b=bowl b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4])))
@@ -398,11 +550,34 @@
   =/  w  !<(state-7:t vase)
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-expired')) !>(1))
-  ;<  ~  bind:m  (ex-equal !>((declines caz)) !>(`(list [wire flag:g])`~[[/invite/group-decline club]]))
+  ;<  ~  bind:m  (ex-equal !>((turn (declines caz) tail)) !>(`(list flag:g)`~[club]))
+  ;<  [out=(list card) *]  bind:m  (ack-groups caz ~ ~)
+  ;<  ~  bind:m  (ex-equal !>((answered out)) !>(`(list [@t @t])`~))
   =/  again  (add due ~m5)
   ;<  [caz=(list card) u=state-7:t]  bind:m  (admit w (add again ~s1) ~[[again (invite ~dev)]])
   ;<  ~  bind:m  (ex-equal !>((requests u)) !>(`(list approval:t)`~[[~dev [%group club] (add again ~s1)]]))
   (ex-equal !>((lent (sent caz))) !>(1))
+::  The request is gone, so the owner, who could no longer reject it, is
+::  told the invite stays.
+::
+++  test-a-refused-decline-on-expiry-tells-the-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  due  (add start ~h48)
+  ;<  ~  bind:m  (boot asked due *stream:v10:a dev-invite)
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=(b=bowl b(wex (~(put by wex.b) [/activity ~zod %activity] [& /v4])))
+  ;<  caz=(list card)  bind:m  (do-arvo /poll [%behn %wake ~])
+  ;<  [out=(list card) w=state-7:t]  bind:m  (ack-groups caz `~[leaf+"no"] dev-invite)
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-decline-failed')) !>(1))
+  %+  ex-equal  !>((answered out))
+  !>  ^-  (list [@t @t])
+  :~  :-  'dm/~nec'
+      'Could not decline ~lux/club after its request expired: invite decline failed. The invite stays on the ship.'
+  ==
 ++  test-pending-lists-a-group-request
   %-  eval-mare
   =/  m  (mare ,~)

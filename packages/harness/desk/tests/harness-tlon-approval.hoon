@@ -28,7 +28,7 @@
   =/  kept  (keep:ask two |=(=approval:t =([%place ~] topic.approval)))
   %+  expect-eq
     !>(kept)
-  !>(`approvals:t`[(my ~[['d1234' [~dev [%place ~] ~2026.9.9]]]) (my ~[[[~dev %place ~] 'd1234']])])
+  !>(`approvals:t`[(my ~[['d1234' [~dev [%place ~] ~2026.9.9]]]) (my ~[[[~dev %place ~] 'd1234']]) ~])
 ::  ~dev's DM request opened a second before its channel request.
 ::
 ++  staggered

@@ -27,9 +27,11 @@
 ::    Nothing of the message that opened it is kept.
 ::
 +$  approval  [who=@p =topic at=@da]
-::  $approvals: open requests by id, and the id open for a ship and topic
+::  $approvals: open requests by id, the id open for a ship and topic, and
+::  the requests whose answer %groups has yet to acknowledge
 ::
-+$  approvals  [by-id=(map @t approval) by-topic=(map [@p topic] @t)]
++$  approvals
+  [by-id=(map @t approval) by-topic=(map [@p topic] @t) busy=(set @t)]
 +$  peer-trust  [policy=policy siblings=?]
 +$  destination
   $%  [%dm who=@p parent=(unit message-id:a)]

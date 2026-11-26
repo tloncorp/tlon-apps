@@ -959,34 +959,53 @@ approval commands above, with these differences.
   flag, `~host/name`. It is not an attempt: it records no
   `permission-denied` entry, and the limit on those does not hold it back.
 - None opens for a comet, a ship this ship blocks (whose invitations `%groups`
-  drops anyway), an invitation no longer on the ship, or while the hand has
-  no explicit owner or is disabled. One the request limits keep from opening
-  stays on the ship; the ship's next invitation is a new event under the
-  same limits.
+  drops anyway), an invitation of the ship's no longer on the ship, though
+  another ship's to the group is, or while the hand has no explicit owner or
+  is disabled. One the request limits keep from opening stays on the ship;
+  the ship's next invitation is a new event under the same limits.
 - The card is OpenClaw's group card: the notice `Group invite request from
   ~ship for <group>`, the eyebrow `Group invite`, the title `Let the bot join
   <title>?`, `Inviter: ~ship` and `Group: <group>`, and `The bot will be able
   to read and respond in channels it joins.`, where the group is named
   `Title (~host/name)`, or by its flag when the invitation's preview has no
-  title. Nobody is told the bot waits, and there is no preview.
+  title, with a title over 80 characters cut as a channel's is. Nobody is
+  told the bot waits, and there is no preview.
+- Each answer to it is carried out once `%groups` acknowledges the join or
+  decline it needs, and until then the request takes no other: `/allow`,
+  `/reject` or `/ban` sent meanwhile changes nothing and gets `Request #g1a2b
+  is already being answered; wait for its result.` A refusal leaves the
+  request open, so the same card or command works again, and records
+  `approval-join-failed` or `approval-decline-failed` in the feed and the
+  failure in the hand's error. A refusal while no invitation is left on the
+  ship is taken as done.
 - `/allow` joins the group and its channels, as an invitation from a ship on
-  a ship-wide list does, and replies `Approved group invite from ~ship to
-  <group>. Joining group...` It gives nobody access: no grant is stored for
-  the inviter or the group's members, and each still needs access of their
-  own to be answered in the group's channels, where an attempt opens a
-  request as anywhere else. No message is answered.
+  a ship-wide list does, and once `%groups` has the join, closes the request
+  and replies `Approved group invite from ~ship to <group>. Joining
+  group...` A refused join gets `Could not join ~host/name: invite accept
+  failed. Request stays pending, try again.` It gives nobody access: no
+  grant is stored for the inviter or the group's members, and each still
+  needs access of their own to be answered in the group's channels, where an
+  attempt opens a request as anywhere else. No message is answered.
 - `/reject` declines the invitation on the ship (`%groups` declines every
   invitation to the group) and, once `%groups` has the decline, closes the
-  request and replies `Denied group invite from ~ship to <group>.` If
-  `%groups` refuses it while the invitation is still on the ship, the request
-  stays open, the owner is told `Could not decline ~host/name: invite decline
-  failed. Request stays pending, try again.`, and the feed records
-  `approval-decline-failed`. An invitation already gone is taken as declined.
-- `/ban` blocks the inviting ship as for any request; once `%chat` has the
-  block it also declines the invitations of the ship's group requests.
-- Expiry, 48 hours after the request opened, declines the invitation if it
-  is still on the ship, as a reject would, so the bot holds no invitation the
-  owner did not answer.
+  request and replies `Denied group invite from ~ship to <group>.` A refused
+  decline gets `Could not decline ~host/name: invite decline failed. Request
+  stays pending, try again.`
+- `/ban` blocks the inviting ship as for any request, and once `%chat` has
+  the block, takes back its DM grant, closes its other requests and declines
+  every invitation of the ship's on the ship. The group request closes once
+  `%groups` has its decline, with `Blocked ~ship. They will no longer be
+  able to contact the bot.` A refused decline gets `Blocked ~ship, but could
+  not submit the decline for ~host/name. Request stays pending, try again.`;
+  a second `/ban`, finding the ship blocked, sends no block and declines
+  again. A ban of a DM or channel request also declines the ship's
+  invitations, without waiting.
+- Expiry, 48 hours after the request opened, closes it and declines the
+  invitation if it is still on the ship, as a reject would, so the bot holds
+  no invitation the owner did not answer. `%groups` reports an invitation
+  once, so if it refuses that decline, nothing would ask the owner again: the
+  owner is told `Could not decline ~host/name after its request expired:
+  invite decline failed. The invite stays on the ship.`
 - `/pending` lists it as `#g1a2b - Group invite from ~ship to <group>`, and
   its card's row as `Group invite from ~ship` with `Group: <group>`.
 - Gaining ship-wide access does not close it; `/allow` still joins.
@@ -1048,7 +1067,10 @@ approval commands above, with these differences.
   `trusted` list holds at most 64 ships; the allowed list and per-place grants
   have no size limit.
 - Group invitations are accepted when sent by the owner or by a ship on a
-  ship-wide list (trusted or allowed). A per-place grant gives no right to add
+  ship-wide list (trusted or allowed), and only while the ship holds that
+  ship's invitation: an invitation reported after it was declined, or after
+  the sender lost its access and its invitation went, joins nothing, through
+  another ship's invitation or a public group. A per-place grant gives no right to add
   the bot to a group; an invitation from any other ship opens a group invite
   request (see above). DM invitations from the
   owner, a trusted ship, an allowed ship or a ship with a DM grant are
@@ -1680,9 +1702,14 @@ the bot join the group and its channel and stores no grant.
 `desk/tests-integration/harness-tlon-group-approvals.hoon` covers group invite
 requests on the agent: one card per group, whoever invites; an invitation from
 the owner or a ship on a ship-wide list joining without one; none for a
-blocked ship or a comet; `/allow` joining and leaving the inviter and the
-group's members without access; `/reject` declining, and its refusal; `/ban`
-declining and taking back a DM grant; expiry declining; and `/pending`.
+blocked ship or a comet; none for an invitation, trusted or not, that the
+ship no longer holds from its sender; `/allow` closing on the join's
+acknowledgement and leaving the inviter and the group's members without
+access, and a refused join; `/reject` declining, and its refusal; an answer
+while another is in flight; `/ban` taking back a DM grant and closing on the
+decline's acknowledgement, a refused decline and a second ban declining again,
+and declining every invitation of the ship's; expiry declining, and a refused
+decline on expiry; and `/pending`.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending

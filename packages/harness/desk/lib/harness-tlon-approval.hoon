@@ -53,16 +53,27 @@
 ++  open
   |=  [=approvals:t id=@t =approval:t]
   ^-  approvals:t
-  :-  (~(put by by-id.approvals) id approval)
-  (~(put by by-topic.approvals) [who topic]:approval id)
+  %=  approvals
+    by-id  (~(put by by-id.approvals) id approval)
+    by-topic  (~(put by by-topic.approvals) [who topic]:approval id)
+  ==
 ::
 ++  close
   |=  [=approvals:t id=@t]
   ^-  approvals:t
   =/  found  (~(get by by-id.approvals) id)
   ?~  found  approvals
-  :-  (~(del by by-id.approvals) id)
-  (~(del by by-topic.approvals) [who topic]:u.found)
+  :+  (~(del by by-id.approvals) id)
+    (~(del by by-topic.approvals) [who topic]:u.found)
+  (~(del in busy.approvals) id)
+::  +settle: no longer wait on %groups for request .id, if it is still
+::  .approval
+::
+++  settle
+  |=  [=approvals:t id=@t =approval:t]
+  ^-  approvals:t
+  ?.  =(`approval (~(get by by-id.approvals) id))  approvals
+  approvals(busy (~(del in busy.approvals) id))
 ::  +address: a request's place as the activity feed and a listing name it,
 ::  or the flag of the group it is for
 ::
@@ -257,6 +268,43 @@
   :~  'Could not decline '  (flag-text flag)
       ': invite decline failed. Request stays pending, try again.'
   ==
+::  +join-failed: OpenClaw's reply when the join an allow of a group
+::  request needs is refused
+::
+++  join-failed
+  |=  =flag:g
+  ^-  @t
+  %+  rap  3
+  :~  'Could not join '  (flag-text flag)
+      ': invite accept failed. Request stays pending, try again.'
+  ==
+::  +ban-decline-failed: OpenClaw's reply when .who is blocked but the
+::  decline a ban of its group request needs is refused
+::
+++  ban-decline-failed
+  |=  [who=@p =flag:g]
+  ^-  @t
+  %+  rap  3
+  :~  'Blocked '  (scot %p who)  ', but could not submit the decline for '
+      (flag-text flag)  '. Request stays pending, try again.'
+  ==
+::  +expiry-decline-failed: the owner's notice that the decline an expired
+::  group request needs was refused, so its invite stays on the ship
+::
+++  expiry-decline-failed
+  |=  =flag:g
+  ^-  @t
+  %+  rap  3
+  :~  'Could not decline '  (flag-text flag)
+      ' after its request expired: invite decline failed. The invite stays on the ship.'
+  ==
+::  +in-flight: the reply to an answer to a request whose earlier answer
+::  %groups has yet to acknowledge
+::
+++  in-flight
+  |=  id=@t
+  ^-  @t
+  (rap 3 'Request #' id ' is already being answered; wait for its result.' ~)
 ::  +choices: the reply to an order without an id while several requests
 ::  are open, oldest first
 ::

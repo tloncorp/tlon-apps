@@ -500,7 +500,7 @@
   =/  id  (requested s ~dev `room-nest)
   %+  ex-equal
     !>(approvals.s)
-  !>(`approvals:t`[(my ~[[id [~dev [%place `room-nest] start]]]) (my ~[[[~dev %place `room-nest] id]])])
+  !>(`approvals:t`[(my ~[[id [~dev [%place `room-nest] start]]]) (my ~[[[~dev %place `room-nest] id]]) ~])
 ++  test-the-cards-buttons-send-allow-reject-and-ban-with-the-requests-id-and-token
   %-  eval-mare
   =/  m  (mare ,~)
