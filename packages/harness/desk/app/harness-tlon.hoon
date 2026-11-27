@@ -4096,8 +4096,8 @@
 ::    that ship's invite too. A group request the ban answers closes once
 ::    %groups has its decline, so a refused one leaves it open for another
 ::    ban, which declines again; when another ship's invite to the group is
-::    live, it closes at once and a request opens for that ship. The ship's
-::    other requests close at once.
+::    live and a request could open for that ship, it closes at once and the
+::    request opens. The ship's other requests close at once.
 ::
 ++  banned
   |=  [who=@p id=@t to=destination:t]
@@ -4110,7 +4110,13 @@
     ?~  group  ~
     ?>  ?=(%group -.topic.u.group)
     `flag.topic.u.group
-  =/  others=(list @p)  ?~(answered ~ (inviters-besides u.answered who))
+  ::  An inviter no request could open for, such as a blocked one, would be
+  ::  left with its invite and no request.
+  =/  others=(list @p)
+    ?~  answered  ~
+    =/  rest  cor(approvals (close:ask approvals id))
+    %+  skim  (inviters-besides u.answered who)
+    |=(other=@p (askable:rest other [%group u.answered]))
   =?  group  ?=(^ others)  ~
   =.  cor
     %+  roll  (invites-from who)
