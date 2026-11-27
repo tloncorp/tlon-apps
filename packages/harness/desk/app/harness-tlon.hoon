@@ -4097,8 +4097,9 @@
 ::    a request opens for another inviter one could open for; with none, the
 ::    group is declined. A group request the ban answers and declines closes
 ::    once %groups has the decline, so a refused one leaves it open for
-::    another ban, which declines again. The ship's other requests close at
-::    once.
+::    another ban, which declines again. A request whose join or decline is
+::    in flight is left to its acknowledgement. The ship's other requests
+::    close at once.
 ::
 ++  banned
   |=  [who=@p id=@t to=destination:t]
@@ -4116,20 +4117,29 @@
     %+  bind  (heir:cor(approvals (close:ask approvals id)) u.answered who)
     |=(other=@p [u.answered other])
   =?  group  ?=(^ handoff)  ~
+  ::  The other requests whose join or decline %groups has yet to
+  ::  acknowledge stay open for the acknowledgement to settle.
+  =/  flying=(set approval:t)
+    %-  silt
+    (murn ~(tap in (~(del in busy.approvals) id)) ~(get by by-id.approvals))
   ::  The ship's other group requests, for groups another ship has invited
   ::  the bot to as well, whose invites are not declined below
   =/  shared=(list flag:gv)
     %+  murn  ~(tap by by-id.approvals)
     |=  [key=@t =approval:t]
     ?.  &(=(who who.approval) !=(id key) ?=(%group -.topic.approval))  ~
+    ?:  (~(has in flying) approval)  ~
     ?~  (inviters-besides flag.topic.approval who)  ~
     `flag.topic.approval
   =.  cor
     %+  roll  (invites-from who)
     |=  [=flag:gv engine=_cor]
     ?:  =(`flag answered)  engine
+    ?:  (~(any in flying) |=(=approval:t =([%group flag] topic.approval)))  engine
     (emit:engine (decline:~(. group-tool bowl) /invite/group-decline flag))
-  =.  approvals  (keep:ask approvals |=(=approval:t |(!=(who who.approval) =(`approval group))))
+  =.  approvals
+    %+  keep:ask  approvals
+    |=(=approval:t |(!=(who who.approval) =(`approval group) (~(has in flying) approval)))
   =?  cor  (~(has in dm-grants.policy) who)
     (configure policy(dm-grants (~(del in dm-grants.policy) who)) sibling-moon-owners)
   =.  cor  (decline-invitation who)

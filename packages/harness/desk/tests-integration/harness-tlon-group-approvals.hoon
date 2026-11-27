@@ -792,6 +792,56 @@
   ;<  ~  bind:m  (ex-equal !>((sent out)) !>(`(list [@p @t @t])`~))
   %+  ex-equal  !>((answered out))
   !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
+::  The owner rejects ~dev's request for .club, which ~bus also invited the
+::  bot to, then bans ~dev from its DM card before %groups has the decline.
+::  The ban leaves the request to the decline's acknowledgement: it declines
+::  nothing more and opens no request for ~bus, and the acknowledgement
+::  closes the request.
+::
+++  test-a-ban-leaves-a-group-request-whose-decline-is-in-flight
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  held  `(list [flag:g @p])`~[[club ~dev] [club ~bus]]
+  ;<  [caz=(list card) s=state-8:t]  bind:m
+    %^  admit-held  dev-dm-asked  later
+    :_  held
+    :~  [told (said ~nec '/reject g0001' told)]
+        [(add told ~s1) (said ~nec '/ban d0001' (add told ~s1))]
+    ==
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
+  ;<  ~  bind:m  (ex-equal !>((declines out)) !>(`(list [wire flag:g])`~))
+  ;<  ~  bind:m  (ex-equal !>((sent out)) !>(`(list [@p @t @t])`~))
+  =/  pending  approvals:asked
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(pending(busy (silt ~['g0001']))))
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups caz ~ ~)
+  (ex-equal !>(approvals.w) !>(*approvals:t))
+::  ~bus, which holds one request fewer than a ship may, also invited the
+::  bot to both groups ~dev's requests are for. A ban of ~dev hands one of
+::  them to ~bus, which is then at its limit, and declines the other.
+::
+++  test-a-ban-hands-off-one-group-per-free-slot-of-the-other-inviter
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  den  `flag:g`[~lux %den]
+  =/  saved  dev-dm-asked
+  =.  approvals.saved  (open:ask approvals.saved 'g0002' [~dev [%group den] start])
+  =.  approvals.saved
+    %+  roll  (gulf 1 (dec ship-limit:ask))
+    |=  [n=@ud approvals=_approvals.saved]
+    =/  nest=nest:dv  [%chat ~lux `@tas`(crip (weld "other" (a-co:co n)))]
+    (open:ask approvals (cat 3 'c' (crip (a-co:co n))) [~bus [%place `nest] start])
+  =/  held  `(list [flag:g @p])`~[[club ~dev] [club ~bus] [den ~dev] [den ~bus]]
+  ;<  [caz=(list card) s=state-8:t]  bind:m
+    (admit-held saved later ~[[told (said ~nec '/ban d0001' told)]] held)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
+  ;<  ~  bind:m  (ex-equal !>((lent (declines out))) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((lent (sent out))) !>(1))
+  ;<  ~  bind:m  (ex-equal !>((held:ask approvals.w ~bus)) !>(ship-limit:ask))
+  ;<  ~  bind:m  (ex-equal !>((held:ask approvals.w ~dev)) !>(0))
+  %+  ex-equal  !>((lent (skim (requests w) |=(=approval:t ?=(%group -.topic.approval)))))
+  !>(1)
 ::  %chat rejects the card of ~dev's group request. An invite is reported
 ::  once, so the request stays open, and /pending lists it.
 ::

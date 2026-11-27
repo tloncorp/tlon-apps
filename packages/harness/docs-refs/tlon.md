@@ -1034,7 +1034,10 @@ approval commands above, with these differences.
   other ship invited the bot. Any ban, from whichever of the ship's
   requests, treats the ship's other requests for groups another ship has
   invited the bot to as well the same way: each closes at once, and a request opens for another inviter, or the
-  group is declined when none could be asked. A ban of a DM or channel
+  group is declined when none could be asked. A request of the ship's whose
+  join or decline `%groups` has yet to acknowledge, as after a `/reject`, is
+  left open for that acknowledgement to settle, and its group is neither
+  handed off nor declined again. A ban of a DM or channel
   request also declines the ship's invitations, without waiting.
 - Expiry, 48 hours after the request opened, closes it and declines the
   invitation if it is still on the ship, as a reject would, so the bot holds
