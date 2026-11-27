@@ -25,6 +25,8 @@
   =/  db  knowledge.migrated
   ::  The fixture saves no schedule; compare in the frozen schedule type.
   =/  frozen  migrated(schedules *(map @uv schedule-s0))
+  ::  Older shapes lack the token-usage ledger; compare without it.
+  =/  frozen  [%0 +>.frozen]
   ;:  weld
       (expect-eq !>(+.old) !>(+>+.frozen))
       (expect-eq !>(2) !>(~(wyt by records.db)))
@@ -97,11 +99,13 @@
       status  'Capture in flight'
     ==
   =/  frozen  current(schedules *(map @uv schedule-s0))
+  ::  Older shapes lack the token-usage ledger; compare without it.
+  =/  frozen  [%0 +>.frozen]
   =/  old=state-before-maintenance:storage  [%0 +.db +>+.frozen]
   =/  restored  (envelope:storage !>(old))
   ;:  weld
       (expect-eq !>(db) !>(knowledge.restored))
-      (expect-eq !>(+>+.current) !>(+>+.restored))
+      (expect-eq !>(+>+>.current) !>(+>+>.restored))
       (expect-eq !>(restored) !>((envelope:storage !>(restored))))
   ==
 ++  test-reload-preserves-partial-capture-batches-and-their-log-boundaries

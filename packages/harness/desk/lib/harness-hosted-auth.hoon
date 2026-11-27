@@ -111,6 +111,7 @@
       ['openrouterZdr' %b &]
       ['soul' %b &]
       ['skills' %b &]
+      ['tokenUsage' %b &]
   ==
 ++  prune
   |=  [db=state now=@da]
