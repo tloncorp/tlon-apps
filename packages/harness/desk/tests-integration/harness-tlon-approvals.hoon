@@ -2559,6 +2559,28 @@
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-unban-failed')) !>(1))
   ;<  ~  bind:m  (ex-equal !>((kinds w 'approval-unbanned')) !>(0))
   (ex-equal !>(=('' error.w)) !>(|))
+::  Two unbans: the first unblock is refused, the second takes. Status must
+::  not keep the refusal once the owner has been told the ship is unblocked.
+::
+++  test-an-unban-that-takes-after-a-refused-unblock-clears-the-refusal-from-status
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  asked  later
+    :~  [told (said ~nec '/unban ~bel' told)]
+        [(add told ~s1) (said ~nec '/unban ~bel' (add told ~s1))]
+    ==
+  =/  asks  (ship-pokes %chat-unblock-ship caz)
+  ?>  ?=([* * ~] asks)
+  ;<  [first=(list card) refused=state-7:t]  bind:m
+    (ack-unblock -.i.asks `~[leaf+"no"] (silt ~[~bel]))
+  ;<  ~  bind:m
+    %+  ex-equal  !>(error.refused)
+    !>('Messenger rejected an unblock; inspect the ship log.')
+  ;<  [second=(list card) w=state-7:t]  bind:m  (ack-unblock -.i.t.asks ~ ~)
+  ;<  ~  bind:m  (ex-equal !>(error.w) !>(''))
+  (ex-equal !>((answered second)) !>(`(list [@t @t])`~[['dm/~nec' 'Unblocked ~bel.']]))
 ::  Two unbans both see ~bel blocked; the second unblock is refused because
 ::  the first took, which is the unban the owner asked for.
 ::

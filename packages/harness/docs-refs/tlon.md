@@ -852,7 +852,9 @@ hand handles no message from its own ship.
   first 38 and last 39 around `...`, so channels alike but for their ends
   read apart; a button still sends the request's own id. The
   cut counts characters on the bytes, so a tab or a malformed byte in a
-  title cannot stop the request from opening.
+  title cannot stop the request from opening. A character has at most three
+  continuation bytes, so a longer run of them is counted one character per
+  four bytes and a title of nothing else is still cut.
 - `/reject` closes the request and gives nothing, so the ship can ask again.
   For a DM request it also declines the ship's pending DM invitation, as
   expiry does, so its next message invites the bot again. The reply is

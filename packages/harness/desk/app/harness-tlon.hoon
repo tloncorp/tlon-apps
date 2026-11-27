@@ -3943,10 +3943,12 @@
   ::  refused because the first took: the ship is unblocked.
   ?:  |(?=(~ p.sign) !(blocked:messenger who))
     =.  cor  (note 'approval-unbanned' who (scot %p who) '')
+    ::  An unblock refused earlier is no longer the hand's state once one took.
+    =?  error  =(error unblock-refused)  ''
     (answer-order to (unbanned:ask who %unblocked))
   %-  (slog 'harness-tlon: unblock rejected' u.p.sign)
   =.  cor  (emit (crash:observe bowl %approval-unban u.p.sign))
-  =.  error  'Messenger rejected an unblock; inspect the ship log.'
+  =.  error  unblock-refused
   =.  cor  (note 'approval-unban-failed' who (scot %p who) '')
   (answer-order to (unbanned:ask who %failed))
 ::  +revoke: take back .who's grant in .where, or in its one place when no
@@ -3994,6 +3996,8 @@
   ::  A channel open to everyone still answers the ship.
   ?:  (place-access who place)  (answer-order to (still-answered:ask who (need label)))
   (answer-order to (confirmation:ask %revoke who label))
+::
+++  unblock-refused  'Messenger rejected an unblock; inspect the ship log.'
 ::
 ++  agent-approval-reply
   |=  [=wire =sign:agent:gall]
