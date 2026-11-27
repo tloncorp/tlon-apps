@@ -47,7 +47,7 @@
   ==
 ::
 ++  test-sync-recovery-has-a-bounded-maintenance-deadline
-  =/  state  *state-7:t
+  =/  state  *state-8:t
   =.  policy.state  [& `~bud ~ %mentions ~ ~ ~ ~]
   =.  watching.state  &
   =.  lens.state  [& `~bud ~2026.10.1 ~ '']

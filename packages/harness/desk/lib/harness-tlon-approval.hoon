@@ -1,10 +1,19 @@
 ::  Requests from ships without access, and the card that tells the owner.
 ::  The card is the OpenClaw plugin's approval card; its buttons send
 ::  ordinary owner commands and approve nothing themselves.
-/-  t=harness-tlon
+/-  t=harness-tlon, g=groups
 /+  p=harness-tlon-policy, work-card=harness-tlon-work-card,
-    command=harness-command, cj=channel-json
+    command=harness-command, cj=channel-json, spec=harness-tlon-tool
 |%
+::  $named: what a card calls a request's place: nothing for a DM, a
+::  channel's title and its group's, or the title of the group a ship
+::  invited the bot to
+::
++$  named
+  $%  [%dm ~]
+      [%channel channel=@t group=(unit @t)]
+      [%group =flag:g title=(unit @t)]
+  ==
 ::  $order: an owner command: an answer to a request, typed or sent by a
 ::  card's button, a listing of the open requests or of the blocked ships,
 ::  an unblock, or taking back a ship's grant in one place
@@ -29,31 +38,78 @@
 ++  find
   |=  [=approvals:t who=@p =place:t]
   ^-  (unit @t)
-  (~(get by by-place.approvals) [who place])
+  (~(get by by-topic.approvals) [who %place place])
+::  +find-group: the id of the request open for .flag, whoever invited the
+::  bot to it
+::
+++  find-group
+  |=  [=approvals:t =flag:g]
+  ^-  (unit @t)
+  =/  found
+    %+  skim  ~(tap by by-id.approvals)
+    |=([* =approval:t] =([%group flag] topic.approval))
+  ?~(found ~ `-.i.found)
 ::
 ++  open
   |=  [=approvals:t id=@t =approval:t]
   ^-  approvals:t
-  :-  (~(put by by-id.approvals) id approval)
-  (~(put by by-place.approvals) [who place]:approval id)
+  %=  approvals
+    by-id  (~(put by by-id.approvals) id approval)
+    by-topic  (~(put by by-topic.approvals) [who topic]:approval id)
+  ==
 ::
 ++  close
   |=  [=approvals:t id=@t]
   ^-  approvals:t
   =/  found  (~(get by by-id.approvals) id)
   ?~  found  approvals
-  :-  (~(del by by-id.approvals) id)
-  (~(del by by-place.approvals) [who place]:u.found)
+  :+  (~(del by by-id.approvals) id)
+    (~(del by by-topic.approvals) [who topic]:u.found)
+  (~(del in busy.approvals) id)
+::  +settle: no longer wait on %groups for request .id, if it is still
+::  .approval
+::
+++  settle
+  |=  [=approvals:t id=@t =approval:t]
+  ^-  approvals:t
+  ?.  =(`approval (~(get by by-id.approvals) id))  approvals
+  approvals(busy (~(del in busy.approvals) id))
+::  +address: a request's place as the activity feed and a listing name it,
+::  or the flag of the group it is for
+::
+++  address
+  |=  =approval:t
+  ^-  @t
+  ?-  -.topic.approval
+    %place  (address:p (place-to:p who.approval place.topic.approval))
+    %group  (flag-id:spec flag.topic.approval)
+  ==
+::  +group-label: a group as OpenClaw names it, by its title and its flag
+::
+++  group-label
+  |=  [=flag:g title=(unit @t)]
+  ^-  @t
+  ::  The host names the group, as it does a channel.
+  =/  id  (squeezed (flag-id:spec flag))
+  ?~  title  id
+  ?:  =(id u.title)  id
+  (rap 3 u.title ' (' id ')' ~)
 ::  +button-token: what a card's buttons send after the id
 ::
 ::    Ids are unique only among open requests, but no two requests have the
 ::    same ship and opening time: the denial limit lets a ship open at most
-::    one request per five minutes.
+::    one request per five minutes. A DM or channel request hashes the noun
+::    state %7 stored for it, [who place at], so the buttons of a card sent
+::    before the upgrade to %8 still name their request; a group request
+::    hashes its own.
 ::
 ++  button-token
   |=  [id=@t =approval:t]
   ^-  @uv
-  (sham id approval)
+  ?-  -.topic.approval
+    %place  (sham id [who.approval place.topic.approval at.approval])
+    %group  (sham id approval)
+  ==
 ::  +keep: only the requests .keep accepts
 ::
 ++  keep
@@ -193,6 +249,71 @@
         '. They will no longer be able to interact in this channel.'
     ==
   ==
+::  +group-confirmation: OpenClaw's reply once an allow or a reject of
+::  .who's invite to .group, as +group-label names it, is carried out
+::
+++  group-confirmation
+  |=  [action=?(%allow %reject) who=@p group=@t]
+  ^-  @t
+  =/  ship  (scot %p who)
+  ?-  action
+    %allow  (rap 3 'Approved group invite from ' ship ' to ' group '. Joining group...' ~)
+    %reject  (rap 3 'Denied group invite from ' ship ' to ' group '.' ~)
+  ==
+::  +decline-failed: OpenClaw's reply when the decline a reject of a group
+::  request needs is refused
+::
+++  decline-failed
+  |=  =flag:g
+  ^-  @t
+  %+  rap  3
+  :~  'Could not decline '  (flag-id:spec flag)
+      ': invite decline failed. Request stays pending, try again.'
+  ==
+::  +invite-gone: the reply to an allow of a group request whose invite is
+::  no longer on the ship, as its inviter withdrew it
+::
+++  invite-gone
+  |=  [who=@p group=@t]
+  ^-  @t
+  (rap 3 'The group invite from ' (scot %p who) ' to ' group ' is no longer on the ship; nothing to join.' ~)
+::  +join-failed: OpenClaw's reply when the join an allow of a group
+::  request needs is refused
+::
+++  join-failed
+  |=  =flag:g
+  ^-  @t
+  %+  rap  3
+  :~  'Could not join '  (flag-id:spec flag)
+      ': invite accept failed. Request stays pending, try again.'
+  ==
+::  +ban-decline-failed: OpenClaw's reply when .who is blocked but the
+::  decline a ban of its group request needs is refused
+::
+++  ban-decline-failed
+  |=  [who=@p =flag:g]
+  ^-  @t
+  %+  rap  3
+  :~  'Blocked '  (scot %p who)  ', but could not submit the decline for '
+      (flag-id:spec flag)  '. Request stays pending, try again.'
+  ==
+::  +expiry-decline-failed: the owner's notice that the decline an expired
+::  group request needs was refused, so its invite stays on the ship
+::
+++  expiry-decline-failed
+  |=  =flag:g
+  ^-  @t
+  %+  rap  3
+  :~  'Could not decline '  (flag-id:spec flag)
+      ' after its request expired: invite decline failed. The invite stays on the ship.'
+  ==
+::  +in-flight: the reply to an answer to a request whose earlier answer
+::  %groups has yet to acknowledge
+::
+++  in-flight
+  |=  id=@t
+  ^-  @t
+  (rap 3 'Request #' id ' is already being answered; wait for its result.' ~)
 ::  +choices: the reply to an order without an id while several requests
 ::  are open, oldest first
 ::
@@ -205,7 +326,7 @@
   |=  [id=@t =approval:t]
   %+  rap  3
   :~  '\0a'  id  ' '  (scot %p who.approval)  ' '
-      (address:p (place-to:p [who place]:approval))
+      (address approval)
   ==
 ::  +oldest: the open requests, oldest first
 ::
@@ -221,7 +342,8 @@
 ::
 ++  carded  4
 ::  +pending-text: OpenClaw's reply to /pending, naming .shown, the oldest
-::  requests with the channel each is for (~ for a DM), of .total open
+::  requests with the channel or group each is for (~ for a DM), of .total
+::  open
 ::
 ++  pending-text
   |=  [shown=(list [id=@t =approval:t where=(unit @t)]) total=@ud]
@@ -237,6 +359,8 @@
     ^-  @t
     =/  ship  (scot %p who.approval)
     ?~  where  (rap 3 '\0a  #' id ' - DM from ' ship ~)
+    ?:  ?=(%group -.topic.approval)
+      (rap 3 '\0a  #' id ' - Group invite from ' ship ' to ' u.where ~)
     (rap 3 '\0a  #' id ' - Mention in ' u.where ' by ' ship ~)
   ::
     ?:  =(0 more)  ~
@@ -309,10 +433,14 @@
     =/  own=(list json)
       :~  (column prefix 'Column' (turn `(list @t)`~['Title' 'Context' 'Actions'] part))
           %^  words  (part 'Title')
-            ?~(where (cat 3 'DM from ' ship) (cat 3 'Channel access for ' ship))
+            ?~  where  (cat 3 'DM from ' ship)
+            ?:  ?=(%group -.topic.approval)  (cat 3 'Group invite from ' ship)
+            (cat 3 'Channel access for ' ship)
           `'h4'
           %^  words  (part 'Context')
-            ?~(where (cat 3 'Sender: ' ship) (cat 3 'Channel: ' u.where))
+            ?~  where  (cat 3 'Sender: ' ship)
+            ?:  ?=(%group -.topic.approval)  (cat 3 'Group: ' u.where)
+            (cat 3 'Channel: ' u.where)
           `'caption'
           (column (part 'Actions') 'Row' (turn `(list @t)`~['Allow' 'Reject' 'Block'] part))
           (button (part 'Allow') 'allowLabel' `'primary' (rap 3 '/allow ' id ' ' token ~))
@@ -490,13 +618,13 @@
   !(lien notices |=(n=notice:t &(=('approval-cap' kind.n) (gth (add at.n ~m10) now))))
 ::  +fresh-id: a short id unique among open requests
 ::
-::    As OpenClaw's: the place's initial and four hex digits, or eight after
-::    ten collisions, since the owner may type it.
+::    As OpenClaw's: the initial of a DM, a channel or a group and four hex
+::    digits, or eight after ten collisions, since the owner may type it.
 ::
 ++  fresh-id
-  |=  [=approvals:t =place:t eny=@uvJ]
+  |=  [=approvals:t =topic:t eny=@uvJ]
   ^-  @t
-  =/  prefix  ?~(place 'd' 'c')
+  =/  prefix  ?:(?=(%group -.topic) 'g' ?~(place.topic 'd' 'c'))
   =/  attempt=@ud  0
   |-
   =/  digits  ?:((lth attempt 10) 4 8)
@@ -563,22 +691,41 @@
   $(at +(at), run 0, found [at found])
 ::  +card: the notice text and the card for a request
 ::
-::    .where is the channel's name and group, or ~ for a DM.
-::
 ++  card
-  |=  $:  id=@t  =approval:t
-          where=(unit [channel=@t group=(unit @t)])
-          preview=(unit @t)
-      ==
+  |=  [id=@t =approval:t =named preview=(unit @t)]
   ^-  [text=@t blob=@t]
   =/  ship  (scot %p who.approval)
   =/  token  (scot %uv (button-token id approval))
   =*  words  text:work-card
-  =/  lines=(list @t)
-    ?~  where  ~[(cat 3 'Sender: ' ship)]
-    %+  weld
-      ~[(cat 3 'Sender: ' ship) (cat 3 'Channel: ' channel.u.where)]
-    ?~(group.u.where ~ ~[(cat 3 'Group: ' u.group.u.where)])
+  =/  [notice=@t eyebrow=@t title=@t lines=(list @t) note=@t]
+    ?-    -.named
+        %dm
+      :*  (cat 3 'DM request from ' ship)
+          'DM access'
+          (rap 3 'Allow ' ship ' to DM the bot?' ~)
+          ~[(cat 3 'Sender: ' ship)]
+          'The bot will be able to read and reply to future DMs from this user.'
+      ==
+    ::
+        %channel
+      :*  (cat 3 'Channel mention request from ' ship)
+          'Channel access'
+          (rap 3 'Let the bot reply to ' ship ' in ' channel.named '?' ~)
+          %+  weld
+            ~[(cat 3 'Sender: ' ship) (cat 3 'Channel: ' channel.named)]
+          ?~(group.named ~ ~[(cat 3 'Group: ' u.group.named)])
+          'The bot will be able to read and reply to this user in this channel.'
+      ==
+    ::
+        %group
+      =/  label  (group-label [flag title]:named)
+      :*  (rap 3 'Group invite request from ' ship ' for ' label ~)
+          'Group invite'
+          (rap 3 'Let the bot join ' (fall title.named (flag-id:spec flag.named)) '?' ~)
+          ~[(cat 3 'Inviter: ' ship) (cat 3 'Group: ' label)]
+          'The bot will be able to read and respond in channels it joins.'
+      ==
+    ==
   =/  context-ids=(list @t)
     (turn (gulf 0 (dec (lent lines))) |=(n=@ud (cat 3 'context' (crip (a-co:co n)))))
   =/  copy=(unit @t)
@@ -598,11 +745,8 @@
     ;:  weld
       :~  (pairs:enjs:format ~[['id' %s 'root'] ['component' %s 'Card'] ['child' %s 'body']])
           (column 'body' 'Column' children)
-          (words 'eyebrow' ?~(where 'DM access' 'Channel access') `'caption')
-          %^  words  'title'
-            ?~  where  (rap 3 'Allow ' ship ' to DM the bot?' ~)
-            (rap 3 'Let the bot reply to ' ship ' in ' channel.u.where '?' ~)
-          `'h3'
+          (words 'eyebrow' eyebrow `'caption')
+          (words 'title' title `'h3')
           (divider 'titleDivider')
       ==
       %+  turn  (gulf 0 (dec (lent lines)))
@@ -610,20 +754,14 @@
       ?~(copy ~ ~[(words 'copy' u.copy `'caption')])
       :~  (divider 'divider')
           (column 'details' 'Column' ~['allowNote'])
-          %^  words  'allowNote'
-            ?~  where
-              'The bot will be able to read and reply to future DMs from this user.'
-            'The bot will be able to read and reply to this user in this channel.'
-          `'caption'
+          (words 'allowNote' note `'caption')
           (column 'actions' 'Row' ~['allow' 'reject' 'ban'])
       ==
       (button 'allow' 'Allow' `'primary' (rap 3 '/allow ' id ' ' token ~))
       (button 'reject' 'Reject' ~ (rap 3 '/reject ' id ' ' token ~))
       (button 'ban' 'Block' `'borderless' (rap 3 '/ban ' id ' ' token ~))
     ==
-  :_  (surface:work-card (cat 3 'approval-' id) components |)
-  ?~  where  (cat 3 'DM request from ' ship)
-  (cat 3 'Channel mention request from ' ship)
+  [notice (surface:work-card (cat 3 'approval-' id) components |)]
 ::
 ++  approvals-json
   |=  =approvals:t
@@ -634,7 +772,7 @@
   %-  pairs:enjs:format
   :~  ['id' %s id]
       ['ship' %s (scot %p who.approval)]
-      ['address' %s (address:p (place-to:p [who place]:approval))]
+      ['address' %s (address approval)]
       ['at' %s (scot %da at.approval)]
   ==
 --

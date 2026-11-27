@@ -30,47 +30,52 @@
 ::
 ::  Expected values, one per path: the input with the path's transformations.
 ::
+++  expected-8
+  ^-  state-8:t
+  populated-8:up
+::  Each request is for its place, and none waits on %groups.
 ++  expected-7
-  ^-  state-7:t
-  populated-7:up
+  ^-  state-8:t
+  =/  e  expected-8
+  e(approvals approvals-from-7:up)
 ::  Approval requests start empty.
 ++  expected-6
-  ^-  state-7:t
+  ^-  state-8:t
   =/  e  expected-7
   e(approvals *approvals:t)
 ::  Per-place grants and their cutoffs start empty; the ship-wide lists and
 ::  channel rules are kept.
 ++  expected-5
-  ^-  state-7:t
+  ^-  state-8:t
   =/  e  expected-6
   e(place-cuts ~, dm-grants.policy ~, channel-grants.policy ~)
 ::  Steward names, edits and the schedule snapshot start empty.
 ++  expected-4
-  ^-  state-7:t
+  ^-  state-8:t
   =/  e  expected-5
   e(automation *automation:t)
 ::  No browser handoff is pending.
 ++  expected-3
-  ^-  state-7:t
+  ^-  state-8:t
   =/  e  expected-4
   e(browser-entries ~)
 ::  The channel's per-speaker conversation is dropped; the DM is kept.
 ++  expected-2
-  ^-  state-7:t
+  ^-  state-8:t
   expected-3
 ::  Lens sync starts unconfigured.
 ++  expected-1
-  ^-  state-7:t
+  ^-  state-8:t
   =/  e  expected-2
   e(lens *lens-sync:t)
 ::  Channel cuts and the allowed and channel policies start empty. The
 ::  fixture's %all response survives conversion through mentions=|.
 ++  expected-0
-  ^-  state-7:t
+  ^-  state-8:t
   =/  e  expected-1
   e(channel-cuts ~, allowed.policy ~, channels.policy ~)
 ++  expected-0-mentions
-  ^-  state-7:t
+  ^-  state-8:t
   =/  e  expected-0
   e(response.policy %mentions)
 ::
@@ -90,21 +95,24 @@
   (expect-reload !>(populated-5:up) expected-5)
 ++  test-tlon-state-6-upgrade-keeps-every-field-and-opens-no-requests
   (expect-reload !>(populated-6:up) expected-6)
-++  test-tlon-state-7-reload-keeps-every-field
+++  test-tlon-state-7-upgrade-keeps-every-request-as-a-place-request
   (expect-reload !>(populated-7:up) expected-7)
+++  test-tlon-state-8-reload-keeps-every-field
+  (expect-reload !>(populated-8:up) expected-8)
 ::  Only the upgrade to shared sessions drops conversations, so a saved %3,
-::  %4, %5, %6 or %7 state leaves every route running.
-++  test-tlon-state-3-to-7-upgrades-drop-no-conversation
+::  %4, %5, %6, %7 or %8 state leaves every route running.
+++  test-tlon-state-3-to-8-upgrades-drop-no-conversation
   ;:  weld
       (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-3:up))))
       (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-4:up))))
       (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-5:up))))
       (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-6:up))))
       (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-7:up))))
+      (expect-eq !>(`(list [@t @t])`~) !>((dropped:migrate !>(populated-8:up))))
   ==
 ::
 ++  expect-reload
-  |=  [saved=vase expected=state-7:t]
+  |=  [saved=vase expected=state-8:t]
   ^-  tang
   =/  once  (load:migrate saved)
   %+  weld  (expect-same:up !>(expected) !>(once))

@@ -14,8 +14,8 @@
 ::
 ++  saved
   |=  owner=(unit @p)
-  ^-  state-7:t
-  =/  saved=state-7:t  *state-7:t
+  ^-  state-8:t
+  =/  saved=state-8:t  *state-8:t
   %=  saved  owner-initialized  1  policy  [& owner ~ %mentions ~ ~ ~ ~]  watching  &
     activity-through  now
     identities  (my ~[[[%dm ~nec ~] 'nec-dm']])
@@ -32,14 +32,14 @@
   (boot-from (saved owner) running lease)
 ::
 ++  boot-from
-  |=  [saved=state-7:t running=? lease=?]
+  |=  [saved=state-8:t running=? lease=?]
   (boot-left saved running lease `~)
 ::
 ::  Loads the hand as +boot does, with .left Steward's task map, and returns
 ::  the cards of loading and of the watch's acknowledgement.
 ::
 ++  boot-left
-  |=  [saved=state-7:t running=? lease=? left=(unit (map @p tasks:v1:sa))]
+  |=  [saved=state-8:t running=? lease=? left=(unit (map @p tasks:v1:sa))]
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  loaded=(list card)  bind:m  (load-only saved running lease left)
@@ -49,7 +49,7 @@
   (pure:m (weld loaded acked))
 ::
 ++  load-only
-  |=  [saved=state-7:t running=? lease=? left=(unit (map @p tasks:v1:sa))]
+  |=  [saved=state-8:t running=? lease=? left=(unit (map @p tasks:v1:sa))]
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src ~zod, now now))
@@ -866,7 +866,7 @@
 ::  The owner with no conversation yet, in his DM or anywhere else.
 ::
 ++  unopened
-  ^-  state-7:t
+  ^-  state-8:t
   =/  s  (saved `~nec)
   s(identities ~, routes ~, lanes ~)
 ::
@@ -970,7 +970,7 @@
     %+  refused  'chat/~bus/general'
     "the bot cannot post in chat/~bus/general; add it to the channel with permission to write"
   ;<  =vase  bind:m  get-save
-  ;<  ~  bind:m  (ex-equal !>(identities:!<(state-7:t vase)) !>(~))
+  ;<  ~  bind:m  (ex-equal !>(identities:!<(state-8:t vase)) !>(~))
   ;<  *  bind:m  (boot-from muted & &)
   %+  refused  'chat/~zod/general'
   "the bot's replies are off in chat/~zod/general; turn them on in its Tlon settings"

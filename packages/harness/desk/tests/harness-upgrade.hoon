@@ -82,14 +82,51 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
-++  populated-7
-  ^-  state-7:t
+++  populated-8
+  ^-  state-8:t
   =/  p  populated-6
-  :*  %7
-      :-  (my ~[['d1a2b' [~lus ~ ~2026.10.17]] ['c3c4d' [~lus `[%chat ~bus %general] ~2026.10.18]]])
-      (my ~[[[~lus ~] 'd1a2b'] [[~lus `[%chat ~bus %general]] 'c3c4d']])
+  :*  %8
+      :+  %-  my
+          :~  ['d1a2b' [~lus [%place ~] ~2026.10.17]]
+              ['c3c4d' [~lus [%place `[%chat ~bus %general]] ~2026.10.18]]
+              ['g5e6f' [~lus [%group ~bus %club] ~2026.10.19]]
+          ==
+        %-  my
+        :~  [[~lus %place ~] 'd1a2b']
+            [[~lus %place `[%chat ~bus %general]] 'c3c4d']
+            [[~lus %group ~bus %club] 'g5e6f']
+        ==
+      (silt ~['g5e6f'])
       +.p
   ==
+::  The hand's last shape whose requests were each for a place, with one
+::  open for a DM and one for a channel.
+++  populated-7
+  ^-  state-7:mt
+  =/  p  populated-6
+  :*  %7
+      :-  %-  my
+          :~  ['d1a2b' [~lus ~ ~2026.10.17]]
+              ['c3c4d' [~lus `[%chat ~bus %general] ~2026.10.18]]
+          ==
+      %-  my
+      :~  [[~lus ~] 'd1a2b']
+          [[~lus `[%chat ~bus %general]] 'c3c4d']
+      ==
+      +.p
+  ==
+::  .populated-7's requests as %8 holds them
+++  approvals-from-7
+  ^-  approvals:t
+  :+  %-  my
+      :~  ['d1a2b' [~lus [%place ~] ~2026.10.17]]
+          ['c3c4d' [~lus [%place `[%chat ~bus %general]] ~2026.10.18]]
+      ==
+    %-  my
+    :~  [[~lus %place ~] 'd1a2b']
+        [[~lus %place `[%chat ~bus %general]] 'c3c4d']
+    ==
+  ~
 ::  The hand's last shape without approval requests.
 ++  populated-6
   ^-  state-6:mt
@@ -213,8 +250,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-7:t
-  =/  s  *state-7:t
+  ^-  state-8:t
+  =/  s  *state-8:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -345,7 +382,8 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-7) *state-7:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-7) *state-7:mt))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-8) *state-8:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field
