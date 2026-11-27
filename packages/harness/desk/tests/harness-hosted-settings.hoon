@@ -27,6 +27,21 @@
       (expect-eq !>('selected-model') !>(model.config.result))
       (expect-eq !>('') !>(key.config.result))
   ==
+++  test-subscription-model-edit-after-context-discovery
+  =/  cfg=config:h  config
+  =/  keys  (my ~[['openai-device' 'SUBSCRIPTION']])
+  =/  first  (apply:settings cfg keys (args (revision:settings cfg) 'subscription'))
+  =/  body  (need (get:j response.first 'body'))
+  =/  input  (args (string:j body 'revision') 'subscription')
+  ?>  ?=(%o -.input)
+  =.  p.input  (~(put by p.input) 'model' [%s 'another-model'])
+  =/  refreshed  config.first(max-context 272.000)
+  =/  result  (apply:settings refreshed keys input)
+  ;:  weld
+      (expect-eq !>(200) !>((number:j response.result 'status' 0)))
+      (expect-eq !>('another-model') !>(model.config.result))
+      (expect-eq !>(272.000) !>(max-context.config.result))
+  ==
 ++  test-settings-reject-conflicts-without-saving-key
   =/  cfg=config:h  config
   =/  input  (args 'stale-revision' 'api-key')

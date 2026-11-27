@@ -10,7 +10,7 @@
   ^-  @t
   %+  scot  %uv
   %-  sham
-  [url.config model.config headers.config max-context.config zdr.config fallbacks.config]
+  [url.config model.config headers.config zdr.config fallbacks.config]
 ::
 ++  view
   |=  [config=config:h keys=(map @t @t)]

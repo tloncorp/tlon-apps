@@ -93,6 +93,8 @@ precedence over a catalog's default `context_window`; the request budget still
 reserves output and safety headroom. Saving a model selection waits for its
 catalog lookup. Reloading the agent refreshes configured provider catalogs and
 updates saved defaults, peer and summary models, and existing conversations.
+A catalog capacity update preserves the hosted model settings revision, so a
+user can apply another model selection with the revision from the previous save.
 Unavailable metadata preserves saved limits, and a new model with no reported
 capacity uses 800,000 tokens. A capacity update does not retry failed work or
 change an in-flight request's frozen route. The Codex subscription catalog
