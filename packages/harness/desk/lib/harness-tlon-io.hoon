@@ -23,9 +23,13 @@
 ++  blocked
   |=  who=@p
   ^-  ?
-  ?.  .^(? %gu /(scot %p our.bowl)/chat/(scot %da now.bowl)/$)  |
-  %.  who
-  %~  has  in
+  (~(has in blocked-ships) who)
+::
+::  +blocked-ships: the ships this ship blocks on Tlon
+::
+++  blocked-ships
+  ^-  (set @p)
+  ?.  .^(? %gu /(scot %p our.bowl)/chat/(scot %da now.bowl)/$)  ~
   .^((set @p) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/blocked/ships)
 ::
 ::  +block: add .who to Tlon's native block list, as the app's Block does
@@ -36,6 +40,16 @@
   |=  [=wire who=@p]
   ^-  card
   [%pass wire %agent [our.bowl %chat] %poke %chat-block-ship !>(who)]
+::
+::  +unblock: take .who off Tlon's native block list, as the app's Unblock
+::  does
+::
+::    %chat crashes on a ship it does not block, so check +blocked first.
+::
+++  unblock
+  |=  [=wire who=@p]
+  ^-  card
+  [%pass wire %agent [our.bowl %chat] %poke %chat-unblock-ship !>(who)]
 ::
 ++  accept-invitation
   |=  who=@p

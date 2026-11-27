@@ -215,6 +215,12 @@ describe('static command lists', () => {
         '/forget',
         '/work',
         '/stop',
+        '/pending',
+        '/allow',
+        '/reject',
+        '/ban',
+        '/banned',
+        '/unban',
       ].sort()
     );
     expect(tokens).not.toContain('/owner-listen');

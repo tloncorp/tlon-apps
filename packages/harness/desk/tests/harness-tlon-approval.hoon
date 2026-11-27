@@ -120,6 +120,21 @@
       (expect-eq !>(~) !>((read-order:ask 'allow d1234')))
       (expect-eq !>(~) !>((read-order:ask '/Allow d1234')))
   ==
+::  The listings take nothing after them; an unban's ship is read with or
+::  without its sig, in any case, and ~ when the text is no ship.
+::
+++  test-the-listings-and-unban-are-read-with-their-ship
+  ;:  weld
+      (expect-eq !>(`[%pending ~]) !>((read-order:ask ' /pending ')))
+      (expect-eq !>(`[%banned ~]) !>((read-order:ask '/banned')))
+      (expect-eq !>(~) !>((read-order:ask '/pending d1234')))
+      (expect-eq !>(~) !>((read-order:ask '/banned ~dev')))
+      (expect-eq !>(`[%unban `~sampel-palnet]) !>((read-order:ask '/unban ~sampel-palnet')))
+      (expect-eq !>(`[%unban `~dev]) !>((read-order:ask '/unban  Dev ')))
+      (expect-eq !>(`[%unban ~]) !>((read-order:ask '/unban')))
+      (expect-eq !>(`[%unban ~]) !>((read-order:ask '/unban ~dev ~bus')))
+      (expect-eq !>(`[%unban ~]) !>((read-order:ask '/unban d1234')))
+  ==
 ::  Exact first, then the one id the text begins, case as typed; no id is
 ::  the only open request, and none of several. With a token, the exact id
 ::  of the request that token was made for only.
@@ -183,5 +198,58 @@
       %+  expect-eq
         !>('Room in Lux (chat/~lux/test)')
       !>((channel-label:ask nest 'test' `['Room' `'Lux']))
+  ==
+::  Characters, not bytes, are counted.
+::
+++  test-a-title-over-eighty-characters-is-cut-to-seventy-seven-and-an-ellipsis
+  =/  eighty  (crip (reap 80 'a'))
+  =/  e  (snag 0 (tuba "é"))
+  ;:  weld
+      (expect-eq !>(eighty) !>((bounded:ask eighty)))
+      %+  expect-eq
+        !>((cat 3 (crip (reap 77 'a')) '...'))
+      !>((bounded:ask (cat 3 eighty 'b')))
+      %+  expect-eq
+        !>((cat 3 (crip (tufa (reap 77 e))) '...'))
+      !>((bounded:ask (crip (tufa (reap 81 e)))))
+  ==
+::  The UTF-8 decoder crashes on these; a host can set either.
+::
+++  test-a-title-with-a-tab-or-invalid-utf-8-is-cut-without-crashing
+  =/  tab  (crip (reap 81 '\09'))
+  =/  bad  (rep 3 (reap 81 0xff))
+  ;:  weld
+      (expect-eq !>((cat 3 (crip (reap 77 '\09')) '...')) !>((bounded:ask tab)))
+      (expect-eq !>((cat 3 (rep 3 (reap 77 0xff)) '...')) !>((bounded:ask bad)))
+      (expect-eq !>('a\09b') !>((bounded:ask 'a\09b')))
+      (expect-eq !>('a\09b') !>((preview:ask 'a\09b')))
+  ==
+::  No character has more than three continuation bytes, so a host's title
+::  of nothing else is still cut, each four of them counted as one.
+::
+++  test-a-title-of-stray-continuation-bytes-is-still-cut
+  =/  stray  (rep 3 (reap 400 0x80))
+  ;:  weld
+      %+  expect-eq
+        !>((cat 3 (rep 3 (reap 308 0x80)) '...'))
+      !>((bounded:ask stray))
+      %+  expect-eq
+        !>((rap 3 (rep 3 (reap 152 0x80)) '...' (rep 3 (reap 156 0x80)) ~))
+      !>((squeezed:ask stray))
+  ==
+::  Two untitled channels on one host, alike but for their ends, are named
+::  apart, by the start and the end of their nests.
+::
+++  test-long-nests-that-differ-at-the-end-get-different-labels
+  =/  stem  (reap 200 'a')
+  =/  one  (crip (weld "chat/~lux/" (snoc stem 'b')))
+  =/  two  (crip (weld "chat/~lux/" (snoc stem 'c')))
+  =/  label  |=(nest=@t (channel-label:ask nest nest ~))
+  ;:  weld
+      (expect-eq !>(|) !>(=((label one) (label two))))
+      (expect-eq !>(80) !>((met 3 (label one))))
+      %+  expect-eq
+        !>((rap 3 (crip (weld "chat/~lux/" (reap 28 'a'))) '...' (crip (snoc (reap 38 'a') 'b')) ~))
+      !>((label one))
   ==
 --

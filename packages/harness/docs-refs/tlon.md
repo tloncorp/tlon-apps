@@ -750,7 +750,8 @@ where granted, read messages by every author.
 
 The owner answers a request with an approval command, `/allow <id>`,
 `/reject <id>` or `/ban <id>`, typed or sent by the card's button, in a DM
-with the bot. The Tlon hand reads these itself, as the OpenClaw plugin does,
+with the bot, and lists requests and blocked ships with the approval
+commands `/pending`, `/banned` and `/unban <ship>` below. The Tlon hand reads these itself, as the OpenClaw plugin does,
 before a message would reach the head: an approval command never starts a
 turn and is not passed to the model as a message. The model's Tlon history
 tools, where granted, can still read it like any message on the ship. `/help`, which lists the head's commands, does not list them. The
@@ -842,7 +843,17 @@ hand handles no message from its own ship.
   and `/ban` answer nothing. The reply is `Approved DM access for ~ship. They will be able
   to message the bot.` or `Approved ~ship for <channel>. They will be able to
   interact in this channel.`, where the channel is named `Title in Group
-  (chat/~host/name)`, or with what of the titles it has.
+  (chat/~host/name)`, or with what of the titles it has. Wherever a card, a
+  reply or `/pending` names a channel, each title over 80 characters is cut
+  to 77 and `...`, as OpenClaw cuts a group's, since the host sets it and
+  Messenger limits a card's text. The nest and an untitled channel's name
+  shown there are cut to 80 characters in the middle instead, keeping their
+  first 38 and last 39 around `...`, so channels alike but for their ends
+  read apart; a button still sends the request's own id. The
+  cut counts characters on the bytes, so a tab or a malformed byte in a
+  title cannot stop the request from opening. A character has at most three
+  continuation bytes, so a longer run of them is counted one character per
+  four bytes and a title of nothing else is still cut.
 - `/reject` closes the request and gives nothing, so the ship can ask again.
   For a DM request it also declines the ship's pending DM invitation, as
   expiry does, so its next message invites the bot again. The reply is
@@ -866,6 +877,42 @@ hand handles no message from its own ship.
   `approval-rejected` or `approval-banned`, with the request's id, and a
   refused block as `approval-ban-failed`. The maintenance wake moves to the
   next open request's expiry.
+
+Three more approval commands, as on OpenClaw, list the requests and the
+ships the bot blocks, and take a ship off that list. They are read and
+gated as the three above are: only the owner's, only in the owner's DM with
+the bot, not in a message that holds code or a quote, and dropped
+unanswered from any other ship, which opens no request and starts no turn.
+`/pending` and `/banned` take nothing after them; with more, the text is
+not one of these commands.
+
+- `/pending` lists the open requests, oldest first, one line each with its
+  id: `Pending requests (<n>):`, then lines such as `#d3c4d - DM from ~ship`
+  or `#c1a2b - Mention in <channel> by ~ship`, with the channel named as the
+  `/allow` reply names it, then `Use /allow, /reject, or /ban with the ID.`
+  It names at most 25, the oldest, and ends the list with `and <k> more.`
+  for the rest. With one to four open, the reply also carries OpenClaw's
+  pending-requests card, a row for each request with Allow, Reject and
+  Block buttons that send the commands with the request's id and token, as
+  its own card's buttons do. No request keeps its message, so neither shows a
+  preview. A request whose 48 hours have passed is not listed, as it is
+  never looked up. With none open, the reply is `No pending approval
+  requests.`
+- `/banned` lists the ships on Tlon's native block list, the `%chat` list
+  that `/ban` adds to: `Blocked users (<n>):`, one ship a line, then ``To
+  unban: `/unban ~sampel-palnet` ``. With none, the reply is `No users are
+  currently blocked.`
+- `/unban <ship>` takes the ship off that list, as the app's Unblock does.
+  The ship may be written with or without its `~`, in any case. Once `%chat`
+  has the unblock, the reply is `Unblocked ~ship.`, recorded in the activity
+  feed as `approval-unbanned`. If `%chat` refuses it, the owner is told
+  `Failed to unblock ~ship.`, recorded as `approval-unban-failed`, unless
+  the ship is no longer blocked by then, as when two unbans are sent before
+  the first is acknowledged: that is told as an unban. A ship that is not
+  blocked is not unblocked again, and the reply is `~ship is not blocked.`
+  Without a ship, or with text that is not one, the reply is `Usage: /unban
+  ~ship-name`. Unblocking gives nothing back: the DM grant `/ban` removed and
+  the requests it closed stay gone, and the ship may simply ask again.
 
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership
@@ -1511,7 +1558,10 @@ in a DM; the owner's `/allow` posted in the channel
 is an ordinary message, answered as any unknown slash text, and grants nothing; the owner's
 `/reject` typed in the DM then leaves the ship unanswered with no request
 open; a command from a ship with DM access that is not the owner changes
-nothing and gets no reply; and no DM command text is in a model request. The two run
+nothing and gets no reply; and no DM command text is in a model request.
+The DM script also checks that the owner's `/pending` lists the open
+request's id with a card, and the tap on Allow is made on that card; and, with the asking ship blocked natively, that
+`/banned` lists it, `/unban` unblocks it and `/banned` then does not. The two run
 apart, since the denial limit lets a ship ask once per five minutes.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM
 and channel requests, `/ban`'s block, its refusal and a second refused tap, unknown, closed and
@@ -1525,7 +1575,14 @@ the owner's included, handled as an ordinary message. It also covers the
 message an allow answers: only the newest of several, in a DM and in a
 channel, none when it was deleted or came before the request's cutoff, none
 after a settings grant or a reject, and no second answer on the catch-up
-that follows the DM's acceptance.
+that follows the DM's acceptance. For the listings and unban it covers
+`/pending` oldest first with ids and a card, with none open, without an
+overdue request on a reload's catch-up, and past its limits of four cards
+and 25 lines; `/banned` with ships and with none; `/unban` confirmed once
+`%chat` acknowledges it, its refusal, a second unban refused as not blocked,
+a ship not blocked, no ship and text that is not one; the three from ships
+that are not the owner; and the owner's `/pending` in a channel, an
+ordinary message.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending

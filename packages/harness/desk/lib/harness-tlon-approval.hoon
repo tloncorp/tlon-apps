@@ -5,12 +5,23 @@
 /+  p=harness-tlon-policy, work-card=harness-tlon-work-card,
     command=harness-command
 |%
-::  $order: the owner's answer to a request, typed or sent by a card's button
+::  $order: an owner command: an answer to a request, typed or sent by a
+::  card's button, a listing of the open requests or of the blocked ships,
+::  or an unblock
 ::
 ::    A button also sends its request's +button-token, so that a stale
-::    card's id, reused by a later request, acts on nothing.
+::    card's id, reused by a later request, acts on nothing. An unban holds
+::    its ship, or ~ when no ship can be read from the text.
 ::
-+$  order  [action=?(%allow %reject %ban) id=(unit @t) token=(unit @uv)]
++$  answer  [id=(unit @t) token=(unit @uv)]
++$  order
+  $%  [%allow answer]
+      [%reject answer]
+      [%ban answer]
+      [%pending ~]
+      [%banned ~]
+      [%unban who=(unit @p)]
+  ==
 ::  +find: the id of the request open for a ship in a place
 ::
 ++  find
@@ -50,30 +61,49 @@
   |=  [[id=@t =approval:t] kept=_approvals]
   ?:  (keep approval)  kept
   (close kept id)
-::  +read-order: the approval command .text is, if it is one
+::  +read-order: the owner command .text is, if it is one
 ::
-::    As OpenClaw reads it: the id is the rest of the text, trimmed, and
-::    none when nothing follows the command; but a token after the id and
-::    one space, as the card's buttons send, is the request's token.
+::    A listing takes nothing after its name; text with more is not one.
 ::
 ++  read-order
   |=  text=@t
   ^-  (unit order)
   =/  parsed  (parse:command text)
   ?~  parsed  ~
-  =/  arg  (trip arg.u.parsed)
-  =/  gap  (^find " " arg)
-  =/  token=(unit @uv)  ?~(gap ~ (slaw %uv (crip (slag +(u.gap) arg))))
-  =/  id=(unit @t)
-    ?:  =('' arg.u.parsed)  ~
-    ?~  gap  `arg.u.parsed
-    ?~  token  `arg.u.parsed
-    `(crip (scag u.gap arg))
+  =*  arg  arg.u.parsed
   ?+  name.u.parsed  ~
-    %allow  `[%allow id token]
-    %reject  `[%reject id token]
-    %ban  `[%ban id token]
+    %allow  `[%allow (read-answer arg)]
+    %reject  `[%reject (read-answer arg)]
+    %ban  `[%ban (read-answer arg)]
+    %pending  ?.(=('' arg) ~ `[%pending ~])
+    %banned  ?.(=('' arg) ~ `[%banned ~])
+    %unban  `[%unban (read-ship arg)]
   ==
+::  +read-answer: the request an answer's .arg names
+::
+::    As OpenClaw reads it: the id is the rest of the text, trimmed, and
+::    none when nothing follows the command; but a token after the id and
+::    one space, as the card's buttons send, is the request's token.
+::
+++  read-answer
+  |=  arg=@t
+  ^-  answer
+  =/  chars  (trip arg)
+  =/  gap  (^find " " chars)
+  =/  token=(unit @uv)  ?~(gap ~ (slaw %uv (crip (slag +(u.gap) chars))))
+  :_  token
+  ?:  =('' arg)  ~
+  ?~  gap  `arg
+  ?~  token  `arg
+  `(crip (scag u.gap chars))
+::  +read-ship: the ship an unban names, with or without its sig and in any
+::  case, as OpenClaw reads it
+::
+++  read-ship
+  |=  arg=@t
+  ^-  (unit @p)
+  =/  chars  (cass (trip arg))
+  (slaw %p (crip ?:(=("~" (scag 1 chars)) chars ['~' chars])))
 ::  +pick: the request an order names
 ::
 ::    As OpenClaw finds it, the exact id, else the one id it begins. With no
@@ -122,16 +152,156 @@
 ++  choices
   |=  =approvals:t
   ^-  @t
-  =/  open
-    %+  sort  ~(tap by by-id.approvals)
-    |=([a=[@t =approval:t] b=[@t =approval:t]] (lth at.approval.a at.approval.b))
   %+  rap  3
   :-  'More than one approval is pending. Send the command again with an ID:'
-  %+  turn  open
+  %+  turn  (oldest approvals)
   |=  [id=@t =approval:t]
   %+  rap  3
   :~  '\0a'  id  ' '  (scot %p who.approval)  ' '
       (address:p (place-to:p [who place]:approval))
+  ==
+::  +oldest: the open requests, oldest first
+::
+++  oldest
+  |=  =approvals:t
+  ^-  (list [id=@t =approval:t])
+  %+  sort  ~(tap by by-id.approvals)
+  |=([a=[@t =approval:t] b=[@t =approval:t]] (lth at.approval.a at.approval.b))
+::  +listed: the most requests /pending names, past which it counts the rest
+::
+++  listed  25
+::  +carded: the most requests /pending also shows as a card, as OpenClaw's
+::
+++  carded  4
+::  +pending-text: OpenClaw's reply to /pending, naming .shown, the oldest
+::  requests with the channel each is for (~ for a DM), of .total open
+::
+++  pending-text
+  |=  [shown=(list [id=@t =approval:t where=(unit @t)]) total=@ud]
+  ^-  @t
+  ?:  =(0 total)  'No pending approval requests.'
+  =/  more  (sub total (lent shown))
+  %+  rap  3
+  ;:  weld
+    `(list @t)`~['Pending requests (' (crip (a-co:co total)) '):\0a']
+  ::
+    %+  turn  shown
+    |=  [id=@t =approval:t where=(unit @t)]
+    ^-  @t
+    =/  ship  (scot %p who.approval)
+    ?~  where  (rap 3 '\0a  #' id ' - DM from ' ship ~)
+    (rap 3 '\0a  #' id ' - Mention in ' u.where ' by ' ship ~)
+  ::
+    ?:  =(0 more)  ~
+    `(list @t)`~['\0a  and ' (crip (a-co:co more)) ' more.']
+  ::
+    `(list @t)`~['\0a\0aUse /allow, /reject, or /ban with the ID.']
+  ==
+::  +divider: a card's Divider component
+::
+++  divider
+  |=  id=@t
+  ^-  json
+  (pairs:enjs:format ~[['id' %s id] ['component' %s 'Divider']])
+::  +column: a card's container .component, a Column or a Row, of .children
+::
+++  column
+  |=  [id=@t component=@t children=(list @t)]
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['id' %s id]
+      ['component' %s component]
+      ['children' %a (turn children |=(c=@t [%s c]))]
+  ==
+::  +pending-card: OpenClaw's card for /pending, a row with Allow, Reject
+::  and Block buttons for each of .shown
+::
+::    The buttons send each request's token, as its own card's do. The
+::    labels are shared, which keeps four rows within the app's limit on a
+::    card's components.
+::
+++  pending-card
+  |=  shown=(list [id=@t =approval:t where=(unit @t)])
+  ^-  @t
+  =*  words  text:work-card
+  =/  count  (lent shown)
+  =/  button
+    |=  [id=@t label=@t variant=(unit @t) command=@t]
+    ^-  json
+    (snag 0 (labelled:work-card id label '' command variant))
+  =/  rows=(list [prefix=@t id=@t =approval:t where=(unit @t)])
+    %+  turn  (gulf 1 count)
+    |=  n=@ud
+    [(cat 3 'item' (crip (a-co:co (dec n)))) (snag (dec n) shown)]
+  =/  children=(list @t)
+    :+  'eyebrow'  'title'
+    :-  'titleDivider'
+    %+  roll  (flop rows)
+    |=  [[prefix=@t *] kids=(list @t)]
+    ?:  =('item0' prefix)  [prefix kids]
+    [(cat 3 prefix 'Divider') prefix kids]
+  =/  head-parts=(list json)
+    :~  (pairs:enjs:format ~[['id' %s 'root'] ['component' %s 'Card'] ['child' %s 'body']])
+        (column 'body' 'Column' children)
+        (words 'eyebrow' 'Pending requests' `'caption')
+        %^  words  'title'
+          (cat 3 (crip (a-co:co count)) ?:(=(1 count) ' approval request' ' approval requests'))
+        `'h3'
+        (divider 'titleDivider')
+        (words 'allowLabel' 'Allow' ~)
+        (words 'rejectLabel' 'Reject' ~)
+        (words 'blockLabel' 'Block' ~)
+    ==
+  =/  row-parts=(list json)
+    %+  roll  (flop rows)
+    |=  [[prefix=@t id=@t =approval:t where=(unit @t)] parts=(list json)]
+    ^-  (list json)
+    =/  ship  (scot %p who.approval)
+    =/  token  (scot %uv (button-token id approval))
+    =/  part  |=(name=@t (cat 3 prefix name))
+    =/  own=(list json)
+      :~  (column prefix 'Column' (turn `(list @t)`~['Title' 'Context' 'Actions'] part))
+          %^  words  (part 'Title')
+            ?~(where (cat 3 'DM from ' ship) (cat 3 'Channel access for ' ship))
+          `'h4'
+          %^  words  (part 'Context')
+            ?~(where (cat 3 'Sender: ' ship) (cat 3 'Channel: ' u.where))
+          `'caption'
+          (column (part 'Actions') 'Row' (turn `(list @t)`~['Allow' 'Reject' 'Block'] part))
+          (button (part 'Allow') 'allowLabel' `'primary' (rap 3 '/allow ' id ' ' token ~))
+          (button (part 'Reject') 'rejectLabel' ~ (rap 3 '/reject ' id ' ' token ~))
+          (button (part 'Block') 'blockLabel' `'borderless' (rap 3 '/ban ' id ' ' token ~))
+      ==
+    =.  parts  (weld own parts)
+    ?:  =('item0' prefix)  parts
+    [(divider (part 'Divider')) parts]
+  (surface:work-card 'pending-approvals' (weld head-parts row-parts) |)
+::  +blocked-text: OpenClaw's reply to /banned
+::
+++  blocked-text
+  |=  ships=(set @p)
+  ^-  @t
+  ?:  =(~ ships)  'No users are currently blocked.'
+  %+  rap  3
+  ;:  weld
+    `(list @t)`~['Blocked users (' (crip (a-co:co ~(wyt in ships))) '):']
+    (turn (sort ~(tap in ships) lth) |=(who=@p (cat 3 '\0a  ' (scot %p who))))
+    `(list @t)`~['\0a\0aTo unban: `/unban ~sampel-palnet`']
+  ==
+::  +unban-usage: OpenClaw's reply to /unban without a ship
+::
+++  unban-usage  'Usage: /unban ~ship-name'
+::  +unbanned: OpenClaw's replies to /unban of .who: once %chat has the
+::  unblock, when .who was not blocked, and when %chat refuses the unblock
+::
+++  unbanned
+  |=  [who=@p outcome=?(%unblocked %free %failed)]
+  ^-  @t
+  =/  ship  (scot %p who)
+  ?-  outcome
+    %unblocked  (rap 3 'Unblocked ' ship '.' ~)
+    %free  (cat 3 ship ' is not blocked.')
+    %failed  (rap 3 'Failed to unblock ' ship '.' ~)
   ==
 ::  +unknown: OpenClaw's reply to an order that names no open request
 ::
@@ -160,18 +330,20 @@
 ::  +channel-label: a channel as OpenClaw names it in a reply
 ::
 ::    .named is the channel's title, or its .name when untitled, and its
-::    group's title, as the adapter's +approval-channel reads them.
+::    group's title, as the adapter's +approval-channel reads them. The nest
+::    is cut in its middle by +squeezed, for a host names the channel.
 ::
 ++  channel-label
   |=  [nest=@t name=@t named=(unit [channel=@t group=(unit @t)])]
   ^-  @t
-  ?~  named  nest
-  =/  titled  !=(name channel.u.named)
+  =/  shown  (squeezed nest)
+  ?~  named  shown
+  =/  titled  !=((squeezed name) channel.u.named)
   ?~  group.u.named
-    ?.  titled  nest
-    (rap 3 channel.u.named ' (' nest ')' ~)
-  ?.  titled  (rap 3 u.group.u.named ' (' nest ')' ~)
-  (rap 3 channel.u.named ' in ' u.group.u.named ' (' nest ')' ~)
+    ?.  titled  shown
+    (rap 3 channel.u.named ' (' shown ')' ~)
+  ?.  titled  (rap 3 u.group.u.named ' (' shown ')' ~)
+  (rap 3 channel.u.named ' in ' u.group.u.named ' (' shown ')' ~)
 ::  +lifetime: how long a request stays open unanswered, as OpenClaw's
 ::
 ++  lifetime  ~h48
@@ -248,7 +420,58 @@
 ++  preview
   |=  text=@t
   ^-  @t
-  (crip (tufa (scag 100 (tuba (trip text)))))
+  =/  starts  (leads text)
+  ?:  (lte (lent starts) 100)  text
+  (end [3 (snag 100 starts)] text)
+::  +bounded: a channel's or a group's title cut to eighty characters, the
+::  last three an ellipsis, as OpenClaw bounds a group's title
+::
+::    A host sets the title, and it goes into cards and replies whose text
+::    Messenger limits.
+::
+++  bounded
+  |=  text=@t
+  ^-  @t
+  =/  starts  (leads text)
+  ?:  (lte (lent starts) 80)  text
+  (cat 3 (end [3 (snag 77 starts)] text) '...')
+::  +squeezed: a nest or an untitled channel's name in eighty characters,
+::  its start and its end around an ellipsis
+::
+::    A host names its channels, often alike at the start: two that differ
+::    only at the end still read apart.
+::
+++  squeezed
+  |=  text=@t
+  ^-  @t
+  =/  starts  (leads text)
+  =/  count  (lent starts)
+  ?:  (lte count 80)  text
+  %+  rap  3
+  :~  (end [3 (snag 38 starts)] text)
+      '...'
+      (rsh [3 (snag (sub count 39) starts)] text)
+  ==
+::  +leads: the offset of each character's first byte in .text
+::
+::    Counted on the bytes, as the UTF-8 decoder crashes on a tab, another
+::    control character or a malformed sequence, which another ship may
+::    send: every byte but a continuation byte begins a character, so a cut
+::    at one of these offsets falls on a character boundary. A character has
+::    at most three continuation bytes, so a fourth in a row begins another,
+::    and a run of them still counts toward a bound.
+::
+++  leads
+  |=  text=@t
+  ^-  (list @ud)
+  =/  len  (met 3 text)
+  =|  [at=@ud found=(list @ud)]
+  =/  run=@ud  3
+  |-  ^-  (list @ud)
+  ?:  =(at len)  (flop found)
+  ?:  &((lth run 3) =(2 (rsh [0 6] (cut 3 [at 1] text))))
+    $(at +(at), run +(run))
+  $(at +(at), run 0, found [at found])
 ::  +card: the notice text and the card for a request
 ::
 ::    .where is the channel's name and group, or ~ for a DM.
@@ -281,16 +504,6 @@
       context-ids
       ?~(copy ~ ~['copy'])
       `(list @t)`~['divider' 'details' 'actions']
-    ==
-  =/  divider
-    |=(id=@t (pairs:enjs:format ~[['id' %s id] ['component' %s 'Divider']]))
-  =/  column
-    |=  [id=@t component=@t children=(list @t)]
-    ^-  json
-    %-  pairs:enjs:format
-    :~  ['id' %s id]
-        ['component' %s component]
-        ['children' %a (turn children |=(c=@t [%s c]))]
     ==
   =/  components=(list json)
     ;:  weld
