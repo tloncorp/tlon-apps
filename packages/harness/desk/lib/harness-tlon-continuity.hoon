@@ -5,8 +5,8 @@
 |%
 ::
 ++  detach-routes
-  |=  [saved=state-5:t hands=state:hh]
-  ^-  state-5:t
+  |=  [saved=state-6:t hands=state:hh]
+  ^-  state-6:t
   ::  Disabled bindings cannot authorize new input. Keep send receipts, but
   ::  start a fresh conversation so late results cannot enter its new history.
   =/  detached
@@ -80,6 +80,37 @@
       !=((authority-for before actor) (authority-for after actor))
       (owner-only-revoked before after actor)
   ==
+::  $owners: who owns the ship before and after a policy change
+::
++$  owners  [before=$-(@p ?) after=$-(@p ?)]
+::  +place-changed: whether admission decides differently for an actor in a place
+::
+::    A grant beside access the actor already has there, as the owner, a
+::    sibling moon's owner, a ship-wide grant or an open channel's reader,
+::    changes nothing.
+::
+++  place-changed
+  |=  [before=policy:t after=policy:t =owners actor=@p =place:t]
+  ^-  ?
+  =/  to=destination:t  ?~(place [%dm actor ~] [%channel u.place ~])
+  =/  was  (before.owners actor)
+  =/  is  (after.owners actor)
+  ::  Grant order alone is not a change.
+  ?!  .=  [was (bind (destination-grants:p before actor to ~ was) silt)]
+  [is (bind (destination-grants:p after actor to ~ is) silt)]
+::  +place-keys: every actor and place a policy grants per place
+::
+++  place-keys
+  |=  policy=policy:t
+  ^-  (set [@p place:t])
+  =/  dms=(list [@p place:t])
+    (turn ~(tap in dm-grants.policy) |=(who=@p [who ~]))
+  =/  channels=(list [@p place:t])
+    %-  zing
+    %+  turn  ~(tap by channel-grants.policy)
+    |=  [nest=nest:c ships=(set @p)]
+    (turn ~(tap in ships) |=(who=@p [who `nest]))
+  (silt (weld dms channels))
 ::  Adding an owner-only tool for another ship changes nothing it can do, but
 ::  removing one is a change, so the owner can stop work that holds it.
 ++  owner-only-revoked
@@ -102,10 +133,15 @@
   ^-  (map @p @da)
   ::  Keep unchanged cutoffs. Removed actors without conversations need no
   ::  tombstone: granting them again establishes a fresh cutoff. This bounds
-  ::  the map by DM partners, pending speakers and the two policy snapshots.
+  ::  the map by DM partners, pending speakers and the two policy snapshots,
+  ::  per-place grants included.
+  =/  placed=(list @p)
+    %+  turn  ~(tap in (~(uni in (place-keys before)) (place-keys new)))
+    |=([who=@p *] who)
   =/  actors=(set @p)
     %-  silt
     ;:  weld
+        placed
         %+  murn  ~(tap by known)
         |=  [to=destination:t sid=@t]
         ?.(?=(%dm -.to) ~ `who.to)
@@ -124,6 +160,27 @@
     (~(get by prior) actor)
   ?~  cutoff  cutoffs
   (~(put by cutoffs) actor u.cutoff)
+::
+::  +place-cutoffs: a per-place grant change moves only that place's cutoff
+::
+::    Keys outside both snapshots are dropped: granting that place again
+::    establishes a fresh cutoff, and a ship-wide change moves its own.
+::
+++  place-cutoffs
+  |=  $:  before=policy:t
+          new=policy:t
+          =owners
+          prior=(map [@p place:t] @da)
+          now=@da
+      ==
+  ^-  (map [@p place:t] @da)
+  %+  roll  ~(tap in (~(uni in (place-keys before)) (place-keys new)))
+  |=  [[actor=@p =place:t] cutoffs=(map [@p place:t] @da)]
+  =/  cutoff=(unit @da)
+    ?:  (place-changed before new owners actor place)  `now
+    (~(get by prior) [actor place])
+  ?~  cutoff  cutoffs
+  (~(put by cutoffs) [actor place] u.cutoff)
 ::
 ++  channel-cutoffs
   |=  [before=policy:t after=policy:t prior=(map nest:c @da) now=@da]

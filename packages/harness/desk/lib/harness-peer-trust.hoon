@@ -7,7 +7,7 @@
 ++  snapshot
   ^-  trust
   =/  base  /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)
-  ?.  .^(? %gu (weld base /$))  [[| ~ ~ %mentions ~ ~] |]
+  ?.  .^(? %gu (weld base /$))  [[| ~ ~ %mentions ~ ~ ~ ~] |]
   .^(trust %gx (weld base /peer-trust/noun))
 ++  grants-from
   |=  current=trust

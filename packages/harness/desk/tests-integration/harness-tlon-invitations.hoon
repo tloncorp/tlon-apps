@@ -5,9 +5,9 @@
 /=  adapter  /app/harness-tlon
 |%
 ++  fixture
-  ^-  state-5:t
-  =/  s=state-5:t  *state-5:t
-  s(owner-initialized 1, policy [& `~lux ~ %mentions ~ ~], activity-through ~2026.10.1)
+  ^-  state-6:t
+  =/  s=state-6:t  *state-6:t
+  s(owner-initialized 1, policy [& `~lux ~ %mentions ~ ~ ~ ~], activity-through ~2026.10.1)
 ::
 ++  head-connected
   %-  jab-bowl

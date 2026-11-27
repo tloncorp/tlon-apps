@@ -11,7 +11,12 @@
       response=$~(%mentions response)
       allowed=(set @p)
       channels=(map nest:c channel-rule)
+      dm-grants=(set @p)
+      channel-grants=(map nest:c (set @p))
   ==
+::  $place: where a per-place grant applies; ~ is the ship's DM with the bot
+::
++$  place  (unit nest:c)
 +$  peer-trust  [policy=policy siblings=?]
 +$  destination
   $%  [%dm who=@p parent=(unit message-id:a)]
@@ -87,8 +92,8 @@
       edits=(map @uv task-edit)
       projected=$~(| ?)
   ==
-+$  state-5
-  $:  %5
++$  state-6
+  $:  %6
       automation=automation
       browser-entries=(map @uv browser-entry)
       lens=lens-sync
@@ -100,6 +105,7 @@
       identities=(map destination @t)
       routes=(map @t route)
       cuts=(map @p @da)
+      place-cuts=(map [@p place] @da)
       channel-after=@da
       channel-cuts=(map nest:c @da)
       uploads=(map @uv upload)

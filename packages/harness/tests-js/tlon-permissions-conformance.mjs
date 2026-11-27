@@ -11,7 +11,7 @@ try {
   const initial = await client.call('harness/tlon/permissions')
   const { owner, ...body } = initial
   const addition = ['~bud', '~bus', '~zod', '~nus'].find(ship => ship !== owner && !body.allowedShips.includes(ship))
-  assert.ok(addition && body.allowedShips.length < 64, 'The fixture needs one free allowlist slot')
+  assert.ok(addition, 'The fixture needs a ship that is not yet allowed')
   const allowedShips = [...body.allowedShips, addition]
   const saved = await client.call('harness/tlon/permissions', { ...body, allowedShips })
   restore = { ...body, revision: saved.revision }

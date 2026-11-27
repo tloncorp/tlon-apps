@@ -41,7 +41,6 @@
               ['channels' json-channels:p]
           ==
       args
-    ?>  (lte (lent ships.value) 64)
     =/  ships  (silt ships.value)
     ?>  =(~(wyt in ships) (lent ships.value))
     ?>  ?=(?(%off %mentions %all) response.value)
@@ -122,7 +121,6 @@
     =/  ships=(set @p)
       ?~  selected  original
       (silt ((ar:dejs:format (se:dejs:format %p)) u.selected))
-    ?>  (lte ~(wyt in ships) 64)
     ::  All three lists describe the same native permission set.
     ?>  %+  levy  `(list @t)`~['defaultAuthorizedShips' 'groupInviteAllowlist']
         |=  key=@t

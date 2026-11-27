@@ -156,12 +156,12 @@
 ::
 ++  adapter-state
   |=  [n=@ud lensed=?]
-  ^-  state-5:t
-  =/  s=state-5:t  *state-5:t
+  ^-  state-6:t
+  =/  s=state-6:t  *state-6:t
   =/  ks  (gulf 0 (dec n))
   %=  s
     owner-initialized  1
-    policy  [& `~nec ~ %mentions ~ ~]
+    policy  [& `~nec ~ %mentions ~ ~ ~ ~]
     lens  ?.(lensed *lens-sync:t [& `~nec `@da`0 ~ ''])
     routes  (malt (turn ks |=(k=@ud [(sid k) [(bid k) %ready]])))
     lanes  (malt (turn ks |=(k=@ud [(sid k) [[%channel [%chat ~zod (chan k)] ~] 0 ~]])))
@@ -379,7 +379,7 @@
   ^-  (unit vase)
   ?:  ?=([%gu @ %harness-tlon @ %$ ~] path)  `!>(&)
   ?:  ?=([%gx @ %harness-tlon @ %peer-trust %noun ~] path)
-    `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~] |])
+    `!>(`peer-trust:t`[[& `~nec ~ %mentions ~ ~ ~ ~] |])
   ?:  ?|  ?=([%gx @ %harness-tlon @ %authority @ %noun ~] path)
           ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] path)
       ==
@@ -519,7 +519,7 @@
     %+  timed-step  'cost-crowded-adapter-notification'
     (do-agent /head [~zod %harness] [%fact %noun !>(%changed)])
   ;<  =vase  bind:m  get-save
-  ;<  ~  bind:m  (ex-equal !>(~(wyt by routes:!<(state-5:t vase))) !>(many))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by routes:!<(state-6:t vase))) !>(many))
   =/  off  policy:(adapter-state many |)
   ;<  cards=(list card)  bind:m
     %+  timed-step  'cost-crowded-adapter-hand-off'

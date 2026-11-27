@@ -44,7 +44,7 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%5) !>(-.new))
+      (expect-eq !>(%6) !>(-.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
       (expect-eq !>(sibling-moon-owners.old) !>(sibling-moon-owners.new))
@@ -54,13 +54,17 @@
       (expect-eq !>((my ~[[dm-to dm-sid]])) !>(identities.new))
       (expect-eq !>(routes.old) !>(routes.new))
       (expect-eq !>(cuts.old) !>(cuts.new))
+      (expect-eq !>(~) !>(place-cuts.new))
       (expect-eq !>(channel-after.old) !>(channel-after.new))
       (expect-eq !>(channel-cuts.old) !>(channel-cuts.new))
       (expect-eq !>(uploads.old) !>(uploads.new))
       (expect-eq !>(last-sent.old) !>(last-sent.new))
       (expect-eq !>(tool-receipts.old) !>(tool-receipts.new))
       (expect-eq !>(computing.old) !>(computing.new))
-      (expect-eq !>(policy.old) !>(policy.new))
+      %+  expect-eq
+        !>(policy.old)
+      !>([enabled owner trusted response allowed channels]:policy.new)
+      (expect-eq !>([~ ~]) !>([dm-grants channel-grants]:policy.new))
       (expect-eq !>(epoch.old) !>(epoch.new))
       (expect-eq !>(after.old) !>(after.new))
       (expect-eq !>(`(map @t lane:t)`(my ~[[dm-sid [dm-to 4 ~[%web]]]])) !>(lanes.new))
@@ -134,7 +138,7 @@
       (expect-eq !>(dm-sid) !>((identity:c dm-to)))
       (expect-eq !>(`[dm-to 4 ~[%web]]) !>((~(get by lanes.new) dm-sid)))
   ==
-++  test-state-five-loads-unchanged
+++  test-current-state-loads-unchanged
   =/  current  (load:migrate !>(mixed))
   ;:  weld
       (expect-eq !>(current) !>((load:migrate !>(current))))
@@ -155,7 +159,7 @@
   =/  from-zero  (load:migrate !>(zero))
   =/  from-one  (load:migrate !>(one))
   ;:  weld
-      (expect-eq !>(`policy:t`[& `~nec (my ~[[~bud ~[%web]]]) %all ~ ~]) !>(policy.from-zero))
+      (expect-eq !>(`policy:t`[& `~nec (my ~[[~bud ~[%web]]]) %all ~ ~ ~ ~]) !>(policy.from-zero))
       (expect-eq !>([17 9]) !>([epoch.from-zero next-notice.from-zero]))
       (expect-eq !>((my ~[[dm-to 'retained']])) !>(identities.from-zero))
       (expect-eq !>(18) !>(epoch.from-one))
@@ -163,15 +167,83 @@
       (expect-eq !>(`(map @t lane:t)`(my ~[['retained' [dm-to 2 ~]]])) !>(lanes.from-one))
       (expect-eq !>(~[['room' 'binding-room']]) !>((dropped:migrate !>(one))))
   ==
+::  The ship-wide lists and channel rules survive the upgrade that adds
+::  per-place grants, and nobody holds one afterwards.
+::
+++  test-state-three-upgrade-keeps-ship-wide-access-and-adds-no-place-grants
+  =/  three  (two-to-three:migrate every-field)
+  =/  new  (load:migrate !>(three))
+  ;:  weld
+      (expect-eq !>(%6) !>(-.new))
+      (expect !>(&(?=(^ trusted.policy.three) ?=(^ allowed.policy.three))))
+      (expect !>(?=(^ channels.policy.three)))
+      (expect-eq !>(trusted.policy.three) !>(trusted.policy.new))
+      (expect-eq !>(allowed.policy.three) !>(allowed.policy.new))
+      (expect-eq !>(channels.policy.three) !>(channels.policy.new))
+      (expect-eq !>(~) !>(dm-grants.policy.new))
+      (expect-eq !>(~) !>(channel-grants.policy.new))
+      (expect-eq !>(~) !>(place-cuts.new))
+      (expect-eq !>(cuts.three) !>(cuts.new))
+      (expect-eq !>(~) !>(browser-entries.new))
+  ==
+::  A pending browser handoff and the ship-wide access survive the upgrade
+::  that adds per-place grants, which start empty.
+::
+++  test-state-four-upgrade-keeps-browser-entries-and-access-and-adds-no-place-grants
+  =/  four=state-4:migrate  (three-to-four:migrate (two-to-three:migrate every-field))
+  =.  browser-entries.four
+    (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
+  =/  new  (load:migrate !>(four))
+  ;:  weld
+      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(browser-entries.four) !>(browser-entries.new))
+      (expect !>(&(?=(^ trusted.policy.four) ?=(^ allowed.policy.four))))
+      (expect !>(?=(^ channels.policy.four)))
+      %+  expect-eq
+        !>(policy.four)
+      !>([enabled owner trusted response allowed channels]:policy.new)
+      (expect-eq !>([~ ~]) !>([dm-grants channel-grants]:policy.new))
+      (expect-eq !>(~) !>(place-cuts.new))
+      (expect-eq !>(cuts.four) !>(cuts.new))
+      (expect-eq !>(lanes.four) !>(lanes.new))
+      (expect-eq !>(~) !>((dropped:migrate !>(four))))
+  ==
+::  The Steward automation and the ship-wide access survive the upgrade
+::  that adds per-place grants, which start empty.
+::
+++  test-state-five-upgrade-keeps-automation-and-access-and-adds-no-place-grants
+  =/  five=state-5:migrate
+    (four-to-five:migrate (three-to-four:migrate (two-to-three:migrate every-field)))
+  =.  projected.automation.five  &
+  =.  names.automation.five  (my ~[[0v1 [`'UTC' ~ `'Brief' ~]]])
+  =/  new  (load:migrate !>(five))
+  ;:  weld
+      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(automation.five) !>(automation.new))
+      (expect !>(&(?=(^ trusted.policy.five) ?=(^ allowed.policy.five))))
+      (expect !>(?=(^ channels.policy.five)))
+      %+  expect-eq
+        !>(policy.five)
+      !>([enabled owner trusted response allowed channels]:policy.new)
+      (expect-eq !>([~ ~]) !>([dm-grants channel-grants]:policy.new))
+      (expect-eq !>(~) !>(place-cuts.new))
+      (expect-eq !>(cuts.five) !>(cuts.new))
+      (expect-eq !>(lanes.five) !>(lanes.new))
+      (expect-eq !>(~) !>((dropped:migrate !>(five))))
+  ==
 ::
 ++  test-state-three-loads-with-no-pending-browser-handoff-or-automation
   =/  old=state-3:migrate  (three:migrate !>(every-field))
-  =/  current  (load:migrate !>(old))
+  =/  four  (three-to-four:migrate old)
+  =/  five  (four-to-five:migrate four)
   ;:  weld
-      (expect !>(=(%5 -.current)))
-      (expect-eq !>(*automation:t) !>(automation.current))
-      (expect !>(=(~ browser-entries.current)))
-      (expect !>(=(+.old +>+.current)))
+      (expect !>(=(%4 -.four)))
+      (expect !>(=(~ browser-entries.four)))
+      (expect !>(=(+.old +>.four)))
+      (expect !>(=(%5 -.five)))
+      (expect-eq !>(*automation:t) !>(automation.five))
+      (expect !>(=(+.four +>.five)))
+      (expect !>(=(~ browser-entries:(load:migrate !>(old)))))
       (expect-eq !>(~) !>((dropped:migrate !>(old))))
   ==
 ::  A saved %4 with a browser handoff pending.
@@ -193,11 +265,13 @@
 ::
 ++  test-state-four-keeps-its-pending-browser-handoff
   =/  old  pending-browser-handoff
+  =/  five  (four-to-five:migrate old)
   =/  current  (load:migrate !>(old))
   ;:  weld
-      (expect !>(=(%5 -.current)))
-      (expect-eq !>(*automation:t) !>(automation.current))
-      (expect !>(=(+.old +>.current)))
+      (expect !>(=(%5 -.five)))
+      (expect-eq !>(*automation:t) !>(automation.five))
+      (expect !>(=(+.old +>.five)))
+      (expect-eq !>(browser-entries.old) !>(browser-entries.current))
       (expect-eq !>(~) !>((dropped:migrate !>(old))))
   ==
 ::

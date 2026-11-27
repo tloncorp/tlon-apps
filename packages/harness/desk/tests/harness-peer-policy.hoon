@@ -20,7 +20,7 @@
       (expect-eq !>(0) !>((used:peers 0 1.234)))
   ==
 ++  test-trusted-peers-are-unlimited-and-sender-scoped
-  =/  =policy:t  [| `~bud (my ~[[~nec ~[%web]] [~zod ~]]) %mentions ~ ~]
+  =/  =policy:t  [| `~bud (my ~[[~nec ~[%web]] [~zod ~]]) %mentions ~ ~ ~ ~]
   =/  grants  (peer-grants:tlon policy)
   =/  trusted  (need (~(get by grants) ~nec))
   =/  owner  (need (~(get by grants) ~bud))
@@ -33,14 +33,14 @@
       (expect-eq !>(`(set @t)`~) !>(inflows.trusted))
   ==
 ++  test-explicit-peer-limit-overrides-trusted-default
-  =/  =policy:t  [& ~ (my ~[[~nec ~[%web]]]) %mentions ~ ~]
+  =/  =policy:t  [& ~ (my ~[[~nec ~[%web]]]) %mentions ~ ~ ~ ~]
   =/  trusted  (peer-grants:tlon policy)
   =/  grant=peer-grant:h  [~ `'custom-model' 12.345 ~]
   =/  explicit=(map @p peer-grant:h)  (my ~[[~nec grant]])
   =/  effective  (effective:peers explicit trusted ~)
   (expect-eq !>(`grant) !>((~(get by effective) ~nec)))
 ++  test-removing-trust-does-not-leave-an-inherited-grant
-  =/  before=policy:t  [& ~ (my ~[[~nec ~]]) %mentions ~ ~]
+  =/  before=policy:t  [& ~ (my ~[[~nec ~]]) %mentions ~ ~ ~ ~]
   =/  after  before(trusted ~)
   =/  first  (effective:peers ~ (peer-grants:tlon before) ~)
   =/  second  (effective:peers ~ (peer-grants:tlon after) ~)

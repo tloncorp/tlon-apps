@@ -56,7 +56,7 @@ test('permission synchronization is change-driven and trust reads stay small', a
 test('Tlon starts listening on install without overriding saved enable choices', async () => {
   const agent = await readFile(new URL('../desk/app/harness-tlon.hoon', import.meta.url), 'utf8')
   const init = agent.split('++  on-init\n')[1].split('\n++  on-save')[0]
-  assert.match(init, /policy \[& ~ ~ %mentions ~ ~\]/)
+  assert.match(init, /policy \[& ~ ~ %mentions ~ ~ ~ ~\]/)
   assert.match(init, /initialize-owner:cor[\s\S]+abet:boot:refresh-peers:cor/)
   const reload = agent.split('++  on-load\n')[1].split('\n++  on-poke')[0]
   assert.doesNotMatch(reload, /policy \[|enabled\.policy\s+&/)
@@ -81,7 +81,7 @@ test('pending DM requests from ships with access reconcile at boot and permissio
   const boot = agent.split('++  boot\n')[1].split('\n++  watch-head')[0]
   assert.match(boot, /\?\.  enabled\.policy  cor\s+=\.  cor  accept-granted-invitations/)
   const reconcile = agent.split('++  accept-granted-invitations\n')[1].split('\n++  accept-invitation')[0]
-  assert.match(reconcile, /granted-invitations:messenger \|=\(who=@p \?=\(\^ \(actor-grants who ~\)\)\)/)
+  assert.match(reconcile, /granted-invitations:messenger \|=\(who=@p \?=\(\^ \(place-grants who ~\)\)\)/)
   const configure = agent.split('++  configure\n')[1].split('\n++  agent')[0]
   assert.match(configure, /policy  updated-policy[\s\S]+schedule:accept-granted-invitations/)
   const maintenance = agent.split('++  maintain\n')[1].split('\n++  recover')[0]

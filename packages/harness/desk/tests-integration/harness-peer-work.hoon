@@ -506,7 +506,7 @@
   |=  [saved=state-0 src=@p owner=@p trusted=(map @p (list tool-grant:h))]
   =/  m  (mare ,~)
   ^-  form:m
-  =/  =peer-trust:t  [[& `owner trusted %mentions ~ ~] |]
+  =/  =peer-trust:t  [[& `owner trusted %mentions ~ ~ ~ ~] |]
   ;<  ~  bind:m  (set-bowl %*(. *bowl our ~zod, src src, dap %harness, now t0))
   ;<  ~  bind:m
     %-  set-scry-gate

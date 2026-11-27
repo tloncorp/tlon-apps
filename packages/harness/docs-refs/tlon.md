@@ -658,8 +658,28 @@ messaging the sender.
   push them out, bots' messages are admitted again. A message the hand can no
   longer read there (the channel left, the message gone, or its thread's
   parent deleted) is recorded as `message`, and counts as a person's.
-- Group invitations are accepted only when sent by the owner. DM invitations
-  from the owner, a trusted ship or an allowed ship are accepted. An invitation
+- A per-place grant lets a ship that is on neither ship-wide list (trusted
+  or allowed) talk to the bot in one place: its DM with the bot, or one
+  channel, which includes that channel's threads. There it gives the same as
+  an allowed ship: the bot answers it with web access and the current-chat
+  tools (see [Conversation tools](#conversation-tools-and-scheduled-work)),
+  and never with the named tools a trusted ship is granted.
+  A ship is answered in a place if it is the owner, is on a ship-wide list,
+  or has a grant for that place. Each grant covers only its own place, and a
+  ship can hold several at once, for example a DM grant and grants for two
+  channels; it is ignored in every place it holds no grant for. A channel with
+  replies off still answers nobody, an open
+  channel still answers every reader, and in a channel the ship also needs
+  native read permission. When the bot leaves a channel or loses it (it
+  leaves or is kicked from the group, or the channel or group is deleted),
+  every grant for that channel is removed, so joining again finds none. The
+  `trusted` list holds at most 64 ships; the allowed list and per-place grants
+  have no size limit.
+- Group invitations are accepted when sent by the owner or by a ship on a
+  ship-wide list (trusted or allowed). A per-place grant gives no right to add
+  the bot to a group. DM invitations from the
+  owner, a trusted ship, an allowed ship or a ship with a DM grant are
+  accepted; a grant for a channel does not accept a DM invitation. An invitation
   still pending when its sender gains access is accepted at that point, or when
   the adapter next loads; messages the sender sent before it gained access are
   not answered.
@@ -731,6 +751,18 @@ configuration. New authorized input resumes that same head only after cancellati
 and a tools-only configuration update have been acknowledged, using a fresh
 binding. Old publications cannot move to the new binding. Actor-specific admission
 cutoffs reject queued pre-grant messages without dropping unrelated input.
+Adding or removing a per-place grant changes that ship's access in that place
+alone: it retires the ship's DM route for a DM grant, or cancels the ship's
+running and queued work in that channel for a channel grant, and it moves the
+ship's admission cutoff for that place only. Messages the ship sent in that
+place at or before the change are not answered; its messages in its DM and in
+other places keep their own cutoffs. A grant that changes nothing there, because
+the ship already has access as the owner, a sibling moon's owner, through a
+ship-wide list or as a reader of an open channel, and the removal of such a
+grant, does none of this. A change to a ship-wide list affects that ship as
+described above whether or not it also holds per-place grants, so moving a ship
+from the allowed list to a DM grant retires its DM route, cancels its work and
+moves its cutoff even though it is still answered in its DM.
 
 Publication checks the exact current binding again after claiming, before
 sending, and the reply's speaker: it is sent only while that speaker is still
@@ -789,6 +821,13 @@ These owner-authenticated extensions work from any initialized ACP client:
   "trusted": [{ "ship": "~sampel-sipnup", "tools": [{ "clay": "/harness/lib" }] }]
 }
 ```
+
+Per-place grants are `"dmGrants": ["~sampel-sipnup"]` and
+`"channelGrants": [{ "channel": "chat/~sampel-palnet/general", "ships": ["~sampel-sipnup"] }]`.
+The policy that `harness/tlon` reports carries both. A save that omits either
+keeps the saved value; an empty list clears it. The app's bot settings report
+and save the ship-wide list only, and saving them leaves per-place grants
+unchanged.
 
 Activity notifications contain `sequence`, `kind`, `actor`, `address`, and `event`.
 An admitted message's `kind` is `message`, or `bot-message` when its author has
@@ -1183,6 +1222,15 @@ checks real two-ship silent rejection, local audit rate limiting and zero model 
 over an accepted DM. It then leaves that DM so the peer's next message is a pending
 invitation, and checks that granting the peer access accepts it and answers only
 what the peer sends afterward.
+`tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
+two ships with a local stand-in provider: a peer granted one channel is answered
+there and ignored in another channel and in DMs, a DM grant accepts the pending
+invitation and is ignored in channels, a per-place grant does not make the bot
+accept a group invitation, leaving a channel removes its grants, and a grant for
+a reader of an open channel leaves its running turn answered. It restores
+policy and defaults and deletes its fixture group.
+`desk/tests-integration/harness-tlon-place-grants.hoon` covers the same rules on
+the agent, with the per-place cutoffs.
 `tests-js/tlon-completion-conformance.mjs` checks permissions, moderation, full
 message reads, activity, clubs, Notes and granted Clay uploads on disposable test ships, restoring policy and storage settings afterward.
 The upload cases need a running `%storage` agent; without one it runs the rest, reports them as not run and exits non-zero.

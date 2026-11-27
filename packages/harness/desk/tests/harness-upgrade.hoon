@@ -82,8 +82,25 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
+++  populated-6
+  ^-  state-6:t
+  =/  p  populated-5
+  :*  %6  automation.p  browser-entries.p  lens.p  owner-initialized.p
+      sibling-moon-owners.p  sibling-owner-after.p  activity-through.p
+      catching-up.p  identities.p  routes.p  cuts.p
+      (my ~[[[~dev `[%chat ~bus %general]] ~2026.10.16]])
+      channel-after.p  channel-cuts.p  uploads.p  last-sent.p
+      tool-receipts.p  computing.p
+      :*  enabled.policy.p  owner.policy.p  trusted.policy.p  response.policy.p
+          allowed.policy.p  channels.policy.p  (sy ~[~dev])
+          (my ~[[[%chat ~bus %general] (sy ~[~dev])]])
+      ==
+      epoch.p  after.p  lanes.p
+      jobs.p  deliveries.p  notices.p  next-notice.p  listeners.p  watching.p  wake.p  error.p
+  ==
+::  The hand's last shape without per-place grants.
 ++  populated-5
-  ^-  state-5:t
+  ^-  state-5:mt
   =/  p  populated-4
   :*  %5
       :*  (my ~[[0v7a active-schedule]])
@@ -187,8 +204,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-5:t
-  =/  s  *state-5:t
+  ^-  state-6:t
+  =/  s  *state-6:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -319,7 +336,7 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-5) *state-5:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-6) *state-6:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field

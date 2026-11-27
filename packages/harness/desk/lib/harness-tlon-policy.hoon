@@ -52,11 +52,47 @@
   ^-  channel-rule:t
   (fall (~(get by channels.policy) nest) [response.policy |])
 ::
+++  place
+  |=  to=destination:t
+  ^-  place:t
+  ?:(?=(%dm -.to) ~ `nest.to)
+::  +event-place: the place of a message or DM invitation, if it has one
+::
+++  event-place
+  |=  event=incoming-event:v8:a
+  ^-  (unit place:t)
+  ?+  -.event  ~
+    %dm-post  `~
+    %dm-reply  `~
+    %dm-invite  `~
+    %post  ``channel.event
+    %reply  ``channel.event
+  ==
+::
+++  placed
+  |=  [policy=policy:t actor=@p =place:t]
+  ^-  ?
+  ?~  place  (~(has in dm-grants.policy) actor)
+  (~(has in (fall (~(get by channel-grants.policy) u.place) ~)) actor)
+::  +place-grants: ship-wide grants, or an allowed ship's for a granted place
+::
+::    A per-place grant never carries named tools.
+::
+++  place-grants
+  |=  $:  policy=policy:t  actor=@p  =place:t
+          owner-tools=(list tool-grant:h)  owner=?
+      ==
+  ^-  (unit (list tool-grant:h))
+  =/  grant  (grants-owned policy actor owner-tools owner)
+  ?^  grant  grant
+  ?.  enabled.policy  ~
+  ?:((placed policy actor place) `~[%web] ~)
+::
 ++  destination-grants
   |=  [policy=policy:t actor=@p to=destination:t owner-tools=(list tool-grant:h) owner=?]
   ^-  (unit (list tool-grant:h))
   ?.  enabled.policy  ~
-  =/  grant  (grants-owned policy actor owner-tools owner)
+  =/  grant  (place-grants policy actor (place to) owner-tools owner)
   ?:  ?=(%dm -.to)  grant
   =/  rule  (channel-rule policy nest.to)
   ?:  =(%off response.rule)  ~
@@ -180,8 +216,17 @@
   :~  ['enabled' %b enabled.policy]
       ['owner' ?~(owner.policy ~ [%s (scot %p u.owner.policy)])]
       ['response' %s response.policy]
-      ['allowed' %a (turn ~(tap in allowed.policy) |=(who=@p [%s (scot %p who)]))]
+      ['allowed' (ships-json allowed.policy)]
       ['channels' (channels-json channels.policy)]
+      ['dmGrants' (ships-json dm-grants.policy)]
+      :-  'channelGrants'
+      :-  %a
+      %+  turn  ~(tap by channel-grants.policy)
+      |=  [nest=nest:c ships=(set @p)]
+      %-  pairs:enjs:format
+      :~  ['channel' %s (address [%channel nest ~])]
+          ['ships' (ships-json ships)]
+      ==
       :-  'trusted'
       :-  %a
       %+  turn  ~(tap by trusted.policy)
@@ -191,6 +236,11 @@
           ['tools' %a (turn tools grant-json:hj)]
       ==
   ==
+::
+++  ships-json
+  |=  ships=(set @p)
+  ^-  json
+  [%a (turn ~(tap in ships) |=(who=@p [%s (scot %p who)]))]
 ::
 ++  channels-json
   |=  channels=(map nest:c channel-rule:t)
@@ -217,15 +267,44 @@
     |=  [channel=@t mode=@t everyone=?]
     ^-  [p=nest:c q=channel-rule:t]
     ?>  ?=(?(%off %mentions %all) mode)
-    =/  path  (need (rush (cat 3 '/' channel) stap))
-    ?>  ?=([@ @ @ ~] path)
-    ?>  ?=(?(%chat %diary %heap) i.path)
-    [[i.path (slav %p i.t.path) i.t.t.path] [mode everyone]]
+    [(json-nest channel) [mode everyone]]
   ?>  =(~(wyt by channels) (lent rows))
   channels
 ::
-++  json-policy
+++  json-nest
+  |=  channel=@t
+  ^-  nest:c
+  =/  path  (need (rush (cat 3 '/' channel) stap))
+  ?>  ?=([@ @ @ ~] path)
+  ?>  ?=(?(%chat %diary %heap) i.path)
+  [i.path (slav %p i.t.path) i.t.t.path]
+::
+++  json-ships
   |=  encoded=json
+  ^-  (set @p)
+  =/  ships  ((ar:dejs:format (se:dejs:format %p)) encoded)
+  ?>  =(~(wyt in (silt ships)) (lent ships))
+  (silt ships)
+::  +json-channel-grants: per-channel ship sets; a channel with none is omitted
+::
+++  json-channel-grants
+  |=  encoded=json
+  ^-  (map nest:c (set @p))
+  =,  dejs:format
+  =/  rows=(list [channel=@t ships=(set @p)])
+    ((ar (ot ~[channel+so ships+json-ships])) encoded)
+  =/  grants=(map nest:c (set @p))
+    (malt (turn rows |=([channel=@t ships=(set @p)] [(json-nest channel) ships])))
+  ?>  =(~(wyt by grants) (lent rows))
+  %-  ~(gas by *(map nest:c (set @p)))
+  %+  murn  ~(tap by grants)
+  |=  [nest=nest:c ships=(set @p)]
+  ?:(=(~ ships) ~ `[nest ships])
+::
+::  +json-policy: a saved policy; omitted per-place grants keep their prior value
+::
+++  json-policy
+  |=  [prior=policy:t encoded=json]
   ^-  policy:t
   =,  dejs:format
   =/  fields
@@ -246,8 +325,10 @@
         ==
     ((ot fields) encoded)
   ?>  ?=(?(%off %mentions %all) response.parsed)
-  ?>  (lte (lent allowed.parsed) 64)
   ?>  =(~(wyt in (silt allowed.parsed)) (lent allowed.parsed))
+  ?>  ?=(%o -.encoded)
+  =/  dm-grants  (~(get by p.encoded) 'dmGrants')
+  =/  channel-grants  (~(get by p.encoded) 'channelGrants')
   =/  =policy:t
     :*  enabled.parsed
         owner.parsed
@@ -255,6 +336,8 @@
         response.parsed
         (silt allowed.parsed)
         channels.parsed
+        ?~(dm-grants dm-grants.prior (json-ships u.dm-grants))
+        ?~(channel-grants channel-grants.prior (json-channel-grants u.channel-grants))
     ==
   ?>  (lte ~(wyt by trusted.policy) 64)
   ?>  =(~(wyt by trusted.policy) (lent trusted.parsed))

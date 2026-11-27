@@ -39,7 +39,7 @@
   =/  escaped=story:d  ~[[%inline ~[[%ship ~lux] ' //remember project no']]]
   (expect !>(&(=(~ (parse:cmd (text:input ~lux path))) =(~ (parse:cmd (text:input ~lux escaped))))))
 ++  test-address-normalization-never-grants-social-admission
-  =/  =policy:t  [& `~nec ~ %mentions ~ ~]
+  =/  =policy:t  [& `~nec ~ %mentions ~ ~ ~ ~]
   =/  event=$>(%post incoming-event:v8:a)
     :*  %post  [[~nec ~2026.9.6] ~2026.9.6]  [%chat ~nec %test]  [~nec %test]
         ~[[%inline ~[[%ship ~lux] ' /memory']]]  |
@@ -92,7 +92,7 @@
   =/  most  (sub 65.536 attribution-limit:input)
   =/  fits  (fil 3 most 'a')
   =/  long  (fil 3 +(most) 'a')
-  =/  policy=policy:t  [& `~nec ~ %all ~ ~]
+  =/  policy=policy:t  [& `~nec ~ %all ~ ~ ~ ~]
   =/  comet=@p  (dec (bex 128))
   =/  post
     |=  text=@t

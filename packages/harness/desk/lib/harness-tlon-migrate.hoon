@@ -4,6 +4,14 @@
 ::  Saved shapes are frozen here, so a change to the current lane cannot
 ::  silently change what an older state decodes as.
 +$  lane-2  [actor=@p to=destination epoch=@ud tools=(list tool-grant:h)]
++$  policy-3
+  $:  enabled=?
+      owner=(unit @p)
+      trusted=(map @p (list tool-grant:h))
+      response=$~(%mentions response)
+      allowed=(set @p)
+      channels=(map nest:c channel-rule)
+  ==
 +$  lane-3  [to=destination epoch=@ud tools=(list tool-grant:h)]
 ::  Version 4 added pending browser handoffs ahead of the version 3 fields.
 ::  Its lanes are version 3's.
@@ -15,6 +23,40 @@
       [%revoke ~]
   ==
 +$  browser-entry-4  [next=@da phase=browser-phase-4]
+::  Version 5 added the Steward automation ahead of the version 4 fields.
+::  Its policy, lanes and browser handoffs are version 4's.
++$  state-5
+  $:  %5
+      automation=automation
+      browser-entries=(map @uv browser-entry-4)
+      lens=lens-sync
+      owner-initialized=@ud
+      sibling-moon-owners=$~(| ?)
+      sibling-owner-after=@da
+      activity-through=@da
+      catching-up=$~(| ?)
+      identities=(map destination @t)
+      routes=(map @t route)
+      cuts=(map @p @da)
+      channel-after=@da
+      channel-cuts=(map nest:c @da)
+      uploads=(map @uv upload)
+      last-sent=@da
+      tool-receipts=(map @uv tool-receipt)
+      computing=(map path presence-lease)
+      policy=policy-3
+      epoch=@ud
+      after=@da
+      lanes=(map @t lane-3)
+      jobs=(map @uv job)
+      deliveries=(map @uv delivery)
+      notices=(list notice)
+      next-notice=@ud
+      listeners=(set @t)
+      watching=?
+      wake=(unit @da)
+      error=@t
+  ==
 +$  state-4
   $:  %4
       browser-entries=(map @uv browser-entry-4)
@@ -33,7 +75,7 @@
       last-sent=@da
       tool-receipts=(map @uv tool-receipt)
       computing=(map path presence-lease)
-      policy=policy
+      policy=policy-3
       epoch=@ud
       after=@da
       lanes=(map @t lane-3)
@@ -63,7 +105,7 @@
       last-sent=@da
       tool-receipts=(map @uv tool-receipt)
       computing=(map path presence-lease)
-      policy=policy
+      policy=policy-3
       epoch=@ud
       after=@da
       lanes=(map @t lane-3)
@@ -93,7 +135,7 @@
       last-sent=@da
       tool-receipts=(map @uv tool-receipt)
       computing=(map path presence-lease)
-      policy=policy
+      policy=policy-3
       epoch=@ud
       after=@da
       lanes=(map @t lane-2)
@@ -122,7 +164,7 @@
       last-sent=@da
       tool-receipts=(map @uv tool-receipt)
       computing=(map path presence-lease)
-      policy=policy
+      policy=policy-3
       epoch=@ud
       after=@da
       lanes=(map @t lane-2)
@@ -164,15 +206,17 @@
       error=@t
   ==
 ::  Each saved version steps forward one version at a time: a %3 through
-::  +three-to-four, then every %4 through +four-to-five.
+::  +three-to-four, every %4 through +four-to-five, then every %5 through
+::  +five-to-six.
 ::
 ++  load
   |=  old=vase
-  ^-  state-5
+  ^-  state-6
   ?>  ?=(^ q.old)
-  ?:  =(%5 -.q.old)  !<(state-5 old)
-  ?:  =(%4 -.q.old)  (four-to-five !<(state-4 old))
-  (four-to-five (three-to-four (three old)))
+  ?:  =(%6 -.q.old)  !<(state-6 old)
+  ?:  =(%5 -.q.old)  (five-to-six !<(state-5 old))
+  ?:  =(%4 -.q.old)  (five-to-six (four-to-five !<(state-4 old)))
+  (five-to-six (four-to-five (three-to-four (three old))))
 ::  Ready routes of conversations +two-to-three drops. Their bindings may
 ::  still hold queued input, so the caller disables them and fences their
 ::  sessions.
@@ -181,7 +225,7 @@
   |=  old=vase
   ^-  (list [sid=@t binding=@t])
   ?>  ?=(^ q.old)
-  ?:  ?=(?(%3 %4 %5) -.q.old)  ~
+  ?:  ?=(?(%3 %4 %5 %6) -.q.old)  ~
   =/  saved  (two old)
   %+  murn  ~(tap by lanes.saved)
   |=  [sid=@t lane=lane-2]
@@ -250,6 +294,44 @@
     lanes  dms
     routes  (my (skim ~(tap by routes.old) |=([sid=@t *] (~(has by dms) sid))))
     jobs  (my (skim ~(tap by jobs.old) |=([* =job] (~(has by dms) sid.job))))
+  ==
+::  Per-place grants and their cutoffs start empty; the ship-wide lists and
+::  channel rules are kept as saved.
+::
+++  five-to-six
+  |=  old=state-5
+  ^-  state-6
+  :*  %6
+      automation.old
+      browser-entries.old
+      lens.old
+      owner-initialized.old
+      sibling-moon-owners.old
+      sibling-owner-after.old
+      activity-through.old
+      catching-up.old
+      identities.old
+      routes.old
+      cuts.old
+      ~
+      channel-after.old
+      channel-cuts.old
+      uploads.old
+      last-sent.old
+      tool-receipts.old
+      computing.old
+      [enabled owner trusted response allowed channels ~ ~]:policy.old
+      epoch.old
+      after.old
+      lanes.old
+      jobs.old
+      deliveries.old
+      notices.old
+      next-notice.old
+      listeners.old
+      watching.old
+      wake.old
+      error.old
   ==
 ::
 ++  zero-to-one

@@ -29,7 +29,7 @@
 ++  owned
   |=  owner=(unit @p)
   ^-  policy:t
-  [& owner ~ %mentions ~ ~]
+  [& owner ~ %mentions ~ ~ ~ ~]
 ::
 ++  test-allowed-and-trusted-ships-are-accepted
   =/  =policy:t  (owned `~nec)
