@@ -751,7 +751,8 @@ where granted, read messages by every author.
 The owner answers a request with an approval command, `/allow <id>`,
 `/reject <id>` or `/ban <id>`, typed or sent by the card's button, in a DM
 with the bot, and lists requests and blocked ships with the approval
-commands `/pending`, `/banned` and `/unban <ship>` below. The Tlon hand reads these itself, as the OpenClaw plugin does,
+commands `/pending`, `/banned` and `/unban <ship>` below, and takes a
+ship's grant in one place back with `/revoke <ship> [place]`. The Tlon hand reads these itself, as the OpenClaw plugin does,
 before a message would reach the head: an approval command never starts a
 turn and is not passed to the model as a message. The model's Tlon history
 tools, where granted, can still read it like any message on the ship. `/help`, which lists the head's commands, does not list them. The
@@ -913,6 +914,56 @@ not one of these commands.
   Without a ship, or with text that is not one, the reply is `Usage: /unban
   ~ship-name`. Unblocking gives nothing back: the DM grant `/ban` removed and
   the requests it closed stay gone, and the ship may simply ask again.
+
+`/revoke <ship> [place]` takes back one per-place grant a ship holds;
+OpenClaw has no such command. Like the other approval commands it counts
+only in the owner's DM with the bot, as a post or a thread reply; in a
+channel it is an ordinary message. Anyone else's in a DM is dropped as their
+`/allow` is. The ship is read as `/unban` reads it, and the place after it
+and one space is `dm` for the ship's DM grant or a channel's nest, as
+`chat/~host/name`.
+
+- Without a place, a ship that holds one per-place grant, its DM grant or
+  one channel's, loses it. A ship that holds several loses none, and the
+  reply lists them, its DM first and then its channels by nest, with what to
+  type for each: `~ship has access in more than one place. Send the command
+  again with one:`, then lines such as `/revoke ~ship dm` and `/revoke ~ship
+  chat/~host/name`. A ship with none gets `~ship has no access to revoke.`
+- With a place, the ship's grant there is removed.
+- The grant is removed as a settings save that removes it would remove it,
+  with the same cutoffs and cancellation: the ship's DM route is retired, or
+  its running and queued work in that channel is cancelled, unless the
+  channel answers everyone, when the ship keeps its access there and its
+  work runs on (see below). Its grants in
+  other places are kept. It is not a ban: nothing is blocked, and where the
+  ship has no access left, its next attempt there opens a new request; in a
+  channel open to everyone it is still answered. No request can be open for the ship
+  in that place while it holds the grant, since gaining access closes one.
+- The reply goes to the owner's DM, in the same thread, outside a turn. It
+  is `Revoked DM access for ~ship.
+  They will no longer be able to message the bot.` or `Revoked ~ship for
+  <channel>. They will no longer be able to interact in this channel.`, with
+  the channel named as the `/allow` reply names it, recorded in the activity
+  feed as `approval-revoked`.
+- A ship on a ship-wide list, or an owner, keeps its access, and the reply is
+  `~ship has access everywhere from settings; change it there.` A per-place
+  grant it also holds is kept. A ship with no grant in the place named gets
+  `~ship has no DM access to revoke.` or `~ship has no access to revoke in
+  <channel>.`, and nothing changes. Without a ship, or with text that is not
+  one or not a place, the reply is `Usage: /revoke ~ship-name`.
+- In a channel open to everyone the grant is removed, but the channel still
+  answers the ship, and the reply says so instead: `Removed ~ship's grant
+  for <channel>, but they still have access there from settings; change it
+  there.`
+- Catch-up does not hold an approval command back behind a full queue, as
+  it holds a message that would start a turn: the owner's command is carried
+  out at once when the owner's DM's queue is full, and when the adapter's
+  64 jobs are, provided it is the next Activity event. An approval command
+  behind another message still waits for that message, which catch-up does
+  not pass. `/allow` with a message waiting on its request is the
+  exception: it answers that message, which a full queue would refuse
+  behind the cutoff the grant moves, so it waits for room as that message
+  would. An `/allow` with nothing to hand on passes like the others.
 
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership
@@ -1582,7 +1633,19 @@ and 25 lines; `/banned` with ships and with none; `/unban` confirmed once
 `%chat` acknowledges it, its refusal, a second unban refused as not blocked,
 a ship not blocked, no ship and text that is not one; the three from ships
 that are not the owner; and the owner's `/pending` in a channel, an
-ordinary message.
+ordinary message, as are its other approval commands there, `/revoke`
+included. For `/revoke` it covers a ship's one grant taken back without a
+place; a ship with several losing none and getting the list; a named place's
+grant taken back alone, leaving the ship answered where it kept access; the
+ship's work cancelled in that place only; a full queue in the owner's DM and
+a full adapter queue not holding it back; a channel open to everyone; a ship
+with access everywhere, one with no grant there or anywhere, and no ship or
+place; the command from ships that are not the owner; and a revoked ship's
+new request. `tests-js/tlon-approval-commands-revoke-conformance.mjs` checks
+on the same three ships that the owner's `/revoke` in its DM takes a guest's
+settings grant in the channel and is answered in the DM, without reaching
+the model, and that the guest's next mention is not answered and opens a
+request.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending

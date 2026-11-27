@@ -2682,6 +2682,407 @@
     %+  ex-equal  !>((turn ~(val by jobs.s) |=(=job:t actor.input.job)))
     !>(`(list @p)`~[~nec])
   (ex-equal !>((kinds s 'permission-denied')) !>(1))
+::  The owner's approval commands in a channel, /revoke included, are each
+::  an ordinary message, admitted as a turn.
+::
+++  test-the-owners-approval-commands-in-a-channel-are-ordinary-messages
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  %+  roll
+    ^-  (list @t)
+    :~  '/allow c0001'  '/reject c0001'  '/ban c0002'  '/pending'  '/banned'
+        '/unban ~bel'  '/revoke ~bus'  '/revoke ~bus chat/~lux/test'
+    ==
+  |=  [text=@t done=_(pure:m ~)]
+  ;<  ~  bind:m  done
+  (not-taken text)
+::  The owner's .text in .room-nest changes nothing and is admitted as a turn
+::
+++  not-taken
+  |=  text=@t
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  channel-grants.policy.saved  (my ~[[room-nest (silt ~[~bus])]])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit saved later ~[[told (addressed ~nec room-nest text told)]])
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-unblock-ship caz)) !>(`(list [wire @p])`~))
+  %+  ex-equal  !>((turn ~(val by jobs.s) |=(=job:t actor.input.job)))
+  !>(`(list @p)`~[~nec])
+::
+::  /revoke: in the owner's DM, the owner takes back a ship's grant in one
+::  place
+::
+++  afterwards  ~2026.9.10..00.20.00
+::  ~bus holds its DM, .room-nest and .all-nest; ~dev holds .room-nest.
+::
+++  revoking
+  ^-  state-7:t
+  =/  s  fixture
+  =.  channel-grants.policy.s
+    (my ~[[room-nest (silt ~[~bus ~dev])] [all-nest (silt ~[~bus])]])
+  s
+::  ~bus writes to the bot in .room-nest, .all-nest and its DM, after
+::  .later
+::
+++  bus-everywhere
+  ^-  (list [@da incoming-event:v8:a])
+  =/  one  (add later ~m1)
+  =/  two  (add later ~m2)
+  =/  three  (add later ~m3)
+  :~  [one (addressed ~bus room-nest 'in the room' one)]
+      [two (addressed ~bus all-nest 'in the busy channel' two)]
+      [three (said ~bus 'in the dm' three)]
+  ==
+++  where-admitted
+  |=  s=state-7:t
+  ^-  (set [@p destination:t])
+  (silt (turn ~(val by jobs.s) |=(=job:t [actor to]:input.job)))
+++  room-revoked
+  |=  who=@p
+  ^-  @t
+  %+  rap  3
+  :~  'Revoked '  (scot %p who)  ' for Room in Lux group (chat/~lux/test).'
+      ' They will no longer be able to interact in this channel.'
+  ==
+::  ~dev holds .room-nest alone, and ~wes its DM alone: each /revoke takes
+::  back that one grant. The reply goes to the owner's DM; no turn starts.
+::
+++  test-revoke-of-a-ship-with-one-grant-takes-it-back
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  revoking
+  =.  dm-grants.policy.saved  (silt ~[~bus ~wes])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  saved  later
+    :~  [told (said ~nec '/revoke ~dev' told)]
+        [(add told ~s1) (said ~nec '/revoke ~wes' (add told ~s1))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~bus])))
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s all-nest)) !>((silt ~[~bus])))
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus])))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((answered caz))
+    !>  ^-  (list [@t @t])
+    :~  ['dm/~nec' (room-revoked ~dev)]
+        ['dm/~nec' 'Revoked DM access for ~wes. They will no longer be able to message the bot.']
+    ==
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-revoked')) !>(2))
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship caz)) !>(`(list [wire @p])`~))
+  ;<  ~  bind:m  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+  (ex-equal !>((turned caz)) !>(|))
+::  ~bus holds three grants: nothing is taken back, and the owner is told
+::  what to type for each.
+::
+++  test-revoke-of-a-ship-with-several-grants-takes-none-back-and-lists-them
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit revoking later ~[[told (said ~nec '/revoke ~bus' told)]])
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:revoking))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-revoked')) !>(0))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  :-  'dm/~nec'
+      %+  rap  3
+      :~  '~bus has access in more than one place. Send the command again with one:'
+          '\0a/revoke ~bus dm'
+          '\0a/revoke ~bus chat/~lux/busy'
+          '\0a/revoke ~bus chat/~lux/test'
+      ==
+  ==
+::  Naming .room-nest takes back that grant alone: ~bus is no longer
+::  answered there, and still is in its DM and in .all-nest. Naming its DM
+::  takes back that grant alone.
+::
+++  test-revoke-of-a-ship-in-a-named-place-takes-back-that-grant-alone
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit revoking later ~[[told (said ~nec '/revoke ~bus chat/~lux/test' told)]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~dev])))
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s all-nest)) !>((silt ~[~bus])))
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus])))
+  ;<  ~  bind:m
+    (ex-equal !>((answered caz)) !>(`(list [@t @t])`~[['dm/~nec' (room-revoked ~bus)]]))
+  ;<  [* w=state-7:t]  bind:m  (admit s afterwards bus-everywhere)
+  ;<  ~  bind:m
+    %+  ex-equal  !>((where-admitted w))
+    !>((silt `(list [@p destination:t])`~[[~bus [%channel all-nest ~]] [~bus [%dm ~bus ~]]]))
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit revoking later ~[[told (said ~nec '/revoke ~bus dm' told)]])
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>(`(set @p)`~))
+  ;<  ~  bind:m  (ex-equal !>(channel-grants.policy.s) !>(channel-grants.policy:revoking))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  ~[['dm/~nec' 'Revoked DM access for ~bus. They will no longer be able to message the bot.']]
+::  ~bus's queued work in .room-nest is dropped and its running work there
+::  fenced; its work in .all-nest and ~dev's in .room-nest are kept, with
+::  every route.
+::
+++  test-revoke-cancels-the-ships-work-in-that-place-only
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  room  `destination:t`[%channel room-nest ~]
+  =/  busy  `destination:t`[%channel all-nest ~]
+  =/  room-sid  (identity:continuity room)
+  =/  busy-sid  (identity:continuity busy)
+  =/  saved  revoking
+  =.  saved
+    %=  saved
+      identities  (my ~[[room room-sid] [busy busy-sid]])
+      lanes  (my ~[[room-sid [room 1 ~[%web]]] [busy-sid [busy 1 ~[%web]]]])
+      routes  (my ~[[room-sid ['binding-room' %ready]] [busy-sid ['binding-busy' %ready]]])
+      jobs
+        %-  my
+        :~  [0v1 [[~bus 'e1' room 'hi'] room-sid %bind '']]
+            [0v2 [[~bus 'e2' busy 'hi'] busy-sid %bind '']]
+            [0v3 [[~dev 'e3' room 'hi'] room-sid %bind '']]
+        ==
+    ==
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit saved later ~[[told (said ~nec '/revoke ~bus chat/~lux/test' told)]])
+  =/  acts=(list *)
+    %+  murn  caz
+    |=  c=card
+    ?.  ?=([%pass * %agent * %poke %harness-action *] c)  ~
+    `q.q.cage.task.q.c
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((skim acts |=(act=* ?=([%fence-actor *] act))))
+    !>(`(list *)`~[[%fence-actor room-sid '~bus']])
+  ;<  ~  bind:m  (ex-equal !>((lien acts |=(act=* ?=([%fence *] act)))) !>(|))
+  ;<  ~  bind:m  (ex-equal !>(~(key by routes.s)) !>((silt ~[room-sid busy-sid])))
+  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v2 0v3])))
+::  Eight of the owner's messages fill its DM's queue. The owner's /revoke
+::  there starts no turn, so it is carried out at once.
+::
+++  test-a-full-queue-in-the-owners-dm-does-not-delay-its-revoke
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  own  `destination:t`[%dm ~nec ~]
+  =/  own-sid  (identity:continuity own)
+  =/  saved  revoking
+  =.  saved
+    %=  saved
+      identities  (my ~[[own own-sid]])
+      lanes  (my ~[[own-sid [own 1 ~[%web]]]])
+      routes  (my ~[[own-sid ['binding-own' %ready]]])
+      jobs
+        %-  malt
+        %+  turn  (gulf 1 8)
+        |=  n=@ud
+        ^-  [@uv job:t]
+        [`@uv`n [[~nec (scot %ud n) own 'hi'] own-sid %bind '']]
+    ==
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit saved later ~[[told (said ~nec '/revoke ~dev' told)]])
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~bus])))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(8))
+  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~[['dm/~nec' (room-revoked ~dev)]]))
+::  .s with sixty-four of ~bus's jobs in .all-nest, a full adapter queue
+::
+++  busy-jobs
+  |=  s=state-7:t
+  ^-  state-7:t
+  =/  busy  `destination:t`[%channel all-nest ~]
+  =/  busy-sid  (identity:continuity busy)
+  %=  s
+    identities  (my ~[[busy busy-sid]])
+    lanes  (my ~[[busy-sid [busy 1 ~[%web]]]])
+    routes  (my ~[[busy-sid ['binding-busy' %ready]]])
+    jobs
+      %-  malt
+      %+  turn  (gulf 1 64)
+      |=  n=@ud
+      ^-  [@uv job:t]
+      [`@uv`n [[~bus (scot %ud n) busy 'hi'] busy-sid %bind '']]
+  ==
+::  Catch-up stops before the next message at a full queue. The owner's
+::  /revoke and /pending next in line start no turn, so they are carried
+::  out at once; ~bus's mention in .room-nest, whose lane has room, waits.
+::
+++  test-a-full-adapter-queue-does-not-delay-the-owners-revoke-next-in-line
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  next  (add told ~s1)
+  =/  after  (add told ~s2)
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  (busy-jobs revoking)  later
+    :~  [told (said ~nec '/revoke ~dev' told)]
+        [next (said ~nec '/pending' next)]
+        [after (addressed ~bus room-nest 'one more' after)]
+    ==
+  ;<  ~  bind:m  (ex-equal !>((channel-ships s room-nest)) !>((silt ~[~bus])))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by jobs.s)) !>(64))
+  ;<  ~  bind:m  (ex-equal !>(activity-through.s) !>(next))
+  ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  ['dm/~nec' (room-revoked ~dev)]
+      ['dm/~nec' 'No pending approval requests.']
+  ==
+::  An allow answers the message waiting on its request, which a full
+::  queue would refuse behind the cutoff the grant moves: it waits for room
+::  as that message would, then runs and the message is answered.
+::
+++  test-an-allow-waits-for-room-in-a-full-queue-then-answers-its-message
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[[told (said ~nec '/allow d0001' told)]]
+  =/  page  (dm-page ~[[one-at 'may I ask?' &]])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding (busy-jobs asked) later events page ~)
+  ;<  ~  bind:m  (ex-equal !>(approvals.s) !>(approvals:asked))
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>(dm-grants.policy:asked))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>(catching-up.s) !>(&))
+  ;<  [caz=(list card) w=state-7:t]  bind:m
+    (admit-holding s(jobs ~) later events page ~)
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.w) !>((silt ~[~bus ~dev])))
+  %+  ex-equal  !>((admitted w))
+  !>(`(list [@p destination:t @t])`~[[~dev [%dm ~dev ~] 'may I ask?']])
+::  ~dev's waiting message was deleted, so the allow hands nothing on and
+::  starts no turn: it passes the full adapter queue at once.
+::
+++  test-an-allow-with-nothing-to-hand-on-passes-a-full-queue
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  events  ~[[told (said ~nec '/allow d0001' told)]]
+  =/  page  (dm-page ~[[one-at 'may I ask?' |]])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit-holding (busy-jobs asked) later events page ~)
+  ;<  ~  bind:m  (ex-equal !>(dm-grants.policy.s) !>((silt ~[~bus ~dev])))
+  (ex-equal !>(activity-through.s) !>(told))
+::  .open-nest answers every reader: once ~bus's grant there is gone, the
+::  owner is told ~bus still has access.
+::
+++  test-revoke-in-a-channel-open-to-everyone-says-the-ship-keeps-access
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  revoking
+  =.  channel-grants.policy.saved
+    (~(put by channel-grants.policy.saved) open-nest (silt ~[~bus]))
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    (admit saved later ~[[told (said ~nec '/revoke ~bus chat/~lux/open' told)]])
+  ;<  ~  bind:m  (ex-equal !>(channel-grants.policy.s) !>(channel-grants.policy:revoking))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  :-  'dm/~nec'
+      'Removed ~bus\'s grant for Lux group (chat/~lux/open), but they still have access there from settings; change it there.'
+  ==
+::  ~ryd is trusted and ~bud allowed, ~bud with a DM grant as well. Neither
+::  /revoke changes anything, and the owner is told why.
+::
+++  test-revoke-of-a-ship-with-access-everywhere-changes-nothing-and-says-so
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  revoking
+  =.  trusted.policy.saved  (my ~[[~ryd ~[%web]]])
+  =.  allowed.policy.saved  (silt ~[~bud])
+  =.  dm-grants.policy.saved  (silt ~[~bus ~bud])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  saved  later
+    :~  [told (said ~nec '/revoke ~ryd' told)]
+        [(add told ~s1) (said ~nec '/revoke ~bud dm' (add told ~s1))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-revoked')) !>(0))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  ['dm/~nec' '~ryd has access everywhere from settings; change it there.']
+      ['dm/~nec' '~bud has access everywhere from settings; change it there.']
+  ==
+::  ~dev holds .room-nest but not its DM; ~wes holds nothing.
+::
+++  test-revoke-of-a-ship-without-a-grant-there-changes-nothing-and-says-so
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  revoking  later
+    :~  [told (said ~nec '/revoke ~dev dm' told)]
+        [(add told ~s1) (said ~nec '/revoke ~wes chat/~lux/test' (add told ~s1))]
+        [(add told ~s2) (said ~nec '/revoke ~wes' (add told ~s2))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:revoking))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-revoked')) !>(0))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  ['dm/~nec' '~dev has no DM access to revoke.']
+      ['dm/~nec' '~wes has no access to revoke in Room in Lux group (chat/~lux/test).']
+      ['dm/~nec' '~wes has no access to revoke.']
+  ==
+::  No ship, or a place that is not `dm` or a channel's nest.
+::
+++  test-revoke-without-a-ship-or-a-place-gets-the-usage-reply
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  revoking  later
+    :~  [told (said ~nec '/revoke' told)]
+        [(add told ~s1) (said ~nec '/revoke sampel palnet' (add told ~s1))]
+        [(add told ~s2) (said ~nec '/revoke ~bus the room' (add told ~s2))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy:revoking))
+  ;<  ~  bind:m  (ex-equal !>((turned caz)) !>(|))
+  %+  ex-equal  !>((answered caz))
+  !>  ^-  (list [@t @t])
+  :~  ['dm/~nec' 'Usage: /revoke ~ship-name']
+      ['dm/~nec' 'Usage: /revoke ~ship-name']
+      ['dm/~nec' 'Usage: /revoke ~ship-name']
+  ==
+::  ~bus holds its DM and .room-nest; ~dev and ~wes hold neither. Each DM
+::  /revoke is dropped as their /allow is.
+::
+++  test-a-revoke-from-a-ship-that-is-not-the-owner-changes-nothing-and-gets-no-reply
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  revoking
+  =.  channel-grants.policy.saved
+    (my ~[[room-nest (silt ~[~bus])] [all-nest (silt ~[~bus])]])
+  ;<  [caz=(list card) s=state-7:t]  bind:m
+    %^  admit  saved  later
+    :~  [told (said ~bus '/revoke ~dev' told)]
+        [(add told ~s1) (said ~wes '/revoke ~bus dm' (add told ~s1))]
+    ==
+  ;<  ~  bind:m  (ex-equal !>(policy.s) !>(policy.saved))
+  ;<  ~  bind:m  (ex-equal !>((answered caz)) !>(`(list [@t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-revoked')) !>(0))
+  (ex-equal !>(jobs.s) !>(`(map @uv job:t)`~))
+::  Revoked, ~dev is not blocked: its next mention there opens a new
+::  request, and the owner gets its card.
+::
+++  test-a-revoked-ship-may-ask-again-and-a-new-request-opens
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [revoked=(list card) s=state-7:t]  bind:m
+    (admit revoking later ~[[told (said ~nec '/revoke ~dev' told)]])
+  ;<  ~  bind:m  (ex-equal !>((ship-pokes %chat-block-ship revoked)) !>(`(list [wire @p])`~))
+  =/  at  (add later ~m1)
+  ;<  [caz=(list card) w=state-7:t]  bind:m
+    (admit s afterwards ~[[at (addressed ~dev room-nest 'may I again?' at)]])
+  ;<  ~  bind:m  (ex-equal !>((open w)) !>((places ~[[~dev `room-nest]])))
+  ;<  ~  bind:m  (ex-equal !>((lent (sent caz))) !>(1))
+  (ex-equal !>(jobs.w) !>(`(map @uv job:t)`~))
 ::  Open ~dev's request by a mention in .room-nest, reload the adapter at
 ::  .now with .change made to its state, then acknowledge the card with
 ::  .ack: the replies that tell a ship the bot waits, and the state after

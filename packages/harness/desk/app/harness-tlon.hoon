@@ -3294,10 +3294,12 @@
   ^+  engine
   ?~  rows  engine
   =/  row  i.rows
+  =/  event  (supported:activity-read event.row)
   ::  Leave the cursor before work we cannot retain. A later head fact or
   ::  bounded catch-up wake can continue without dropping an accepted input.
-  ?:  (gte ~(wyt by jobs.engine) 64)  engine(catching-up &)
-  =/  event  (supported:activity-read event.row)
+  ::  An approval command next in line that starts no turn is carried out.
+  =/  free  ?~(event | (turnless:engine u.event))
+  ?:  &((gte ~(wyt by jobs.engine) 64) !free)  engine(catching-up &)
   ?~  event  $(rows t.rows, engine engine(activity-through at.row))
   =/  actor  (actor:continuity u.event)
   ?:  ?&  ?=(^ actor)
@@ -3316,9 +3318,25 @@
   =.  engine  (activity:engine(activity-through at.row) u.event)
   $(rows t.rows)
 ::
+::  +turnless: whether .event is an approval command that starts no turn
+::
+::    An allow with a message waiting on its request answers it, so it waits
+::    for room as that message would.
+::
+++  turnless
+  |=  event=incoming-event:v8:a
+  ^-  ?
+  =/  order  (approval-order event)
+  ?~  order  |
+  ?.  ?=(%allow -.order.u.order)  &
+  ?=(~ (allow-to event))
+::
 ++  activity-room
   |=  event=incoming-event:v8:a
   ^-  ?
+  ::  A full queue in the owner's DM does not hold back an approval command
+  ::  that starts no turn.
+  ?:  (turnless event)  &
   =/  input  (normalize-owned:p our.bowl policy event actor-owner)
   ?~  input  &
   ?.  (room to.u.input)  |
@@ -3722,6 +3740,9 @@
   ?:  ?=(%unban -.order)
     ?~  who.order  (answer-order to unban-usage:ask)
     (unban u.who.order to)
+  ?:  ?=(%revoke -.order)
+    ?~  target.order  (answer-order to revoke-usage:ask)
+    (revoke who.u.target.order where.u.target.order to)
   ::  Among several, a bare command could act on a request the owner did
   ::  not mean, so it lists them instead.
   ?:  &(?=(~ id.order) (gth ~(wyt by by-id.live) 1))
@@ -3930,6 +3951,51 @@
   =.  error  unblock-refused
   =.  cor  (note 'approval-unban-failed' who (scot %p who) '')
   (answer-order to (unbanned:ask who %failed))
+::  +revoke: take back .who's grant in .where, or in its one place when no
+::  place is given, as a settings save that removes it does
+::
+::    Not a ban: nothing is blocked, and the ship may ask again. A ship with
+::    grants in several places keeps them all until the owner names one.
+::
+++  revoke
+  |=  [who=@p where=(unit place:t) to=destination:t]
+  ^+  cor
+  ?^  (actor-grants who ~)
+    =/  label  ?~(where ~ (place-label u.where))
+    (answer-order to (unrevoked:ask who label %everywhere))
+  ?^  where  (revoke-in who u.where to)
+  =/  held=(list place:t)
+    %+  weld
+      `(list place:t)`?.((~(has in dm-grants.policy) who) ~ ~[~])
+    %+  sort
+      %+  murn  ~(tap by channel-grants.policy)
+      |=  [=nest:dv ships=(set @p)]
+      ^-  (unit place:t)
+      ?.((~(has in ships) who) ~ ``nest)
+    |=([a=place:t b=place:t] (aor (place-text:ask a) (place-text:ask b)))
+  ?~  held  (answer-order to (unrevoked:ask who ~ %nowhere))
+  ?^  t.held  (answer-order to (revoke-choices:ask who held))
+  (revoke-in who i.held to)
+::  +revoke-in: take back .who's grant in .place
+::
+++  revoke-in
+  |=  [who=@p =place:t to=destination:t]
+  ^+  cor
+  =/  label  (place-label place)
+  ?.  (placed:p policy who place)  (answer-order to (unrevoked:ask who label %ungranted))
+  =/  revoked=policy:t
+    ?~  place  policy(dm-grants (~(del in dm-grants.policy) who))
+    =/  ships  (~(del in (~(got by channel-grants.policy) u.place)) who)
+    %=  policy
+      channel-grants
+        ?~  ships  (~(del by channel-grants.policy) u.place)
+        (~(put by channel-grants.policy) u.place ships)
+    ==
+  =.  cor  (configure revoked sibling-moon-owners)
+  =.  cor  (note 'approval-revoked' who (address:p (place-to:p who place)) '')
+  ::  A channel open to everyone still answers the ship.
+  ?:  (place-access who place)  (answer-order to (still-answered:ask who (need label)))
+  (answer-order to (confirmation:ask %revoke who label))
 ::
 ++  unblock-refused  'Messenger rejected an unblock; inspect the ship log.'
 ::

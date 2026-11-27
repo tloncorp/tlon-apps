@@ -536,6 +536,14 @@ const HARNESS_TLON_COMMANDS: SlashCommandOption[] = [
     keywords: ['unblock', 'ship', 'allow'],
     priority: 16,
   },
+  {
+    command: '/revoke',
+    title: 'Revoke access',
+    subtitle: "Take back a ship's access in one place",
+    icon: 'Close',
+    keywords: ['remove', 'access', 'grant', 'ship'],
+    priority: 17,
+  },
 ];
 
 // The CI-bound half of each list, keyed by harness. The drift contract reads
