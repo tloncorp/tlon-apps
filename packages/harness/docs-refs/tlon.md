@@ -1027,10 +1027,10 @@ approval commands above, with these differences.
   not submit the decline for ~host/name. Request stays pending, try again.`;
   a second `/ban`, finding the ship blocked, sends no block and declines
   again. When another ship's invitation to the group is on the ship too,
-  and a request could open for that ship (it is not blocked, not a comet),
-  the ban declines nothing there: the request closes at once with the same
-  reply, and a request opens for that other ship, under the usual limits,
-  whose card the owner is sent. Otherwise the group is declined as when no
+  and a request could open for that ship (it is not blocked, not a comet,
+  and has fewer than five requests open), the ban declines nothing there:
+  the request closes at once with the same reply, and a request opens for
+  that other ship, whose card the owner is sent. Otherwise the group is declined as when no
   other ship invited the bot. A ban of a DM or channel
   request also declines the ship's invitations, without waiting.
 - Expiry, 48 hours after the request opened, closes it and declines the

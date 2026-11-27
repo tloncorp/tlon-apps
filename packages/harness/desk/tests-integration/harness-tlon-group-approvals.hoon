@@ -724,6 +724,30 @@
   ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
   %+  ex-equal  !>((answered out))
   !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
+::  ~bus also invited the bot to .club, whose request is ~dev's, but holds
+::  as many requests as one ship may. No request could open for ~bus, so a
+::  ban from .club's card declines the group and opens nothing.
+::
+++  test-a-ban-from-the-group-card-whose-other-inviter-is-at-its-limit-declines-the-group
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  asked
+  =.  approvals.saved
+    %+  roll  (gulf 1 ship-limit:ask)
+    |=  [n=@ud approvals=_approvals.saved]
+    =/  nest=nest:dv  [%chat ~lux `@tas`(crip (weld "other" (a-co:co n)))]
+    (open:ask approvals (cat 3 'c' (crip (a-co:co n))) [~bus [%place `nest] start])
+  =/  busy  (close:ask approvals.saved 'g0001')
+  =/  held  `(list [flag:g @p])`~[[club ~dev] [club ~bus]]
+  ;<  [caz=(list card) s=state-8:t]  bind:m
+    (admit-held saved later ~[[told (said ~nec '/ban g0001' told)]] held)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
+  ;<  ~  bind:m  (ex-equal !>((turn (declines out) tail)) !>(`(list flag:g)`~[club]))
+  ;<  ~  bind:m  (ex-equal !>(by-id.approvals.w) !>(by-id.approvals.saved))
+  ;<  ~  bind:m  (ex-equal !>((sent out)) !>(`(list [@p @t @t])`~))
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups out ~ ~)
+  (ex-equal !>(approvals.w) !>(busy))
 ::  %chat rejects the card of ~dev's group request. An invite is reported
 ::  once, so the request stays open, and /pending lists it.
 ::

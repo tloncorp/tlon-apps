@@ -4110,13 +4110,16 @@
     ?~  group  ~
     ?>  ?=(%group -.topic.u.group)
     `flag.topic.u.group
-  ::  An inviter no request could open for, such as a blocked one, would be
-  ::  left with its invite and no request.
+  ::  An inviter no request could open for, such as a blocked one or one at
+  ::  its limit, would be left with its invite and no request.
   =/  others=(list @p)
     ?~  answered  ~
     =/  rest  cor(approvals (close:ask approvals id))
     %+  skim  (inviters-besides u.answered who)
-    |=(other=@p (askable:rest other [%group u.answered]))
+    |=  other=@p
+    ?&  (askable:rest other [%group u.answered])
+        (lth (held:ask approvals.rest other) ship-limit:ask)
+    ==
   =?  group  ?=(^ others)  ~
   =.  cor
     %+  roll  (invites-from who)
