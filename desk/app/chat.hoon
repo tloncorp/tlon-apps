@@ -2175,8 +2175,9 @@
     :: we only gossip after processing the diff because we may have changed
     :: the team, so we don't want to send gossip to people who have left
     =;  nu-core
+      =.  cu-core  nu-core
       =.  cor  (emil (gossip:cu-pass diff))
-      nu-core
+      cu-core
     ?-    -.delta
     ::
         %meta
