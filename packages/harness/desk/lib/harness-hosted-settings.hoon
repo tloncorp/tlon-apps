@@ -75,26 +75,15 @@
           |(=('api-key' method) =('subscription' method))
       ==
     invalid
-  =/  url=@t
-    ?:  =('openai' provider)
-      ?:(=('subscription' method) device-url:auth 'https://api.openai.com/v1/responses')
-    ?:  =('anthropic' provider)  'https://api.anthropic.com/v1/messages'
-    ?:  =('xai' provider)
-      ?:(=('subscription' method) xai-url:auth 'https://api.x.ai/v1/chat/completions')
-    ?:  &(=('openrouter' provider) =('api-key' method))
-      'https://openrouter.ai/api/v1/chat/completions'
-    ''
-  ?:  =('' url)  [config keys (error:hosted 400 'Unsupported provider or authentication method.')]
-  =/  headers=(list [name=@t value=@t])
-    ?:  &(=('anthropic' provider) =('subscription' method))
-      ~[['anthropic-beta' 'oauth-2025-04-20']]
-    ~
+  =/  route  (provider-route:routing provider =('subscription' method))
+  ?:  =('' url.route)
+    [config keys (error:hosted 400 'Unsupported provider or authentication method.')]
   =/  selected
     %*  .  config
-      url  url
+      url  url.route
       model  model
       key  ''
-      headers  headers
+      headers  headers.route
       zdr  zdr
     ==
   =/  chain  (get:j args 'fallbacks')

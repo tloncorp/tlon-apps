@@ -4274,6 +4274,7 @@
         log.session
         tools
         owner
+        |=(slot=@t !=('' (provider-key slot)))
       ==
     %+  snoc
       (weld events events.result)

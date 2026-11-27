@@ -11,6 +11,15 @@
   ?:  =('anthropic' name)  'https://api.anthropic.com/v1/messages'
   ?:  =('xai' name)  'https://api.x.ai/v1/chat/completions'
   ''
+++  provider-route
+  |=  [provider=@t subscription=?]
+  ^-  [url=@t headers=(list [name=@t value=@t])]
+  ?.  subscription  [(endpoint provider) ~]
+  ?+  provider  ['' ~]
+    %openai  [device-url:auth ~]
+    %anthropic  [(endpoint provider) ~[['anthropic-beta' 'oauth-2025-04-20']]]
+    %xai  [xai-url:auth ~]
+  ==
 ++  parse
   |=  value=json
   ^-  (list model-choice:h)

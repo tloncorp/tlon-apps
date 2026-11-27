@@ -3,7 +3,7 @@
 ::  never interpreted as commands. No credentials, I/O or execution authority.
 /-  h=harness
 /+  hp=harness-provider, failure=harness-failure, context=harness-context, memory=harness-memory,
-    policy=harness-defaults
+    policy=harness-defaults, routing=harness-model-routing, auth=harness-auth
 |%
 +$  command  [name=@t arg=@t]
 ++  whitespace
@@ -59,6 +59,7 @@
       '/status — model, tool grants and token usage\0a'
       '/model — show this conversation\'s model\0a'
       '/model <id> — change model within the current provider\0a'
+      '/model <provider>/<id> — select a provider and model\0a'
       '/model default — use the default provider and model\0a'
       '/context — inspect context budgets and checkpoint usage\0a'
       '/compact — summarize older exchanges, keeping the recent turn\0a'
@@ -115,7 +116,7 @@
 ::  the acknowledgement in one admission; all hands get the same semantics.
 ++  evaluate
   |=  $:  parsed=command  view=view:h  defaults=config:h  skills=(map @t skill:h)
-          log=(list event:h)  tools=(list tool-grant:h)  owner=?
+          log=(list event:h)  tools=(list tool-grant:h)  owner=?  has-credential=$-(@t ?)
       ==
   ^-  [events=(list event:h) body=@t]
   |^
@@ -124,14 +125,14 @@
     ?:  =('status' name.parsed)
       [~ ?:(=('' arg.parsed) (status-report view tools owner) 'Usage: /status')]
     ?:  =('compact' name.parsed)  [~ 'Usage: /compact']
-    =/  result  (run parsed view defaults)
+    =/  result  (run parsed view defaults has-credential)
     [?~(config.result ~ ~[[%config-replaced u.config.result]]) body.result]
   --
 ++  model-label
   |=  config=config:h
   (rap 3 (provider-for-url:hp url.config) ' / ' model.config ~)
 ++  run
-  |=  [parsed=command view=view:h defaults=config:h]
+  |=  [parsed=command view=view:h defaults=config:h has-credential=$-(@t ?)]
   ^-  [config=(unit config:h) body=@t]
   ?+  name.parsed  [~ 'Unknown command. Send /help for the available commands.']
     %help  [~ ?:(=('' arg.parsed) help 'Usage: /help')]
@@ -155,14 +156,32 @@
           max-context  max-context.defaults
         ==
       [`config (cat 3 'Using default model: ' (model-label config))]
-    ?:  |((gth (met 3 arg.parsed) 256) (lien (trip arg.parsed) whitespace))
-      [~ 'Usage: /model <model-id> or /model default']
-    ::  Keep a known context size for the same model. A typed, uncatalogued
-    ::  model gets the same conservative fallback as the settings client.
+    =/  chars  (trip arg.parsed)
+    =/  slash  (find "/" chars)
+    =/  provider  ?~(slash '' (crip (scag u.slash chars)))
+    =/  qualified  !=('' (endpoint:routing provider))
+    =/  model
+      ?~  slash  arg.parsed
+      ?:(qualified (crip (slag +(u.slash) chars)) arg.parsed)
+    ?:  |(=('' model) (gth (met 3 model) 256) (lien chars whitespace))
+      [~ 'Usage: /model <model-id>, /model <provider>/<model-id> or /model default']
+    =/  switch  &(qualified !=(provider (provider-for-url:hp url.config)))
+    ?:  &(switch zdr.config !=('openrouter' provider))
+      [~ 'Zero data retention routing requires OpenRouter.']
+    =?  config  switch
+      =/  device  (cat 3 provider '-device')
+      =/  subscription
+        ?&  (has-credential device)
+            |(!=(provider (credential-for-config:auth defaults)) !(has-credential provider))
+        ==
+      =/  route  (provider-route:routing provider subscription)
+      config(url url.route, headers headers.route, key '')
+    ?:  &(switch !(has-credential (credential-for-config:auth config)))
+      [~ (cat 3 'Connect this provider before selecting its model: ' provider)]
     =.  config
       %=  config
-        model  arg.parsed
-        max-context  ?:(=(arg.parsed model.config) max-context.config fallback-context:policy)
+        model  model
+        max-context  ?:(&(!switch =(model model.config)) max-context.config fallback-context:policy)
       ==
     [`config (cat 3 'Model set to: ' (model-label config))]
   ==
@@ -176,7 +195,7 @@
         ^-  (list [name=@t description=@t hint=@t])
         :~  ['help' 'List conversation commands' '']
             ['status' 'Show model, tool grants and token usage' '']
-            ['model' 'Show or change this conversation\'s model' 'model-id | default']
+            ['model' 'Show or change model and provider' 'model-id | provider/model-id | default']
             ['context' 'Inspect context budgets and checkpoint usage' '']
             ['compact' 'Summarize older exchanges using the current provider' '']
             ['memory' 'Inspect or control shared memory' '[query|on|off]']
