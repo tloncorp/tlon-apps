@@ -51,6 +51,7 @@ const baseline = {
 // Keys an older seeder may not emit. Checked when the manifest has them; a key
 // moves to the baseline once the seeder of every long-lived branch emits it.
 const newer = {
+  config: ['timezone'],
   tlon: ['dm.lane', 'dm.session', 'dm.hand', 'dm.address', 'dm.actors', 'dm.enabled'],
   schedules: [
     'tlon.binding', 'tlon.actor', 'tlon.kind', 'tlon.state', 'tlon.prompt', 'tlon.schedule', 'tlon.destination',
@@ -90,6 +91,7 @@ async function values(ids) {
   const config = await client.call('harness/session/config', { sessionId: ids.session })
   const listed = (await client.call('session/list')).sessions.find((row) => row.sessionId === ids.session)
   const defaults = await client.call('harness/defaults')
+  const timezone = await client.call('harness/timezone')
   const summary = await client.call('harness/summary-models')
   const search = await client.call('harness/search')
   const peers = await client.call('harness/peers')
@@ -127,6 +129,7 @@ async function values(ids) {
     conversation: { name: listed?.title, ...fields('', config) },
     config: {
       'defaults.url': defaults.url, 'defaults.model': defaults.model, 'defaults.headers': defaults.headers, 'defaults.system': defaults.system,
+      timezone: timezone.timezone,
       ...fields('summary.compaction.', summary.compaction), ...fields('summary.lcm.', summary.lcm),
       'search.provider': search.provider, 'search.instance-url': search['instance-url'],
     },
@@ -244,6 +247,7 @@ async function seed() {
   await client.call('harness/defaults/configure', { config: {
     ...defaults, url, key: '', headers: headers('defaults'), model: `${id}-default-model`, system: `${id} default system`,
   } })
+  await client.call('harness/timezone/set', { timezone: 'America/Los_Angeles' })
   await client.call('harness/summary-models/configure', { models: { compaction: { ...compaction, key: '' }, lcm: { ...lcm, key: '' } } })
   await client.call('harness/search/configure', { config: { provider: 'searxng', 'instance-url': `http://127.0.0.1:1/${id}` } })
   const peers = await client.call('harness/peers')
@@ -276,6 +280,7 @@ async function seed() {
     conversation: { name: id, ...conversation },
     config: {
       'defaults.url': url, 'defaults.model': `${id}-default-model`, 'defaults.headers': headers('defaults'), 'defaults.system': `${id} default system`,
+      timezone: 'America/Los_Angeles',
       ...Object.fromEntries(provider.map((key) => [`summary.compaction.${key}`, compaction[key]])),
       ...Object.fromEntries(provider.map((key) => [`summary.lcm.${key}`, lcm[key]])),
       'search.provider': 'searxng', 'search.instance-url': `http://127.0.0.1:1/${id}`,

@@ -53,6 +53,7 @@
 /+  run-report=harness-run-report
 /+  memory=harness-memory, memory-capture=harness-memory-capture, memory-json=harness-memory-json
 /+  memory-browser=harness-memory-browser
+/+  tz=harness-timezone
 |%
 +$  card  card:agent:gall
 +$  browser-screen
@@ -73,6 +74,7 @@
       staged=(map @t skill:h)
       search-requests=search-requests:h
       knowledge=state:memory-types
+      owner-timezone=(unit @t)
   ==
 ::  The hand index and browser frames are transient; +on-save keeps only state-0.
 ::
@@ -514,6 +516,8 @@
       ::
           [%x %defaults ~]
         ``json+!>((config-json:hj defaults))
+          [%x %timezone ~]
+        ``json+!>(timezone-json:hc)
           [%x %hosted %capabilities ~]
         ``json+!>(capabilities:hosted-auth)
       ::
@@ -1113,7 +1117,7 @@
   =/  parsed  (mule |.((create:schedule-lib action u.source grants now.bowl)))
   ?.  ?=(%& -.parsed)
     :*  :*  %|
-            'Require an authorized actor and prompt 1..8192 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field schedule with timezone UTC or a fixed +HH:MM/-HH:MM offset and, optionally, runs as a whole number from 1 to 1000000. Literal reminders require at and text of 1..4096 bytes, and a destination only if it names this conversation.'
+            'Require an authorized actor and prompt 1..8192 bytes with either a future RFC3339 at timestamp (explicit offset or Z) or a five-field schedule with an IANA timezone, UTC, or a fixed +HH:MM/-HH:MM offset and, optionally, runs as a whole number from 1 to 1000000. Literal reminders require at and text of 1..4096 bytes, and a destination only if it names this conversation.'
         ==
         ~  state
     ==
@@ -1267,6 +1271,14 @@
       :*  [%| 'cron_add requires a recurring schedule; use schedule_once for an exact at timestamp']
           ~  state
       ==
+    =/  default-zone  (session-timezone sid.request owner-timezone)
+    =/  fill-zone
+      |=  obj=json
+      ^-  json
+      ?.  &(?=(%o -.obj) (~(has by p.obj) 'schedule') ?=(^ default-zone))  obj
+      =/  existing  (~(get by p.obj) 'timezone')
+      ?:  &(?=(^ existing) !=(~ u.existing) !=([%s ''] u.existing))  obj
+      [%o (~(put by p.obj) 'timezone' [%s u.default-zone])]
     ?:  =('cron_list' name.call.request)
       [[%& (list-json:schedule-lib visible [hands hand-index] ~)] ~ state]
     ?:  %+  lien  `(list @t)`~['cron_remove' 'cron_update' 'cron_delete' 'cron_retry']
@@ -1288,7 +1300,7 @@
           %.  u.parsed
           %-  ot:dejs:format
           ~[revision+so:dejs:format args+|=(value=json value)]
-        [%edit p.id (slav %uv revision.fields) args.fields]
+        [%edit p.id (slav %uv revision.fields) (fill-zone args.fields)]
       ?.  ?=(%& -.change)
         :*  [%| 'Invalid schedule change; read cron_list for its current revision and lastInput']  ~
             state
@@ -1306,7 +1318,7 @@
         binding.u.origin
         actor.u.origin
         ?:(=('reminder_add' name.call.request) %reminder %prompt)
-        u.parsed
+        ?:(=('cron_add' name.call.request) (fill-zone u.parsed) u.parsed)
     ==
   =/  body=@t
     ?:  ?=(%& -.result.handled)  (en:json:html p.result.handled)
@@ -3055,6 +3067,12 @@
         [~[(reply (error:hosted-auth 400 'Invalid skill settings.'))] state]
       =.  skills  skills.p.attempted
       [~[(reply response.p.attempted)] state]
+    ?:  =('timezone' action.request)
+      =/  attempted  (mule |.((apply-timezone:hosted-content owner-timezone args.request now.bowl)))
+      ?:  ?=(%| -.attempted)
+        [~[(reply (error:hosted-auth 400 'Invalid timezone settings.'))] state]
+      =.  owner-timezone  zone.p.attempted
+      [~[(reply response.p.attempted)] state]
     ?:  =('models' action.request)
       ::  Model lists use the same validation and revision check as settings.
       =/  parsed
@@ -3115,18 +3133,22 @@
     =/  attempted
       %-  mule
       |.
-      %:  apply:hosted-provision
-        defaults
-        provider-keys
-        mcp-servers
-        args.request
-        !model-defaults-set
-      ==
+      =/  out
+        %:  apply:hosted-provision
+          defaults
+          provider-keys
+          mcp-servers
+          args.request
+          !model-defaults-set
+        ==
+      =/  zone  (timezone:hosted-provision owner-timezone args.request)
+      [config.out keys.out zone]
     ?:  ?=(%| -.attempted)
       [~[(reply (error:hosted-auth 400 'Invalid provisioning settings.'))] state]
-    =.  defaults  config.p.attempted
+    =.  defaults  -.p.attempted
     =.  model-defaults-set  &
-    =.  provider-keys  keys.p.attempted
+    =.  provider-keys  +<.p.attempted
+    =.  owner-timezone  +>.p.attempted
     :*  %+  snoc
           refresh-model-contexts
         (reply (envelope:hosted-auth 200 (pairs:enjs:format ~[['ready' %b &]])))
@@ -3308,6 +3330,8 @@
     %'harness/skills'  (acp-respond rpc ~ (skills-json:hj skills))
     ?(%'harness/skill' %'harness/skill/save' %'harness/skill/delete')  (acp-skill rpc)
     %'harness/defaults'  (acp-respond rpc ~ (config-json:hj editable-defaults))
+    %'harness/timezone'  (acp-respond rpc ~ timezone-json)
+    %'harness/timezone/set'  (acp-timezone-set rpc)
     %'harness/peers'  (acp-respond rpc ~ peer-settings)
     %'harness/peers/remote'  (acp-respond rpc ~ (list-json:peer-access remote-access))
     %'harness/peers/check'  (acp-peers-check rpc)
@@ -3761,6 +3785,32 @@
     (acp-fail rpc '-32602' composed-too-long)
   =^  configured  state  (handle-action [%defaults p.decoded])
   (acp-respond rpc configured (config-json:hj editable-defaults))
+::
+++  timezone-json
+  ^-  json
+  =/  clk  ?~(owner-timezone ~ (clock:tz u.owner-timezone now.bowl))
+  %-  pairs:enjs:format
+  :~  ['timezone' ?~(owner-timezone ~ [%s u.owner-timezone])]
+      ['utcOffset' ?~(clk ~ [%s offset.u.clk])]
+  ==
+::
+++  acp-timezone-set
+  |=  rpc=acp-request
+  ^-  (quip card _state)
+  =+  rpc
+  ?~  params  (acp-fail rpc '-32602' 'Expected {timezone}')
+  ?.  ?=(%o -.u.params)  (acp-fail rpc '-32602' 'Expected {timezone}')
+  =/  supplied  (~(get by p.u.params) 'timezone')
+  ?~  supplied  (acp-fail rpc '-32602' 'Expected {timezone}')
+  ?:  ?=(~ u.supplied)
+    =^  cards  state  (handle-action [%timezone-set ~])
+    (acp-respond rpc cards timezone-json)
+  ?.  ?=(%s -.u.supplied)
+    (acp-fail rpc '-32602' 'timezone must be an IANA timezone name or null')
+  ?.  (valid:tz p.u.supplied)
+    (acp-fail rpc '-32602' 'Invalid IANA timezone; use a name such as America/Los_Angeles or UTC')
+  =^  cards  state  (handle-action [%timezone-set `p.u.supplied])
+  (acp-respond rpc cards timezone-json)
 ::
 ++  acp-mcp-servers
   |=  rpc=acp-request
@@ -4371,6 +4421,8 @@
     %peer-config  (action-peer-config action)
     %defaults  (action-defaults action)
     %prompt-set  (action-prompt-set action)
+    %timezone-set  (action-timezone-set action)
+    %timezone-default  (action-timezone-default action)
     %mcp-config  (action-mcp-config action)
     %ask-peer  (action-ask-peer action)
     %peer-refresh  (action-peer-refresh action)
@@ -4888,6 +4940,22 @@
   ^-  @t
   'Default instructions must be at most 131072 bytes in all.'
 ::
+++  action-timezone-set
+  |=  action=action:h
+  ^-  (quip card _state)
+  ?>  ?=(%timezone-set -.action)
+  ?~  zone.action  `state(owner-timezone ~)
+  ?>  (valid:tz u.zone.action)
+  `state(owner-timezone zone.action)
+::
+++  action-timezone-default
+  |=  action=action:h
+  ^-  (quip card _state)
+  ?>  ?=(%timezone-default -.action)
+  ?^  owner-timezone  `state
+  ?.  (valid:tz zone.action)  `state
+  `state(owner-timezone `zone.action)
+::
 ++  action-mcp-config
   |=  action=action:h
   ^-  (quip card _state)
@@ -5080,6 +5148,7 @@
   =.  skills  skills.result
   =.  staged  staged.result
   =.  search-requests  search-requests.result
+  =.  owner-timezone  owner-timezone.result
   =.  session  session.result
   =/  rearm=[cards=(list card) timers=_timers]
     ?~  every.u.timer
@@ -5126,7 +5195,7 @@
       (next:hs view (skills-visible sid skills) log.session)
     ?~  decision
       =.  knowledge  (enqueue:memory-capture knowledge sid session projection now.bowl)
-      [cards session skills staged search-requests knowledge]
+      [cards session skills staged search-requests knowledge owner-timezone]
     ?-  -.u.decision
         %tools
       =/  batch  (roll calls.u.decision (execute-tool view))
@@ -5134,24 +5203,25 @@
       =.  staged  staged.batch
       =.  search-requests  search-requests.batch
       =.  knowledge  knowledge.batch
+      =.  owner-timezone  owner-timezone.batch
       =^  recorded  session  (record-all sid session events.batch)
       $(projection (advance:hl events.batch projection), cards :(weld cards recorded cards.batch))
     ::
         %turn
       =^  requested  session  (issue-llm sid session %turn view)
-      [(weld cards requested) session skills staged search-requests knowledge]
+      [(weld cards requested) session skills staged search-requests knowledge owner-timezone]
     ::
         %compact
       =/  compacted  (start-compaction sid session ~ &)
       =/  requested  cards.compacted
       =.  session  session.compacted
       =.  knowledge  knowledge.compacted
-      [(weld cards requested) session skills staged search-requests knowledge]
+      [(weld cards requested) session skills staged search-requests knowledge owner-timezone]
     ::
         %halt
       =^  recorded  session
         (record-all sid session ~[[%halted reason.u.decision]])
-      [(weld cards recorded) session skills staged search-requests knowledge]
+      [(weld cards recorded) session skills staged search-requests knowledge owner-timezone]
     ==
   ::  Synchronous calls complete here. Deferred calls record their request
   ::  identity and return cards; their results enter through another event.
@@ -5165,12 +5235,17 @@
                   staged=staged
                   search-requests=search-requests
                   knowledge=knowledge
+                  owner-timezone=owner-timezone
                 ]
         ]
     ^+  batch
     |^
       ?.  (call-granted:ht call tools.config.view)
         (complete 'rejected: tool is not granted for this session')
+      ?:  =('current_time' name.call)
+        %-  complete
+        (current-time-in:effects now.bowl (session-timezone sid owner-timezone.batch))
+      ?:  =('set_timezone' name.call)  set-timezone-tool
       ?:  =('memory' name.call)  memory-tool
       ?:  |(=('lcm_search' name.call) =('lcm_read' name.call) =('lcm_expand' name.call))
         (complete (corpus-tool sid session call tools.config.view))
@@ -5238,6 +5313,19 @@
       =/  rejection  (js-loop-guard:ht u.code)
       ?^  rejection  (complete u.rejection)
       (defer ~[(run-js-poke:effects sid next-req.session id.call u.code)])
+    ::
+    ++  set-timezone-tool
+      ?.  (session-admin sid)
+        (complete 'rejected: set_timezone is owner-only')
+      =/  raw  (tool-str:effects args.call 'timezone')
+      ?~  raw  (complete 'error: need timezone argument')
+      =/  trimmed=@t  (trim:tz u.raw)
+      =/  clk  (clock:tz trimmed now.bowl)
+      ?~  clk
+        %-  complete
+        'error: unknown IANA timezone; use a name such as America/Los_Angeles, Asia/Tokyo, or UTC (not an abbreviation or numeric offset)'
+      =.  owner-timezone.batch  `trimmed
+      (complete (current-time-in:effects now.bowl (session-timezone sid `trimmed)))
     ::
     ++  skill-tool
       ?:  =('write_skill' name.call)
@@ -5571,6 +5659,7 @@
 ++  llm-card
   |=  [sid=session-id:h req=@ud kind=request-kind:h =view:h checkpoint=@uvH]
   ^-  card
+  =.  view  (with-timezone:hp view kind (session-timezone sid owner-timezone))
   =.  view
     %:  identify:hp
       view  kind  our.bowl
@@ -6155,6 +6244,59 @@
   ?.  =(%tlon u.origin)  &
   ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
   .^(? %gx /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/admin/[sid]/noun)
+::  Owner timezone is scoped per conversation, not per speaker. Only the
+::  owner's private conversations (local ACP/poke, owner DM, owner peer,
+::  single-actor hand bound to the owner's ship, and their scheduled runs or
+::  subagents) receive local time, the turn timezone line, or cron_add's
+::  default zone. Shared channels and other people's conversations always use
+::  UTC whoever speaks, so local time and zone never enter shared session
+::  history.
+++  session-timezone
+  |=  [sid=session-id:h zone=(unit @t)]
+  ^-  (unit @t)
+  ?~  zone  ~
+  =/  depth=@ud  0
+  |-
+  ^-  (unit @t)
+  ?:  (gte depth 8)  ~
+  =/  session  (~(get by sessions) sid)
+  ?~  session  ~
+  =/  parent  (delegation:hl log.u.session)
+  ?^  parent  $(sid parent.u.parent, depth +(depth))
+  =/  job  (for-session:schedule-lib schedules sid)
+  ?^  job  $(sid sid.u.job, depth +(depth))
+  =/  peer  (peer-source:admin log.u.session)
+  =?  peer  &(?=(~ peer) =('peer--' (end [3 6] sid)))
+    (slaw %p (rsh [3 6] sid))
+  ?^  peer  ?:((is-owner u.peer) zone ~)
+  =/  bound=(list binding:hh)
+    (turn (session-bindings:hd [hands hand-index] sid) |=([@t =binding:hh] binding))
+  ?:  !=(~ bound)
+    ?:((levy bound private-binding) zone ~)
+  =/  input  (current-input:admin log.u.session)
+  ?~  input  zone
+  ?.  ?=(%hand -.source.u.input)  zone
+  ?:  %:  private-binding
+        :*  hand.source.u.input
+            address.source.u.input
+            sid
+            ~[actor.source.u.input]
+            &
+        ==
+      ==
+    zone
+  ~
+::
+++  private-binding
+  |=  binding=binding:hh
+  ^-  ?
+  ?.  ?=([@t ~] actors.binding)  |
+  =/  actor  (slaw %p i.actors.binding)
+  ?~  actor  |
+  ?.  (is-owner u.actor)  |
+  ?.  =('tlon' hand.binding)  &
+  =/  partner  (dm-partner:admin address.binding)
+  &(?=(^ partner) =(u.partner u.actor))
 ::
 ++  admin-current
   |=  ticket=ticket:admin
@@ -6503,6 +6645,7 @@
   =.  staged  staged.result
   =.  search-requests  search-requests.result
   =.  knowledge  knowledge.result
+  =.  owner-timezone  owner-timezone.result
   =.  sessions  (~(put by sessions) sid session.result)
   =?  browser-images  (~(has by browser-images) sid)
     =/  view  (play:hl log.session.result)

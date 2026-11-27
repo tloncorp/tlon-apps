@@ -111,6 +111,7 @@
       ['openrouterZdr' %b &]
       ['soul' %b &]
       ['skills' %b &]
+      ['timezone' %b &]
   ==
 ++  prune
   |=  [db=state now=@da]

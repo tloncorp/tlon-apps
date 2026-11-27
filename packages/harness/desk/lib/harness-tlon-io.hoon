@@ -178,11 +178,15 @@
 ++  onboarding-request
   |=  event=incoming-event:v8:a
   ^-  (unit @t)
+  (bind (onboarding-data event) head)
+++  onboarding-data
+  |=  event=incoming-event:v8:a
+  ^-  (unit [prompt=@t timezone=(unit @t)])
   ::  Activity does not carry blobs. Read only the exact native post, never a
   ::  conversation-wide search that could attach somebody else's setup data.
   ?+  -.event  ~
       %dm-post
-    (request:onboarding p.id.key.event (dm-blob event))
+    (parse:onboarding p.id.key.event (dm-blob event))
       %post
     =/  post=(may:v9:dv post:v9:dv)
       .^  (may:v9:dv post:v9:dv)  %gx
@@ -190,7 +194,7 @@
         /post/id/(scot %ud time.key.event)/channel-post-4
       ==
     ?:  ?=(%| -.post)  ~
-    (request:onboarding p.id.key.event blob:+.+.+.post)
+    (parse:onboarding p.id.key.event blob:+.+.+.post)
   ==
 ::
 ++  history

@@ -109,4 +109,36 @@
       (expect-eq !>(400) !>((number:j response.large 'status' 0)))
       (expect !>(?=(%| -.malformed)))
   ==
+++  test-timezone-read-write-clear-and-revision-conflicts
+  =/  read  (apply-timezone:content ~ [%o ~] ~2026.9.6)
+  =/  body  (need (get:j response.read 'body'))
+  =/  rev  (string:j body 'revision')
+  =/  set-args
+    (pairs:enjs:format ~[['revision' %s rev] ['timezone' %s 'America/Los_Angeles']])
+  =/  saved  (apply-timezone:content ~ set-args ~2026.9.6)
+  =/  saved-body  (need (get:j response.saved 'body'))
+  =/  saved-rev  (string:j saved-body 'revision')
+  =/  stale  (apply-timezone:content zone.saved set-args ~2026.9.6)
+  =/  invalid
+    %+  apply-timezone:content  zone.saved
+    [(pairs:enjs:format ~[['revision' %s saved-rev] ['timezone' %s 'PST']]) ~2026.9.6]
+  =/  unknown
+    %+  apply-timezone:content  zone.saved
+    [(pairs:enjs:format ~[['revision' %s saved-rev] ['zone' %s 'UTC']]) ~2026.9.6]
+  =/  cleared
+    %+  apply-timezone:content  zone.saved
+    [(pairs:enjs:format ~[['revision' %s saved-rev] ['timezone' ~]]) ~2026.9.6]
+  ;:  weld
+      (expect-eq !>(200) !>((number:j response.read 'status' 0)))
+      (expect-eq !>(`~) !>((get:j body 'timezone')))
+      (expect-eq !>(200) !>((number:j response.saved 'status' 0)))
+      (expect-eq !>(`'America/Los_Angeles') !>(zone.saved))
+      (expect-eq !>('America/Los_Angeles') !>((string:j saved-body 'timezone')))
+      (expect-eq !>('-07:00') !>((string:j saved-body 'utcOffset')))
+      (expect-eq !>(409) !>((number:j response.stale 'status' 0)))
+      (expect-eq !>(400) !>((number:j response.invalid 'status' 0)))
+      (expect-eq !>(400) !>((number:j response.unknown 'status' 0)))
+      (expect-eq !>(200) !>((number:j response.cleared 'status' 0)))
+      (expect-eq !>(~) !>(zone.cleared))
+  ==
 --

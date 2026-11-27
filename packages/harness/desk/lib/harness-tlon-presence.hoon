@@ -31,6 +31,7 @@
     %'list_desk_files'  'Listing files'
     %'list_desk_scopes'  'Checking file access'
     %'current_time'  'Checking the time'
+    %'set_timezone'  'Updating timezone'
     %'tlon_read_history'  'Reading chat history'
     %'tlon_history_page'  'Reading older messages'
     %'tlon_search_history'  'Searching chat history'

@@ -268,6 +268,7 @@
     %'list_peer_tools'  `%peers
     %'call_peer_tool'  `%peers
     %'harness_admin'  `%admin
+    %'set_timezone'  `%admin
     %'workspace'  `%workspace
     %'list_mcp_tools'  `%mcp
     %'list_mcp_servers'  `%mcp
@@ -408,7 +409,7 @@
       ==
   :-  %^  fun-json
         'current_time'
-        'Read the current ship time in UTC, including ISO 8601 time, Unix seconds and weekday. Use before calculating cron schedules or relative dates; do not guess the user timezone. Always available; takes no arguments.'
+        'Read the current time. In the owner\'s private conversations when the owner timezone is configured, returns local ISO 8601 time, local date, local time, UTC offset, IANA timezone and local weekday alongside UTC and Unix seconds; in shared channels or when unset, returns UTC only. Use before calculating schedules or relative dates; do not guess a timezone when only UTC is reported. Always available; takes no arguments.'
       ~
   :-  %^  fun-json
         'memory'
@@ -641,9 +642,10 @@
   ^-  (list json)
   :~  %^  fun-json
         'cron_add'
-        'Schedule a recurring prompt through this conversation hand, delivered only to this exact destination. The shared Harness scheduler runs an isolated conversation with the current permission ceiling. The timezone is UTC or a fixed offset the user gave; a fixed offset does not follow daylight saving, and IANA zone names are rejected. Never guess a local timezone. Without runs it repeats until cancelled; give runs whenever the user asked for a number of times or an end. Each run uses the durable input/publication ledger.'
+        'Schedule a recurring prompt through this conversation hand, delivered only to this exact destination. The shared Harness scheduler runs an isolated conversation with the current permission ceiling. Accepts an IANA timezone name (follows daylight saving, e.g. America/Los_Angeles), UTC, or a fixed +HH:MM/-HH:MM offset; defaults to the owner timezone in the owner\'s private conversation when configured, and requires an explicit timezone in shared channels. Never guess a timezone when none is known. Without runs it repeats until cancelled; give runs whenever the user asked for a number of times or an end. Each run uses the durable input/publication ledger.'
       :~  ['schedule' 'Five-field cron expression, evaluated in timezone']
-          ['timezone' 'UTC, or a fixed offset +HH:MM or -HH:MM such as -06:00 or +05:30; never an IANA name, and no daylight saving']
+          :-  'timezone'
+          'IANA timezone name (e.g. America/Los_Angeles, follows daylight saving), UTC, or a fixed +HH:MM/-HH:MM offset; omit in the owner\'s private conversation to use the owner timezone when configured, or pass explicitly in shared channels'
           ['prompt' 'Instruction for each run, at most 8192 bytes']
           ['runs' 'Optional number of runs, a decimal integer string from 1 to 1000000. Leave it out only for work that repeats until cancelled']
       ==
@@ -689,7 +691,7 @@
       ~[['id' 'Schedule ID returned by cron_add or cron_list']]
       %-  fun
       :*  'cron_update'
-          'Edit an authorized schedule after its work settles. Read cron_list first. args replaces future timing and content: recurring {schedule,timezone,prompt,runs} (timezone is UTC or a fixed +HH:MM/-HH:MM offset) (runs is an optional integer string from 1 to 1000000; leaving it out makes the schedule repeat until cancelled, so pass it again to keep a limit); one-shot {at,prompt}; reminder {at,destination,text}. at requires an explicit timezone offset. Keeps the destination, model configuration, tool grants and history; does not retry a failed run.'
+          'Edit an authorized schedule after its work settles. Read cron_list first. args replaces future timing and content: recurring {schedule,timezone,prompt,runs} (timezone is an IANA name, UTC, or a fixed +HH:MM/-HH:MM offset, defaulting to the owner timezone in private owner conversations when omitted; runs is an optional integer string from 1 to 1000000; leaving it out makes the schedule repeat until cancelled, so pass it again to keep a limit); one-shot {at,prompt}; reminder {at,destination,text}. at requires an explicit timezone offset. Keeps the destination, model configuration, tool grants and history; does not retry a failed run.'
           :~  ['id' (argument 'string' 'Schedule ID')]
               ['revision' (argument 'string' 'Exact revision from cron_list')]
               :*  'args'
@@ -852,12 +854,18 @@
 ::
 ++  defs-admin
   ^-  (list json)
-  :_  ~
-  %^  fun-json
-    'harness_admin'
-    'Administer Harness on behalf of its authenticated owner. Call method help with params {} first for methods and shapes. Read before changing; only perform owner-requested changes. Authority is checked live and is not transferable to peers or subagents. params is a JSON object encoded as a string.'
-  :~  ['method' 'help, or an ACP method from the administrative help']
-      ['params' 'JSON object encoded as a string, e.g. {}']
+  :~  %^  fun-json
+        'harness_admin'
+        'Administer Harness on behalf of its authenticated owner. Call method help with params {} first for methods and shapes. Read before changing; only perform owner-requested changes. Authority is checked live and is not transferable to peers or subagents. params is a JSON object encoded as a string.'
+      :~  ['method' 'help, or an ACP method from the administrative help']
+          ['params' 'JSON object encoded as a string, e.g. {}']
+      ==
+      %^  fun-json
+        'set_timezone'
+        'Set the owner\'s IANA timezone, which Harness uses for current_time and default schedules. Call this when the owner says where they are, that they moved or are traveling, or that your times are off. Ask only if the place spans several zones. Owner-only.'
+      :~  :-  'timezone'
+          'IANA timezone name such as America/Los_Angeles, Europe/Berlin, Asia/Tokyo, or UTC. Not an abbreviation (PST) or numeric offset (+09:00)'
+      ==
   ==
 ::
 ++  defs-subagents

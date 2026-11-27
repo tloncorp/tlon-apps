@@ -41,13 +41,16 @@
     =/  actor  (slaw %p actor.source)
     ?.  &(?=(^ actor) =('tlon' hand.source) =(`u.actor owner))  ~
     ::  Public channels and schedules never inherit administrative access.
-    =/  dm  (cat 3 'dm/' (scot %p u.actor))
-    ?.  ?|  =(dm address.source)
-            =((cat 3 dm '/') (end [3 (add 1 (met 3 dm))] address.source))
-        ==
-      ~
+    ?.  =(`u.actor (dm-partner address.source))  ~
     `%tlon
   ==
+++  dm-partner
+  |=  address=@t
+  ^-  (unit @p)
+  ?.  =('dm/' (end [3 3] address))  ~
+  =/  rest=tape  (trip (rsh [3 3] address))
+  =/  slash  (find "/" rest)
+  (slaw %p (crip ?~(slash rest (scag u.slash rest))))
 ++  peer-source
   |=  log=(list event:h)
   ^-  (unit @p)
@@ -72,13 +75,14 @@
       'only perform changes requested by the owner. Never reveal credentials '
       'or private transcripts in public conversations. Parameters are JSON objects '
       'encoded as a string. Empty reads use {}.\0a\0a'
-      'Read methods: harness/defaults, harness/tools, harness/status (provider), '
+      'Read methods: harness/defaults, harness/timezone, harness/tools, harness/status (provider), '
       'harness/peers, harness/peers/remote, harness/mcp/servers, harness/search, '
       'harness/summary-models, harness/skills, harness/skill (name), harness/tlon, '
       'harness/tlon/profile, harness/tlon/contacts, harness/cron, '
       'harness/tlon/work, session/list, harness/session/config (sessionId), '
       'harness/session/snapshot (sessionId), harness/session/history (sessionId, before).\0a\0a'
       'Configuration methods: harness/defaults/configure {config}; '
+      'harness/timezone/set {timezone}; '
       'harness/session/configure {sessionId,config}; '
       'harness/session/use-default-model {sessionId}; '
       'harness/credential/set {provider,key}; harness/mcp/configure {servers}; '

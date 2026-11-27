@@ -5,7 +5,8 @@
 ::  Sync reads return a result noun; async helpers describe cards, not a loop.
 /-  h=harness, spider
 /+  ht=harness-tools, tbjs=thread-builder-js, local-mcp=harness-local-mcp,
-    calculator=harness-calculate, mcp=harness-mcp, pages=harness-pages
+    calculator=harness-calculate, mcp=harness-mcp, pages=harness-pages,
+    tz=harness-timezone
 |_  [=bowl:gall mcp-servers=(map mcp-server-id:h mcp-server:h)]
 +$  card  card:agent:gall
 ::  +run-js-poke: a run_js tool call becomes a poke to ourselves
@@ -106,6 +107,39 @@
       ['timezone' %s 'UTC']
       ['unixSeconds' (numb:enjs:format seconds)]
       ['weekday' %s weekday]
+  ==
+::  +current-time-in: include owner local clock when an IANA zone is configured
+::
+++  current-time-in
+  |=  [now=@da zone=(unit @t)]
+  ^-  @t
+  ?~  zone  (current-time now)
+  =/  clk  (clock:tz u.zone now)
+  ?~  clk  (current-time now)
+  =/  =date  (yore now)
+  =/  pad
+    |=  number=@ud
+    ^-  tape
+    ?:  (lth number 10)  "0{(a-co:co number)}"
+    (a-co:co number)
+  =/  utc=@t
+    %-  crip
+    "{(a-co:co y.date)}-{(pad m.date)}-{(pad d.t.date)}T{(pad h.t.date)}:{(pad m.t.date)}:{(pad s.t.date)}Z"
+  =/  seconds  (div (sub now ~1970.1.1) ~s1)
+  =/  weekdays=(list @t)
+    ~['Sunday' 'Monday' 'Tuesday' 'Wednesday' 'Thursday' 'Friday' 'Saturday']
+  =/  utc-weekday  (snag (mod (add (div seconds 86.400) 4) 7) weekdays)
+  %-  en:json:html
+  %-  pairs:enjs:format
+  :~  ['utc' %s utc]
+      ['local' %s local.u.clk]
+      ['date' %s date.u.clk]
+      ['time' %s time.u.clk]
+      ['utcOffset' %s offset.u.clk]
+      ['timezone' %s u.zone]
+      ['weekday' %s weekday.u.clk]
+      ['utcWeekday' %s utc-weekday]
+      ['unixSeconds' (numb:enjs:format seconds)]
   ==
 ::  +read-skill: fetch a skill body from the library
 ::

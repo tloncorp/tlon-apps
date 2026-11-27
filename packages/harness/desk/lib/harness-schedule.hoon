@@ -1,7 +1,8 @@
 ::  Transport-independent schedule validation and evidence projection.
 ::  No Gall effects or inference. The head commits each run before dispatch.
 /-  c=harness-cron, h=harness, hh=harness-hand
-/+  calendar=harness-cron, reminder=harness-reminder, hl=harness, hd=harness-hand
+/+  calendar=harness-cron, reminder=harness-reminder, hl=harness,
+    hd=harness-hand, tz=harness-timezone
 |%
 ::
 ++  maintenance-needed
@@ -81,8 +82,8 @@
       next  at.time
       remaining  `1
     ==
-  ::  Model work either runs once at an exact time or follows a pattern at
-  ::  UTC or a fixed offset.
+  ::  Model work either runs once at an exact time or follows a recurring pattern
+  ::  in UTC, an IANA timezone (DST-aware), or a fixed UTC offset.
   ?>  ?=(%o -.args)
   ?:  (~(has by p.args) 'at')
     =/  fields=[at=@t prompt=@t]
@@ -106,18 +107,18 @@
         timezone+so:dejs:format
         prompt+so:dejs:format
     ==
-  =/  offset  (zone timezone.fields)
   ?>  &((gth (met 3 prompt.fields) 0) (lte (met 3 prompt.fields) max-prompt-bytes))
   ::  runs is optional: a count limits the job, and without one it repeats
   ::  until it is cancelled.
   =/  runs  (bind (~(get by p.args) 'runs') count)
   =/  pattern  (parse:calendar schedule.fields)
+  =/  next-at  (need (zone-next pattern timezone.fields now))
   %*  .  job
     timezone  timezone.fields
     expression  schedule.fields
     pattern  pattern
     prompt  prompt.fields
-    next  (need (next-at-offset:calendar pattern offset now))
+    next  next-at
     remaining  runs
   ==
 ::  A runs argument: a decimal string for a count from 1 to +max-runs.
@@ -133,13 +134,13 @@
 ++  max-runs  1.000.000
 ++  max-prompt-bytes  8.192
 ::
-++  zone
-  |=  timezone=@t
-  ^-  [east=? delta=@dr]
-  ::  Recurring work keeps one fixed offset forever: UTC, or +HH:MM/-HH:MM
-  ::  as RFC3339 writes it. IANA names would imply daylight-saving rules.
-  ?:  =('UTC' timezone)  [& ~s0]
-  (offset:reminder timezone)
+++  zone-next
+  |=  [pattern=pattern:c timezone=@t after=@da]
+  ^-  (unit @da)
+  ?:  =('UTC' timezone)  (next:calendar pattern after)
+  =/  iana  (lookup:tz timezone)
+  ?^  iana  (next-in-zone:tz pattern u.iana after)
+  (next-at-offset:calendar pattern (offset:reminder timezone) after)
 ::
 ++  busy
   |=  [job=job:c ledger=indexed:hh]
@@ -244,7 +245,7 @@
       last  `input
     ==
   ?:  =(`0 left)  job(state %complete)
-  =/  next  (next-at-offset:calendar pattern.job (zone timezone.job) now)
+  =/  next  (zone-next pattern.job timezone.job now)
   ?~  next  job(state %complete)
   job(next (need next))
 ::

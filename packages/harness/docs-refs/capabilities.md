@@ -48,7 +48,7 @@ See [provider authentication](acp.md#provider-authentication) and
 
 ## Tools and permissions
 
-Tools depend on the conversation's permissions. `current_time` is always available.
+Tools depend on the conversation's permissions. `current_time` is always available (reporting local time and offset alongside UTC in the owner's private conversations when the owner timezone is configured, and UTC only in shared channels and other people's conversations whoever speaks). Direct owner turns also receive `set_timezone` to update the owner's IANA timezone.
 
 | Tool family | Access |
 | --- | --- |
@@ -111,8 +111,17 @@ and [companion workflows](companion.md).
   Revocation cannot retract an external write.
 - Tlon hooks can continue after a conversation or grant ends. Public content
   can be copied or cached elsewhere.
-- Recurring schedules use UTC or a fixed offset, not IANA zones or DST rules.
-  Schedules and operational records have capacity limits.
+- Recurring schedules support IANA timezones (with daylight-saving rules from
+  the desk's tzdata table, as of IANA tzdata `2026e`; a bot keeps its desk's
+  rules until a new desk ships, so later rule changes such as `America/Havana`
+  in `2026f` lag until the table is regenerated), UTC, and fixed offsets (which
+  do not follow daylight saving). Only canonical area/location IANA names and
+  `UTC` are accepted; `GMT` and legacy link names are rejected (and onboarding
+  leaves the owner timezone unset if a client supplies one). Schedules and
+  operational records have capacity limits.
+- Shared channels and non-owner conversations receive UTC only, whoever speaks;
+  a private owner turn or scheduled run with ship-wide `tlon` access can still
+  write local time into a channel if prompted to post there.
 - Local acknowledgement is not remote delivery or a read receipt. There is no
   cross-system exactly-once guarantee.
 
