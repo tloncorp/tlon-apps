@@ -2572,19 +2572,19 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  [caz=(list card) s=state-7:t]  bind:m
+  ;<  [caz=(list card) s=state-8:t]  bind:m
     %^  admit  asked  later
     :~  [told (said ~nec '/unban ~bel' told)]
         [(add told ~s1) (said ~nec '/unban ~bel' (add told ~s1))]
     ==
   =/  asks  (ship-pokes %chat-unblock-ship caz)
   ?>  ?=([* * ~] asks)
-  ;<  [first=(list card) refused=state-7:t]  bind:m
+  ;<  [first=(list card) refused=state-8:t]  bind:m
     (ack-unblock -.i.asks `~[leaf+"no"] (silt ~[~bel]))
   ;<  ~  bind:m
     %+  ex-equal  !>(error.refused)
     !>('Messenger rejected an unblock; inspect the ship log.')
-  ;<  [second=(list card) w=state-7:t]  bind:m  (ack-unblock -.i.t.asks ~ ~)
+  ;<  [second=(list card) w=state-8:t]  bind:m  (ack-unblock -.i.t.asks ~ ~)
   ;<  ~  bind:m  (ex-equal !>(error.w) !>(''))
   (ex-equal !>((answered second)) !>(`(list [@t @t])`~[['dm/~nec' 'Unblocked ~bel.']]))
 ::  Two unbans both see ~bel blocked; the second unblock is refused because
