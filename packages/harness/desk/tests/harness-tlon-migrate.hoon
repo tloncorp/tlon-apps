@@ -44,7 +44,8 @@
   =/  old  every-field
   =/  new  (load:migrate !>(old))
   ;:  weld
-      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(*approvals:t) !>(approvals.new))
       (expect-eq !>(lens.old) !>(lens.new))
       (expect-eq !>(owner-initialized.old) !>(owner-initialized.new))
       (expect-eq !>(sibling-moon-owners.old) !>(sibling-moon-owners.new))
@@ -174,7 +175,7 @@
   =/  three  (two-to-three:migrate every-field)
   =/  new  (load:migrate !>(three))
   ;:  weld
-      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(%7) !>(-.new))
       (expect !>(&(?=(^ trusted.policy.three) ?=(^ allowed.policy.three))))
       (expect !>(?=(^ channels.policy.three)))
       (expect-eq !>(trusted.policy.three) !>(trusted.policy.new))
@@ -185,6 +186,7 @@
       (expect-eq !>(~) !>(place-cuts.new))
       (expect-eq !>(cuts.three) !>(cuts.new))
       (expect-eq !>(~) !>(browser-entries.new))
+      (expect-eq !>(*approvals:t) !>(approvals.new))
   ==
 ::  A pending browser handoff and the ship-wide access survive the upgrade
 ::  that adds per-place grants, which start empty.
@@ -195,7 +197,7 @@
     (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
   =/  new  (load:migrate !>(four))
   ;:  weld
-      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(%7) !>(-.new))
       (expect-eq !>(browser-entries.four) !>(browser-entries.new))
       (expect !>(&(?=(^ trusted.policy.four) ?=(^ allowed.policy.four))))
       (expect !>(?=(^ channels.policy.four)))
@@ -208,6 +210,25 @@
       (expect-eq !>(lanes.four) !>(lanes.new))
       (expect-eq !>(~) !>((dropped:migrate !>(four))))
   ==
+::  The upgrade that adds approval requests keeps every saved field, browser
+::  handoffs, access and place cutoffs included, and starts with none open.
+::
+++  test-state-six-upgrade-keeps-every-field-and-opens-no-requests
+  =/  six=state-6:migrate
+    %-  five-to-six:migrate
+    (four-to-five:migrate (three-to-four:migrate (two-to-three:migrate every-field)))
+  =.  browser-entries.six
+    (my ~[[0v1 `browser-entry:t`[~2026.11.2 [%wait [%form 'http://127.0.0.1/credential-result/fixture']]]]])
+  =.  projected.automation.six  &
+  =.  dm-grants.policy.six  (silt ~[~bus])
+  =.  place-cuts.six  (my ~[[[~bus ~] ~2026.1.13]])
+  =/  new  (load:migrate !>(six))
+  ;:  weld
+      (expect-eq !>(%7) !>(-.new))
+      (expect-eq !>(*approvals:t) !>(approvals.new))
+      (expect-eq !>(+.six) !>(+>.new))
+      (expect-eq !>(~) !>((dropped:migrate !>(six))))
+  ==
 ::  The Steward automation and the ship-wide access survive the upgrade
 ::  that adds per-place grants, which start empty.
 ::
@@ -218,7 +239,7 @@
   =.  names.automation.five  (my ~[[0v1 [`'UTC' ~ `'Brief' ~]]])
   =/  new  (load:migrate !>(five))
   ;:  weld
-      (expect-eq !>(%6) !>(-.new))
+      (expect-eq !>(%7) !>(-.new))
       (expect-eq !>(automation.five) !>(automation.new))
       (expect !>(&(?=(^ trusted.policy.five) ?=(^ allowed.policy.five))))
       (expect !>(?=(^ channels.policy.five)))

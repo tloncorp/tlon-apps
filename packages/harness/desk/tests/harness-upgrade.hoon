@@ -82,8 +82,17 @@
   ==
 ::  The Tlon hand's current saved shape, populated as above. The hand is
 ::  disabled, so its reload starts no subscriptions.
+++  populated-7
+  ^-  state-7:t
+  =/  p  populated-6
+  :*  %7
+      :-  (my ~[['d1a2b' [~lus ~ ~2026.10.17]] ['c3c4d' [~lus `[%chat ~bus %general] ~2026.10.18]]])
+      (my ~[[[~lus ~] 'd1a2b'] [[~lus `[%chat ~bus %general]] 'c3c4d']])
+      +.p
+  ==
+::  The hand's last shape without approval requests.
 ++  populated-6
-  ^-  state-6:t
+  ^-  state-6:mt
   =/  p  populated-5
   :*  %6  automation.p  browser-entries.p  lens.p  owner-initialized.p
       sibling-moon-owners.p  sibling-owner-after.p  activity-through.p
@@ -204,8 +213,8 @@
   ==
 ::  A disabled hand that has not chosen its owner yet.
 ++  unowned
-  ^-  state-6:t
-  =/  s  *state-6:t
+  ^-  state-7:t
+  =/  s  *state-7:t
   s(enabled.policy |)
 ::  A saved %acp connection with a message queued in each direction.
 +$  acp-state  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
@@ -336,7 +345,7 @@
 ++  test-populated-state-is-populated
   ;:  weld
       (expect-eq !>(~) !>((unexplained (defaults !>(populated) *state-0))))
-      (expect-eq !>(~) !>((unexplained (defaults !>(populated-6) *state-6:t))))
+      (expect-eq !>(~) !>((unexplained (defaults !>(populated-7) *state-7:t))))
       (expect-eq !>(~) !>((unexplained (defaults !>(acp-populated) *acp-state))))
   ==
 ++  test-state-0-reload-keeps-every-field

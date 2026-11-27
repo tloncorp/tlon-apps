@@ -19,7 +19,8 @@
     public-context=harness-tlon-context, work=harness-tlon-work,
     activity-read=harness-tlon-activity, admin=harness-admin
 /+  ownership=harness-ownership
-/+  operations=harness-tlon-operations, denial=harness-tlon-denial
+/+  operations=harness-tlon-operations, denial=harness-tlon-denial,
+    ask=harness-tlon-approval
 /+  tlon-spec=harness-tlon-tool, notes-tool=harness-tlon-notes-tool
 /+  hook-tool=harness-tlon-hook-tool
 /+  command=harness-command
@@ -40,7 +41,7 @@
 +$  storage-source  $%([%credentials creds=credentials:s3] [%hosted token=@t config=json])
 --
 %-  agent:dbug
-=|  state-6:t
+=|  state-7:t
 =*  state  -
 ^-  agent:gall
 =<
@@ -907,6 +908,7 @@
       |=  [sid=@t lane=lane:t]
       `json`[%s sid]
       ['events' %a (turn (flop notices) notice-json)]
+      ['requests' (approvals-json:ask approvals)]
   ==
 ::
 ++  notice-json
@@ -2249,6 +2251,12 @@
   |=  [actor=@p =place:t]
   ^-  (unit (list tool-grant:h))
   (place-grants:p policy actor place ~ (actor-owner actor))
+::  +place-access: whether the policy answers .who in .place
+::
+++  place-access
+  |=  [who=@p =place:t]
+  ^-  ?
+  ?=(^ (destination-grants:p policy who (place-to:p who place) ~ (actor-owner who)))
 ::  +speaker-cut: an actor's admission cutoff in one place
 ::
 ++  speaker-cut
@@ -2262,14 +2270,14 @@
   ^-  (unit (list tool-grant:h))
   =/  owner  (actor-owner who)
   ::  Non-owner channel grants also require current native membership.
-  ?:  &(!owner ?=(%channel -.to))
-    =/  readable
-      %-  mole
-      |.
-      (can-read:~(. directory:permissions bowl) who nest.to)
-    ?.  =(`& readable)  ~
-    (destination-grants:p policy who to owner-tools owner)
+  ?:  &(!owner ?=(%channel -.to) !(native-read who nest.to))  ~
   (destination-grants:p policy who to owner-tools owner)
+::  +native-read: whether .who may read .nest by its group's permissions
+::
+++  native-read
+  |=  [who=@p =nest:dv]
+  ^-  ?
+  =(`& (mole |.((can-read:~(. directory:permissions bowl) who nest))))
 ::  Whether the conversation itself may still run, whoever speaks in it.
 ::
 ++  lane-live
@@ -2638,6 +2646,9 @@
     (revoke-browser-entry:engine id phase.entry)
   =.  cor  poll-browser-entries
   =?  sibling-owner-after  sibling-change  now.bowl
+  ::  A request is moot once its ship has access in its place.
+  =.  approvals
+    (keep:ask approvals |=(=approval:t !(place-access [who place]:approval)))
   ::  The head rereads live trust and advertises only each recipient's grant.
   =.  cor  (head /peer-access/refresh [%peer-refresh ~])
   =.  epoch  +(epoch)
@@ -2681,6 +2692,7 @@
     [%create @ ~]  (agent-create wire sign)
     [%hand @ @ ~]  (agent-hand wire sign)
     [%refusal @ ~]  (agent-refusal wire sign)
+    [%approval @ @ ~]  (agent-approval wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
   ==
 ::
@@ -2743,7 +2755,8 @@
     (confirmed:engine proof)
   ==
 ::
-::  +left: the bot left or lost a channel; its per-place grants there go
+::  +left: the bot left or lost a channel; its per-place grants and open
+::  requests there go
 ::
 ::    Groups leaves a deleted channel, and every channel of a group the bot
 ::    leaves, is kicked from or sees deleted, through %channels, which
@@ -2752,6 +2765,7 @@
 ++  left
   |=  nest=nest:dv
   ^+  cor
+  =.  approvals  (keep:ask approvals |=(=approval:t !=(`nest place.approval)))
   ?.  (~(has by channel-grants.policy) nest)  cor
   (configure policy(channel-grants (~(del by channel-grants.policy) nest)) sibling-moon-owners)
 ::
@@ -3140,6 +3154,25 @@
   ?~  p.sign  cor
   %-  (slog 'harness-tlon: refusal notice rejected' u.p.sign)
   cor(error 'Messenger rejected a refusal notice; inspect the ship log.')
+::  +agent-approval: a rejected card closes its request, so no request
+::  stays open that the owner was never told of; the ship's next attempt
+::  opens it again
+::
+++  agent-approval
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%approval @ @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: approval card rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-card u.p.sign))
+  =.  error  'Messenger rejected an approval card; inspect the ship log.'
+  =/  id  i.t.wire
+  =/  found  (~(get by by-id.approvals) id)
+  ?.  &(?=(^ found) =(i.t.t.wire (scot %da at.u.found)))  cor
+  =.  approvals  (close:ask approvals id)
+  =/  to  (place-to:p [who place]:u.found)
+  (note 'approval-card-rejected' who.u.found (address:p to) id)
 ::
 ++  agent-publish
   |=  [=wire =sign:agent:gall]
@@ -3306,14 +3339,7 @@
       (review:workspace-plan u.posts our.bowl actor.u.input id.u.tapped)
     (cat 3 text.u.input (note:workspace-plan id.u.tapped create.u.tapped card))
   ::  All applicable authority cutoffs precede admission and identity updates.
-  =/  cutoff  (max after (speaker-cut actor.u.input (place:p to.u.input)))
-  =?  cutoff  (sibling:~(. ownership bowl) actor.u.input)  (max cutoff sibling-owner-after)
-  =?  cutoff  ?=(%channel -.to.u.input)  (max cutoff channel-after)
-  =?  cutoff  ?=(%channel -.to.u.input)
-    %+  max
-      cutoff
-    (fall (~(get by channel-cuts) nest.to.u.input) `@da`0)
-  ?:  (lte (posted-at:continuity event) cutoff)  cor
+  ?:  (lte (posted-at:continuity event) (admission-cutoff actor.u.input to.u.input))  cor
   ::  A ready route does not recheck native read permission on its own.
   ?~  (speaker-grants actor.u.input to.u.input ~)  cor
   =/  [sid=@t generation=@ud]  (lane-for to.u.input)
@@ -3350,19 +3376,105 @@
   ::  Every event with a sender has a place.
   =/  place  (need (event-place:p event))
   ?^  (place-grants u.sender place)  cor
-  ?:  ?=(^ (normalize-owned:p our.bowl policy event actor-owner))  cor
-  ::  Catch-up must not answer historical posts after a grant is revoked.
-  =/  cutoff  (max after (speaker-cut u.sender place))
-  ?.  ?=(%dm-invite -.event)
-    ?:  (lte (posted-at:continuity event) cutoff)  cor
-    (record-denial u.sender (scot %uv (sham event)))
-  (record-denial u.sender (scot %uv (sham event)))
+  ::  Access, not whether this message's text was admitted, decides: a ship
+  ::  an open channel answers is never denied there.
+  ?:  (place-access u.sender place)  cor
+  ::  Catch-up must not answer historical posts after a grant is revoked or
+  ::  the channel's policy changed.
+  =/  cutoff  (admission-cutoff u.sender (place-to:p u.sender place))
+  ?:  ?&  ?!(?=(%dm-invite -.event))
+          (lte (posted-at:continuity event) cutoff)
+      ==
+    cor
+  =/  id  (scot %uv (sham event))
+  ::  The denial limit also bounds how fast the owner is sent cards.
+  ?.  (allowed:denial now.bowl u.sender id notices)  cor
+  =.  cor  (note 'permission-denied' u.sender (scot %p u.sender) id)
+  (ask-owner u.sender place event cutoff)
+::  +admission-cutoff: the latest authority change a speaker's message in .to
+::  must postdate
 ::
-++  record-denial
-  |=  [who=@p event=@t]
+++  admission-cutoff
+  |=  [who=@p to=destination:t]
+  ^-  @da
+  =/  cutoff  (max after (speaker-cut who (place:p to)))
+  =?  cutoff  (sibling:~(. ownership bowl) who)  (max cutoff sibling-owner-after)
+  ?.  ?=(%channel -.to)  cutoff
+  :(max cutoff channel-after (fall (~(get by channel-cuts) nest.to) `@da`0))
+::  +ask-owner: open a request for a ship in a place and send its card
+::
+::    A later message there joins the open request: nothing is sent again.
+::
+++  ask-owner
+  |=  [who=@p =place:t event=incoming-event:v8:a cutoff=@da]
   ^+  cor
-  ?.  (allowed:denial now.bowl who event notices)  cor
-  (note 'permission-denied' who (scot %p who) event)
+  =/  owner  owner.policy
+  ?~  owner  cor
+  ?^  (find:ask approvals who place)  cor
+  ::  A channel that answers nobody would not answer the ship once allowed.
+  ?:  &(?=(^ place) =(%off response:(channel-rule:p policy u.place)))  cor
+  ::  Nor would a channel the ship cannot read.
+  ?:  &(?=(^ place) !(native-read who u.place))  cor
+  ::  Activity outlives a declined invitation and a channel the bot left;
+  ::  there is nothing to approve there, and the card's preview must not read
+  ::  what is gone.
+  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
+  ?:  (blocked:messenger who)  cor
+  =/  id  (fresh-id:ask approvals place eny.bowl)
+  =.  approvals  (open:ask approvals id [who place now.bowl])
+  =.  cor  (note 'approval-request' who (address:p (place-to:p who place)) id)
+  =/  [text=@t blob=@t]
+    (card:ask id who (approval-channel place) (approval-preview who event cutoff))
+  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  %-  emit
+  %:  publish:messenger
+    /approval/[id]/(scot %da now.bowl)
+    [%dm u.owner ~]
+    text
+    last-sent
+    `blob
+  ==
+::  +approval-channel: a channel's title and its group's, as the card names
+::  them; ~ for a DM
+::
+++  approval-channel
+  |=  =place:t
+  ^-  (unit [channel=@t group=(unit @t)])
+  ?~  place  ~
+  =/  named=(list [channel=@t group=@t])
+    ?.  .^(? %gu /(scot %p our.bowl)/groups/(scot %da now.bowl)/$)  ~
+    %+  murn  ~(tap by groups:~(. directory:permissions bowl))
+    |=  [* group=group:v9:gv]
+    =/  channel  (~(get by channels.group) u.place)
+    ?~  channel  ~
+    `[title.meta.u.channel title.meta.group]
+  ?~  named  `[name.u.place ~]
+  :+  ~
+    ?:(=('' channel.i.named) name.u.place channel.i.named)
+  ?:(=('' group.i.named) ~ `group.i.named)
+::  +approval-preview: the text of the message that opened a request
+::
+::    A DM's first message comes as an invitation; its text is on the ship.
+::
+++  approval-preview
+  |=  [who=@p event=incoming-event:v8:a cutoff=@da]
+  ^-  (unit @t)
+  =/  text=(unit @t)
+    ?+  -.event  ~
+      %dm-post  `(story-to-text:story content.event)
+      %dm-reply  `(story-to-text:story content.event)
+      %post  `(story-to-text:story content.event)
+      %reply  `(story-to-text:story content.event)
+        %dm-invite
+      =/  posts  (mole |.((invitation-posts:messenger who cutoff)))
+      ?~  posts  ~
+      ?~  u.posts  ~
+      =/  last  (rear u.posts)
+      ?.  ?=(%dm-post -.last)  ~
+      `(story-to-text:story content.last)
+    ==
+  ?:  |(?=(~ text) =('' u.text))  ~
+  `(preview:ask u.text)
 ::
 ++  saved-config
   |=  sid=@t

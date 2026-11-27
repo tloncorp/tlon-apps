@@ -18,6 +18,16 @@
     .^((set @p) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/invited/ships)
   (skim ~(tap in invited) granted)
 ::
+::  +blocked: whether this ship blocks .who on Tlon
+::
+++  blocked
+  |=  who=@p
+  ^-  ?
+  ?.  .^(? %gu /(scot %p our.bowl)/chat/(scot %da now.bowl)/$)  |
+  %.  who
+  %~  has  in
+  .^((set @p) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/blocked/ships)
+::
 ++  accept-invitation
   |=  who=@p
   ^-  card
