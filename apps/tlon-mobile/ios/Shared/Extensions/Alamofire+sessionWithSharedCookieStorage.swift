@@ -14,6 +14,11 @@ extension Session {
     static func withSharedCookieStorage() -> Session {
         let configuration = URLSessionConfiguration.af.default
         configuration.httpCookieStorage = .forDefaultAppGroup()
+
+        var headers = configuration.httpAdditionalHeaders ?? [:]
+        headers["eyre-no-desk-redirect"] = "?1"
+        configuration.httpAdditionalHeaders = headers
+
         return Session(configuration: configuration)
     }
 }

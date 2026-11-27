@@ -93,7 +93,7 @@ const ReactQueryDevtoolsProduction = React.lazy(() =>
 );
 
 function authRedirect() {
-  document.location = `${document.location.protocol}//${document.location.host}`;
+  document.location = `/~/login?${new URLSearchParams({ redirect: `${document.location.pathname}${document.location.search}` })}`;
 }
 
 function checkIfLoggedIn() {
@@ -101,7 +101,9 @@ function checkIfLoggedIn() {
     authRedirect();
   }
 
-  const session = cookies.get(`urbauth-~${window.ship}`);
+  const session =
+    cookies.get(`__Host-urbauth-~${window.ship}`) ??
+    cookies.get(`urbauth-~${window.ship}`);
   if (!session) {
     fetch('/~/name')
       .then((res) => res.text())

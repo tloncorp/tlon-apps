@@ -76,6 +76,7 @@ public class TalkApi {
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> params = new HashMap<>();
+                params.put("eyre-no-desk-redirect", "?1");
                 params.put("Cookie", authCookie);
                 return params;
             }
@@ -116,6 +117,7 @@ public class TalkApi {
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> params = new HashMap<>();
+                params.put("eyre-no-desk-redirect", "?1");
                 params.put("Cookie", authCookie);
                 return params;
             }
