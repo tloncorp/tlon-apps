@@ -132,6 +132,14 @@ import {
 import { getSessionRole } from './src/session-roles.js';
 import { sharedSlot } from './src/shared-state.js';
 import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
+import { resolveActiveHoursTimezone } from './src/nudge-decision.js';
+import {
+  HEARTBEAT_LEDGER_TOOL,
+  HeartbeatLedgerError,
+  HeartbeatLedgerInputError,
+  heartbeatLedgerToolDefinition,
+  recordHeartbeatLedger,
+} from './src/heartbeat-ledger.js';
 import { normalizeShip, parseTlonTarget } from './src/targets.js';
 import {
   configuredTlonShipHosts,
@@ -145,6 +153,8 @@ import {
   recordToolCall,
   reportHarnessDebug,
   reportHarnessError,
+  reportHeartbeatRun,
+  reportPluginError,
   reportOutboundRoute,
   reportSessionDiagnostic,
   reportSessionLifecycle,
@@ -197,6 +207,7 @@ import {
 /** The approval key for a workspace create's tlon commands. */
 const WORKSPACE_CREATE_APPROVAL = 'tlon_workspace_create';
 import {
+  getHeartbeatLedgerRun,
   getRecordedRunRole,
   getRunAccountId,
   isHeartbeatOwnerReadRun,
@@ -1189,6 +1200,20 @@ export function registerAgentTurnHooks(api: OpenClawPluginApi): void {
       ownerShip: live.ownerShip,
     });
     const toolCallId = readToolCallId(event);
+    if (normalizePolicyToolName(event.toolName) === HEARTBEAT_LEDGER_TOOL) {
+      const runId = ctx.runId?.trim();
+      if (!toolCallId || !runId || !getHeartbeatLedgerRun(runId)) {
+        return {
+          block: true,
+          blockReason: 'The ledger tool requires a scheduled heartbeat run.',
+        };
+      }
+      recordTlonCallApproval(toolCallId, HEARTBEAT_LEDGER_TOOL, {
+        ...live,
+        heartbeatLedgerRun: { runId, sessionKey: ctx.sessionKey },
+      });
+      return;
+    }
     // What the model meant, without the schema placeholders it fills in.
     const cronParams = isCronToolName(event.toolName)
       ? cleanCronToolArgs(event.params)
@@ -2111,6 +2136,79 @@ export default defineBundledChannelEntry({
           executeBrowserLogin(params, ctx, signal),
       }),
       { name: BROWSER_LOGIN_TOOL }
+    );
+
+    api.registerTool(
+      (ctx) => {
+        // OpenClaw adds this suffix for isolated heartbeats. The call gate
+        // still checks the current run's provenance before approving a write.
+        if (!ctx.sessionKey?.endsWith(':heartbeat')) return;
+        return {
+          ...heartbeatLedgerToolDefinition,
+          execute: async (id, params) => {
+            const approved = takeTlonCallApproval(
+              id,
+              HEARTBEAT_LEDGER_TOOL
+            )?.heartbeatLedgerRun;
+            const run =
+              approved && approved.sessionKey === ctx.sessionKey
+                ? getHeartbeatLedgerRun(approved.runId)
+                : undefined;
+            if (!run || !ctx.workspaceDir) {
+              throw new Error(
+                'The ledger tool requires an approved heartbeat call in its workspace.'
+              );
+            }
+            try {
+              const cfg = api.runtime.config.current() as OpenClawConfig;
+              const receipt = await recordHeartbeatLedger({
+                workspaceDir: ctx.workspaceDir,
+                run,
+                params,
+                timezone: resolveActiveHoursTimezone(
+                  cfg,
+                  cfg.agents?.defaults?.heartbeat?.activeHours?.timezone
+                ),
+                onRecorded: (event) =>
+                  safeTelemetryObserver({
+                    logger: api.logger,
+                    telemetrySource: 'heartbeat_ledger',
+                    run: () => reportHeartbeatRun(event),
+                  }),
+              });
+              return {
+                content: [{ type: 'text', text: 'Heartbeat ledger recorded.' }],
+                details: receipt,
+              };
+            } catch (error) {
+              if (error instanceof HeartbeatLedgerInputError) throw error;
+              const errorText =
+                error instanceof HeartbeatLedgerError
+                  ? error.message
+                  : 'Heartbeat ledger file operation failed.';
+              const errorKind =
+                error instanceof Error
+                  ? ((error as NodeJS.ErrnoException).code ?? error.name)
+                  : null;
+              api.logger.warn(
+                `[tlon] ${errorText}${errorKind ? ` (${errorKind})` : ''}`
+              );
+              safeTelemetryObserver({
+                logger: api.logger,
+                telemetrySource: 'heartbeat_ledger',
+                run: () =>
+                  reportPluginError({
+                    pluginErrorSource: 'heartbeat_ledger',
+                    errorKind,
+                    errorText,
+                  }),
+              });
+              throw new Error(errorText);
+            }
+          },
+        };
+      },
+      { name: HEARTBEAT_LEDGER_TOOL }
     );
 
     if (credentials) {
