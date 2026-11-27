@@ -91,6 +91,17 @@ export const removeContactSuggestion = async (contactId: string) => {
   return pokeRequest(groupsUi.hideContact)(contactId);
 };
 
+// Ships contact discovery leaves alone: saved, suggested, hidden, or
+// already discovered.
+export const getDiscoveryKnownContacts = async () =>
+  scryRequest(groupsUi.discoveryKnown)<string[]>({});
+
+// Records address-book matches on the ship, which saves the ones not yet
+// known under their address-book name.
+export const recordDiscoveredContacts = async (
+  matches: { ship: string; nickname: string | null }[]
+) => pokeRequest(groupsUi.discoverContacts)(matches);
+
 export const addContactSuggestions = async (contactIds: string[]) => {
   return pokeRequest(groupsUi.addContactSuggestions)(contactIds);
 };

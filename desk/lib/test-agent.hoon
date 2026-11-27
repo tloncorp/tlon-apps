@@ -166,7 +166,10 @@
       %1  |+~['blocking on scry' >;;(path p.res)<]
       %2  |+p.res
     ==
-  %+  mock  [. !=((call s))]
+  (mock [. !=((call s))] (mock-scry s))
+::
+++  mock-scry  ::  serve .^ from the state's scry gate
+  |=  s=state
   |=  [ref=* pax=*]
   ^-  (unit (unit *))
   ?>  ?=(^ ref)
@@ -310,11 +313,19 @@
   =/  m  (mare ,cage)
   ^-  form:m
   |=  s=state
-  =/  peek=(unit (unit cage))
-    (~(on-peek agent.s bowl.s) path)
-  ?.  ?=(^ peek)  |+~['invalid scry path' (spat path)]
-  ?.  ?=(^ u.peek)  |+~['unexpected empty result at scry path' (spat path)]
-  &+[u.u.peek s]
+  =/  res=toon
+    (mock [. !=((~(on-peek agent.s bowl.s) path))] (mock-scry s))
+  ?-    -.res
+    %1  |+~['blocking on scry' >;;(^path p.res)<]
+    %2  |+p.res
+  ::
+      %0
+    ::NOTE  as in +do, we know the type of p.res
+    =/  peek  !<((unit (unit cage)) [-:!>(*(unit (unit cage))) p.res])
+    ?.  ?=(^ peek)  |+~['invalid scry path' (spat path)]
+    ?.  ?=(^ u.peek)  |+~['unexpected empty result at scry path' (spat path)]
+    &+[u.u.peek s]
+  ==
 ::
 ++  get-agent
   =/  m  (mare agent)

@@ -8,6 +8,7 @@ import {
   getDeskSupportsStewardPromptsState,
   getDeskSupportsTaskRunsState,
   getDeskSupportsStewardBotsState,
+  getDeskSupportsContactDiscoveryState,
   getDeskKeepsDiscoveryCursorState,
   poke,
   pokeNoun,
@@ -113,6 +114,7 @@ const GUARD_FNS: Record<GuardName, () => boolean | null> = {
   deskSupportsStewardPrompts: () => getDeskSupportsStewardPromptsState(),
   deskSupportsTaskRuns: () => getDeskSupportsTaskRunsState(),
   deskSupportsStewardBots: () => getDeskSupportsStewardBotsState(),
+  deskSupportsContactDiscovery: () => getDeskSupportsContactDiscoveryState(),
   deskKeepsDiscoveryCursor: () => getDeskKeepsDiscoveryCursorState(),
 };
 
