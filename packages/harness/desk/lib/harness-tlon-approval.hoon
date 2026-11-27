@@ -674,17 +674,21 @@
 ::    Counted on the bytes, as the UTF-8 decoder crashes on a tab, another
 ::    control character or a malformed sequence, which another ship may
 ::    send: every byte but a continuation byte begins a character, so a cut
-::    at one of these offsets falls on a character boundary.
+::    at one of these offsets falls on a character boundary. A character has
+::    at most three continuation bytes, so a fourth in a row begins another,
+::    and a run of them still counts toward a bound.
 ::
 ++  leads
   |=  text=@t
   ^-  (list @ud)
   =/  len  (met 3 text)
   =|  [at=@ud found=(list @ud)]
+  =/  run=@ud  3
   |-  ^-  (list @ud)
   ?:  =(at len)  (flop found)
-  ?:  =(2 (rsh [0 6] (cut 3 [at 1] text)))  $(at +(at))
-  $(at +(at), found [at found])
+  ?:  &((lth run 3) =(2 (rsh [0 6] (cut 3 [at 1] text))))
+    $(at +(at), run +(run))
+  $(at +(at), run 0, found [at found])
 ::  +card: the notice text and the card for a request
 ::
 ++  card

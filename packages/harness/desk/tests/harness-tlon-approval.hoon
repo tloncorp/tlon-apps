@@ -247,6 +247,19 @@
       (expect-eq !>('a\09b') !>((bounded:ask 'a\09b')))
       (expect-eq !>('a\09b') !>((preview:ask 'a\09b')))
   ==
+::  No character has more than three continuation bytes, so a host's title
+::  of nothing else is still cut, each four of them counted as one.
+::
+++  test-a-title-of-stray-continuation-bytes-is-still-cut
+  =/  stray  (rep 3 (reap 400 0x80))
+  ;:  weld
+      %+  expect-eq
+        !>((cat 3 (rep 3 (reap 308 0x80)) '...'))
+      !>((bounded:ask stray))
+      %+  expect-eq
+        !>((rap 3 (rep 3 (reap 152 0x80)) '...' (rep 3 (reap 156 0x80)) ~))
+      !>((squeezed:ask stray))
+  ==
 ::  Two untitled channels on one host, alike but for their ends, are named
 ::  apart, by the start and the end of their nests.
 ::
