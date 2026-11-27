@@ -55,7 +55,6 @@ try {
   })
   assert.match(t.words(pending), /^Pending requests \(\d+\):/)
   const pendingEntry = JSON.parse(pending.essay.blob)[0]
-  console.log(`CARD ${JSON.stringify(pendingEntry)}`)
   const pendingParts = pendingEntry.messages.find((message) => message.updateComponents).updateComponents.components
   const pendingAllow = pendingParts.find((c) => c.component === 'Button' && c.action.event.context.text === allow)
   assert.ok(pendingAllow, 'the /pending card has no Allow button for the request')
