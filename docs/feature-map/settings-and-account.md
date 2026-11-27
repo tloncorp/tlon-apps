@@ -6,8 +6,8 @@ What every row on the Settings tab does (appearance, privacy, app info, bug repo
 <!-- src: packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx -->
 <!-- covers: route:Settings -->
 
-Phone: tap the gear in the tab bar. The rows run down one list, with no section headings: `Your profile` first, then your bot's rows if you have one, then `Contacts`, `Manage Tlon account`, `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug`, `Experimental features` and `Tlon Messenger on the Web`. `Log out` sits on its own at the bottom.
-Desktop: click the gear at the bottom of the left rail. The list is shorter: `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`. Each opens in the pane beside the list.
+Phone: tap the gear in the tab bar. The rows run down the screen: `Your profile` first, then your bot's rows if you have one, then, on hosted accounts, a `Usage` heading over `Tlon Storage` and `Bot tokens this month`, then `Contacts`, `Manage Tlon account`, `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug`, `Experimental features` and `Tlon Messenger on the Web`. `Log out` sits on its own at the bottom.
+Desktop: click the gear at the bottom of the left rail. The list is shorter: on hosted accounts a `Usage` heading with `Tlon Storage` comes first, then `Notifications`, `Appearance`, `Privacy`, `Blocked users`, `App info`, `Report a bug` and `Experimental features`. Each opens in the pane beside the list.
 Notes: `Notifications` and `Appearance` show their current choice under the name. `Your profile` opens your profile, `Contacts` your contact list, `Notifications` your notification level, and `Blocked users` the people you've blocked. `Manage Tlon account` and `Tlon Messenger on the Web` only show on hosted accounts.
 
 ## Why is a Settings row missing for me
@@ -44,6 +44,14 @@ Notes: when it's on, a deleted message leaves a marker where it used to be (`Sho
 Phone: Settings tab, then `App info`. It lists `Build version`, `Notify provider`, `Notify service`, `Desk version`, `Desk source`, `Desk hash` and `Permitted Scheduler ID`. Tap a row to copy its value.
 Desktop: the gear in the left rail, then `App info`.
 Notes: `Build version` is the app's build on this phone. The three `Desk` rows describe the Tlon Messenger software installed on your node: its version, where it gets updates from, and its hash. If they can't be read you see `Cannot load app info settings`. Your node's name is not on this screen, and there is no clear-cache or reset button.
+
+## See how much storage and how many bot tokens I've used
+<!-- src: packages/app/features/settings/useSettingsUsageLabels.ts, packages/app/ui/components/SettingsScreenView.tsx, packages/app/features/settings/SettingsScreen.tsx, packages/app/navigation/desktop/SettingsNavigator.tsx -->
+
+Phone: Settings tab. Under a `Usage` heading, `Tlon Storage` shows how much of your storage is in use, and `Bot tokens this month` shows the bot's token count.
+Desktop: the gear in the left rail. `Tlon Storage` is there; `Bot tokens this month` is not.
+Who: hosted accounts only. `Bot tokens this month` also needs a hosted Tlonbot.
+Notes: the `Usage` footer says `Bot tokens count every model provider your bot uses, including your own API keys and subscriptions.` So the count is not usage against a Tlon allowance.
 
 ## Turn on developer logs and send them to Tlon
 <!-- src: packages/app/features/settings/AppInfoScreen.tsx, packages/app/constants.ts, packages/app/features/settings/PrivacyScreen.tsx -->
@@ -143,17 +151,10 @@ Desktop: Settings has no `Log out` row, in the browser or in the desktop app.
 Notes: logging out clears your saved login and the copy of your chats kept on that phone. It does not delete your account, and nothing is removed from your node, so your chats load again when you log back in. The app holds one account at a time: to use a different one, log out first.
 
 ## Log out when the app is stuck on a waiting or setup screen
-<!-- src: apps/tlon-mobile/src/screens/Onboarding/GettingNodeReadyScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/UnderMaintenance.tsx, apps/tlon-mobile/src/screens/HostingAuthReconnectScreen.tsx, packages/app/features/DeskOutdatedScreen.tsx, packages/app/ui/components/Channel/ChannelHeader.tsx, packages/app/navigation/topLevelTabs.ts, apps/tlon-web/src/app.tsx -->
+<!-- src: apps/tlon-mobile/src/screens/Onboarding/GettingNodeReadyScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/UnderMaintenance.tsx, apps/tlon-mobile/src/screens/HostingAuthReconnectScreen.tsx, packages/app/features/DeskOutdatedScreen.tsx, apps/tlon-web/src/app.tsx -->
 
-Phone: these screens carry their own `Log out` at the top: the node waking-up screen, `Needs Repair`, `Security check` and `Update your ship`. During first-time setup with your bot the Settings tab is locked, so open the three-dot menu at the top of the chat and tap `Log out` there.
+Phone: these screens carry their own `Log out` at the top: the node waking-up screen, `Needs Repair`, `Security check` and `Update your ship`.
 Desktop: `Update your ship` has `Log out` in the desktop app but not in the browser.
-
-## Why are the other tabs locked right after I sign up
-<!-- src: packages/app/navigation/topLevelTabs.ts, packages/app/navigation/OnboardingStartupScreen.tsx, packages/app/hooks/useAgentGroupOnboardingLock.ts, packages/shared/src/db/keyValue.ts, packages/app/ui/components/Channel/ChannelHeader.tsx -->
-<!-- covers: route:OnboardingStartup -->
-
-Phone: at the start of first-time setup with your bot, only the Bot tab responds. Workspaces, Activity and Settings don't open yet. If you close the app during that stretch, it reopens in the same setup chat so you can carry on.
-Notes: this is expected, not a frozen app. The lock lifts when your bot accepts your setup choices, and it also has a safety timeout of about 30 seconds, so it should never last long. To leave before then, the three-dot menu at the top of the chat has `Log out`.
 
 ## Sign up for a new account
 <!-- src: apps/tlon-mobile/src/screens/Onboarding/WelcomeScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/SignupScreen.tsx, apps/tlon-mobile/src/screens/Onboarding/CheckOTPScreen.tsx, apps/tlon-web/src/app.tsx -->

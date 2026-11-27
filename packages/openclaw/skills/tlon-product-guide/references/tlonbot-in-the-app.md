@@ -9,11 +9,6 @@ Desktop: in a wide window there is no Bot tab; your chat with the bot is a DM in
 Who: hosted accounts with a Tlonbot.
 Notes: the app normally opens on the Bot tab. Without a hosted bot the tab is not there and the app opens on Workspaces.
 
-## Why can't I leave the Bot tab right after signing up?
-
-Phone: while your bot asks its first setup questions, the app keeps you in that chat. The Workspaces, Activity and Settings tabs can't be selected and going back does nothing. The lock lifts as soon as the bot accepts your answers, or about 30 seconds after the chat opens, whichever comes first.
-Notes: while locked, the three-dot icon at the top right of the chat has `Log out`. If you close and reopen the app during the lock, it reopens in the same chat.
-
 ## What happens the first time I open the app with a Tlonbot?
 
 Phone: after signup, five short screens open while your bot sets up. Tap `Next` through `Meet your Tlonbot.` and `Yours to keep.`. On `Connect your services.`, tap `Connect` beside a service, then `Continue` (`Continue without connecting` until one is connected). On `Change models.`, keep the included model with its `Use` button, or pick a subscription or `Add an API key`. On `Make space for something.`, tap `Let’s get started` to open your private chat with your bot.
@@ -256,9 +251,9 @@ Notes: connecting does not approve any purchase. Once approved, the screen says 
 
 ## Ask Tlon for more credits when my bot pauses scheduled tasks
 
-Phone: when your token credits run low, the bot pauses your scheduled tasks and sends a message saying so, with a `Request credit increase` button. Tap it. The button changes to `Credit Increase Requested`.
+Phone: when your included credits run low, the bot sends you a message saying so, with a `Request credit increase` button. When almost all of them are used, the bot also switches to a free model and pauses your scheduled tasks, and says so the same way. Tap it. The button changes to `Credit Increase Requested`.
 Who: hosted accounts with a Tlonbot.
-Notes: the request goes to Tlon and nothing is posted in the chat. If it can't be sent you'll see `Couldn't send the request. Please try again.`
+Notes: the request goes to Tlon and nothing is posted in the chat. If it can't be sent you'll see `Couldn't send the request. Please try again.` A reply or scheduled task that fails because the included credits are used up gets a message saying so, with the same button. A bot on your own OpenRouter key sends its messages without the button.
 
 ## See what my bot did to produce a reply
 
@@ -308,7 +303,7 @@ Notes: the badge shows for Tlon-hosted bots and for any account that declares it
 
 ## What's on my bot's profile?
 
-Phone: in the Bot tab, tap the bot's name at the top. The profile shows its avatar, its name with a `Bot` badge, and its username (tap to copy). Below are `Message`, `Add Contact` or `Remove Contact`, and `Block` (not on your own bot), then a `Bot settings` row, its `Status` and `About` text if it has any, and `Node` and `Sponsor` tiles showing whether it can be reached.
+Phone: in the Bot tab, tap the bot's name at the top. The profile shows its avatar, its name with a `Bot` badge, and its username (tap to copy). Below are `Message`, `Add Contact` or `Remove Contact`, and `Block` (not on your own bot), then an `Owner` card showing the owner, which opens the owner's profile, then a `Bot settings` row, its `Status` and `About` text if it has any, and `Node` and `Sponsor` tiles showing whether it can be reached.
 Desktop: open your DM with the bot and click its name at the top. `Bot settings` on the profile opens Tlon's bot settings web page.
 Who: the `Bot settings` and `Scheduled tasks` rows only show on your own bot's profile. On your own bot, `Scheduled tasks` sits under `Bot settings` with a count, and a `Prompt files` row appears below them when the app can read the bot's files.
 
