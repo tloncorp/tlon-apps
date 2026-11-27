@@ -32,9 +32,31 @@
   %+  skim  ~(tap in ~(key by channels.group))
   |=  nest=nest:g
   &(!(~(has in active-channels.group) nest) (can-read our nest))
+::  +alone: whether .who and our ship are the only joined members of .group.
+::  An invited ship that has not joined holds a seat but is not yet a member.
+::
+++  alone
+  |=  [our=@p who=@p group=group:v9:g]
+  ^-  ?
+  ?:  =(our who)  |
+  =/  joined=(set @p)
+    %-  silt
+    %+  murn  ~(tap by seats.group)
+    |=  [who=@p =seat:v9:g]
+    ?:(=(0 joined.seat) ~ `who)
+  =(joined (silt ~[our who]))
 ++  io
   |_  bowl=bowl:gall
   +*  read-path  ~(. paths [our now]:bowl)
+  ::  +alone-with: +alone for our copy of the group .flag. A read of a group
+  ::  we do not hold crashes the event, so Groups is asked for it first.
+  ::
+  ++  alone-with
+    |=  [flag=flag:g who=@p]
+    ^-  ?
+    ?.  .^(? %gu /(scot %p our.bowl)/groups/(scot %da now.bowl)/$)  |
+    ?.  .^(? %gu (group-exists:read-path flag))  |
+    (alone our.bowl who .^(group:v9:g %gx (group:read-path flag)))
   ++  join
     |=  [flag=flag:g nest=nest:g]
     ^-  card:agent:gall

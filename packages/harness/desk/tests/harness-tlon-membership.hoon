@@ -38,6 +38,22 @@
         !>(`(list nest:g)`~)
       !>((missing:membership ~lux group(seats (my ~[[~lux `seat:v9:g`[~ `@da`0]]])) readable))
   ==
+++  test-alone-only-when-the-speaker-and-our-ship-are-the-joined-members
+  =/  group  fixture
+  =/  seat=seat:v9:g  [~ ~2026.9.9]
+  =/  pair  group(seats (my ~[[~lux seat] [~zod seat]]))
+  ;:  weld
+      (expect !>((alone:membership ~lux ~zod pair)))
+      ::  a ship that was invited but has not joined is not a member yet
+      (expect !>((alone:membership ~lux ~zod pair(seats (~(put by seats.pair) ~nec `seat:v9:g`[~ `@da`0])))))
+      ::  a third member, a speaker without a seat, and our ship on its own
+      (expect !>(!(alone:membership ~lux ~zod pair(seats (~(put by seats.pair) ~nec seat)))))
+      (expect !>(!(alone:membership ~lux ~nec pair)))
+      (expect !>(!(alone:membership ~lux ~zod fixture)))
+      (expect !>(!(alone:membership ~lux ~lux fixture)))
+      ::  our ship has to have joined too
+      (expect !>(!(alone:membership ~lux ~zod pair(seats (~(put by seats.pair) ~lux `seat:v9:g`[~ `@da`0])))))
+  ==
 ++  test-repeated-notification-skips-confirmed-subscriptions
   =/  group  fixture
   =.  active-channels.group  (~(put in active-channels.group) [%chat ~nec %main])
