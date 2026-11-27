@@ -3,7 +3,8 @@
 /-  h=harness, hh=harness-hand, t=harness-tlon, adapter=harness-adapter, c=harness-cron,
     ac=acp, renew=harness-oauth, *harness-store
 /+  *test-agent, policy=harness-defaults, hd=harness-hand, hl=harness,
-    command=harness-command, schedule=harness-schedule, mem=harness-memory
+    command=harness-command, schedule=harness-schedule, mem=harness-memory,
+    work-help=harness-work-help
 /=  head  /app/harness
 |%
 ++  t0  ~2026.10.1
@@ -308,8 +309,8 @@
     !>(*(list tool-grant:h))
   (ex-equal !>(subs.after) !>(~))
 ::  An idle shared channel session and an idle DM, both bound to the Tlon
-::  hand. The hand lets only ~nec, the owner, change the channel, and ~bus
-::  change their own DM.
+::  hand. The hand lets only ~nec, the owner, change either; ~bus keeps
+::  /work in their own DM.
 ::
 ++  conversations
   ^-  state-0
@@ -327,7 +328,9 @@
   |=  =path
   ^-  (unit vase)
   =/  parts=(list @ta)  path
-  ?.  ?=([%gx @ %harness-tlon @ %settings @ @ %noun ~] parts)  (owner-scry path)
+  ?:  ?=([%gx @ %harness-tlon @ %settings @ @ %noun ~] parts)
+    `!>(=('~nec' i.t.t.t.t.t.t.parts))
+  ?.  ?=([%gx @ %harness-tlon @ %work @ @ %noun ~] parts)  (owner-scry path)
   `!>(|(=('dm' i.t.t.t.t.t.parts) =('~nec' i.t.t.t.t.t.t.parts)))
 ::  .who says .text in .sid; the session's log afterwards, newest first.
 ::
@@ -396,14 +399,41 @@
   ;<  ~  bind:m  (ex-equal !>((model log)) !>('other-model'))
   (ex-equal !>(=((reply log) `refused:command)) !>(|))
 ::
-++  test-a-dm-partner-keeps-their-commands
+++  test-a-dm-partner-cannot-change-their-dms-model
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/model other-model')
-  ;<  ~  bind:m  (ex-equal !>((model log)) !>('other-model'))
-  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/memory off')
-  (ex-equal !>(=((reply log) `refused:command)) !>(|))
+  ;<  ~  bind:m  (ex-refused 'dm' '~bus' '/model other-model')
+  (ex-refused 'dm' '~bus' '/model default')
+::
+++  test-a-dm-partner-cannot-compact-or-switch-memory-in-their-dm
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-refused 'dm' '~bus' '/compact')
+  ;<  ~  bind:m  (ex-refused 'dm' '~bus' '/memory off')
+  (ex-refused 'dm' '~bus' '/memory on')
+::
+++  test-a-dm-partner-cannot-remember-or-forget-in-their-dm
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-refused 'dm' '~bus' '/remember note text')
+  (ex-refused 'dm' '~bus' '/forget note')
+::  /work answers to the partner's own Workspace permissions, and reading
+::  commands stay open.
+::
+++  test-a-dm-partner-keeps-work-and-reading-commands
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  start  conversations
+  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/work')
+  ;<  ~  bind:m  (ex-equal !>((reply log)) !>(`overview:work-help))
+  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/memory')
+  ;<  ~  bind:m  (ex-equal !>((reply log)) !>(`'No matching shared memories.'))
+  ;<  log=(list event:h)  bind:m  (say 'dm' '~bus' '/model')
+  (ex-equal !>((reply log)) !>(`(cat 3 'Model: ' (model-label:command defaults.start))))
 ::
 ++  test-a-guest-can-read-status-in-a-shared-channel
   %-  eval-mare
@@ -1032,6 +1062,375 @@
     %+  ex-equal  !>((~(got by records.knowledge.after) 'room-style'))
     !>((~(got by records.knowledge.saved) 'room-style'))
   (ex-equal !>((mentions saving 'room-style: Haiku banned.')) !>(|))
+::  .who asks in .sid of .saved and the model answers by saving a new fact
+::  and forgetting .name, which that place learned; the tool results by call
+::  id, and the state after.
+::
+++  memory-writes
+  |=  [saved=state-0 sid=@t who=@t name=@t]
+  =/  m  (mare ,[results=(map @t @t) after=state-0])
+  ^-  form:m
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  asked=(list card)  bind:m  (hear sid who 'ask' 'Keep a note of this.')
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests asked)) (write-answer saved name))
+  ;<  after=state-0  bind:m  get-state
+  (pure:m [(tool-results log:(~(got by sessions.after) sid)) after])
+::  The hand's authority as the real adapter gives it: the owner ~nec has
+::  no ceiling, every other speaker one.
+::
+++  ceiling-scry
+  |=  =path
+  ^-  (unit vase)
+  =/  parts=(list @ta)  path
+  ?.  ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] parts)  (lane-scry path)
+  =/  owner  =('~nec' i.t.t.t.t.t.t.parts)
+  `!>(`hand-authority:adapter`[& ?:(owner ~ `~[%tlon-read %tlon-write])])
+::  The model's answer: save a new fact and forget .name of .saved.
+::
+++  write-answer
+  |=  [saved=state-0 name=@t]
+  ^-  sign-arvo
+  =/  revision  (scot %ud revision:(~(got by records.knowledge.saved) name))
+  %+  answer  ''
+  :~  ['save-1' 'memory' '{"operation":"save","name":"fresh-note","text":"Noted.","revision":"0"}']
+      :+  'forget-1'  'memory'
+      (rap 3 '{"operation":"forget","name":"' name '","revision":"' revision '"}' ~)
+  ==
+++  tool-results
+  |=  log=(list event:h)
+  ^-  (map @t @t)
+  %-  malt
+  %+  murn  log
+  |=  =event:h
+  ^-  (unit [@t @t])
+  ?.  ?=(%tool-completed -.event)  ~
+  `[call-id.event body.event]
+::  A turn the Tlon hand started for someone other than the owner saves and
+::  forgets nothing through the memory tool, though the place rule would
+::  let it.
+::
+++  ex-memory-writes-refused
+  |=  [saved=state-0 sid=@t who=@t name=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (memory-writes saved sid who name)
+  =/  refusal  (cat 3 'error: ' refused-memory:command)
+  ;<  ~  bind:m
+    (ex-equal !>(results) !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]])))
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.saved))
+::  Both writes succeeded: the new fact is saved and .name forgotten.
+::
+++  ex-memory-writes-saved
+  |=  [results=(map @t @t) after=state-0 name=@t]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  failed  |=(call=@t =('error: ' (end [3 7] (~(got by results) call))))
+  ;<  ~  bind:m  (ex-equal !>([(failed 'save-1') (failed 'forget-1')]) !>([| |]))
+  ;<  ~  bind:m
+    %+  ex-equal  !>(body.value:(~(got by records.knowledge.after) 'fresh-note'))
+    !>(`'Noted.')
+  (ex-equal !>(body.value:(~(got by records.knowledge.after) name)) !>(~))
+::
+++  test-a-guests-memory-tool-cannot-save-or-forget-in-a-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  (ex-memory-writes-refused saved 'room' '~bus' 'room-note')
+::
+++  test-a-dm-partners-memory-tool-cannot-save-or-forget-in-their-dm
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'dm-note' 'Bus likes tea.' 'dm' '~bus' |)
+  (ex-memory-writes-refused saved 'dm' '~bus' 'dm-note')
+::  The owner's turns in their DM still save and forget, by command and by
+::  the memory tool, and still change the DM's model.
+::
+++  test-the-owners-turns-still-save-and-forget
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'owner-note' 'Owner likes tea.' 'owner' '~nec' |)
+  ;<  [results=(map @t @t) after=state-0]  bind:m
+    (memory-writes saved 'owner' '~nec' 'owner-note')
+  ;<  ~  bind:m  (ex-memory-writes-saved results after 'owner-note')
+  ;<  ~  bind:m  (load owned lane-scry)
+  ;<  *  bind:m  (hear 'owner' '~nec' 'save' '/remember falcon The falcon codeword is vexillum.')
+  ;<  remembered=state-0  bind:m  get-state
+  ;<  *  bind:m  (hear 'owner' '~nec' 'forget' '/forget falcon')
+  ;<  forgotten=state-0  bind:m  get-state
+  ;<  *  bind:m  (hear 'owner' '~nec' 'model' '/model other-model')
+  ;<  changed=state-0  bind:m  get-state
+  ;<  ~  bind:m
+    %+  ex-equal  !>(body.value:(~(got by records.knowledge.remembered) 'falcon'))
+    !>(`'The falcon codeword is vexillum.')
+  ;<  ~  bind:m  (ex-equal !>(body.value:(~(got by records.knowledge.forgotten) 'falcon')) !>(~))
+  (ex-equal !>((model log:(~(got by sessions.changed) 'owner'))) !>('other-model'))
+::  A guest speaks in the channel while the owner's turn there is running.
+::  The owner's turn still saves and forgets; the guest's, which starts once
+::  the owner's is answered, cannot.
+::
+++  test-a-guest-message-during-the-owners-turn-changes-neither-rule
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  =.  saved  (seed saved 'room-plan' 'The room plans on Mondays.' 'room' '~bus' |)
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  owner=(list card)  bind:m  (hear 'room' '~nec' 'owner' 'Keep a note of this.')
+  ;<  guest=(list card)  bind:m  (hear 'room' '~bus' 'guest' 'Keep a note of this too.')
+  ;<  ~  bind:m  (ex-equal !>((model-requests guest)) !>(~))
+  ;<  tools=(list card)  bind:m
+    (do-arvo wire:(snag 0 (model-requests owner)) (write-answer saved 'room-note'))
+  ;<  answered=state-0  bind:m  get-state
+  ;<  ~  bind:m
+    %:  ex-memory-writes-saved
+      (tool-results log:(~(got by sessions.answered) 'room'))  answered  'room-note'
+    ==
+  ;<  started=(list card)  bind:m
+    (do-arvo wire:(snag 0 (model-requests tools)) (answer 'Noted.' ~))
+  =/  plan  (scot %ud revision:(~(got by records.knowledge.answered) 'room-plan'))
+  ;<  *  bind:m
+    %+  do-arvo  wire:(snag 0 (model-requests started))
+    %+  answer  ''
+    :~  ['save-2' 'memory' '{"operation":"save","name":"guest-note","text":"Noted.","revision":"0"}']
+        :+  'forget-2'  'memory'
+        (rap 3 '{"operation":"forget","name":"room-plan","revision":"' plan '"}' ~)
+    ==
+  ;<  after=state-0  bind:m  get-state
+  =/  results  (tool-results log:(~(got by sessions.after) 'room'))
+  =/  refusal  (cat 3 'error: ' refused-memory:command)
+  ;<  ~  bind:m
+    %+  ex-equal  !>([(~(got by results) 'save-2') (~(got by results) 'forget-2')])
+    !>([refusal refusal])
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.answered))
+::  .who's turn in the channel fails and settles, and the operator retries
+::  it; with .send, the operator also sends to the channel while the
+::  retry's model request is out. The resumed model saves a new fact and
+::  forgets one the channel learned; the tool results and the state after.
+::
+++  retried-writes
+  |=  [saved=state-0 who=@t send=?]
+  =/  m  (mare ,[results=(map @t @t) after=state-0])
+  ^-  form:m
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  asked=(list card)  bind:m  (hear 'room' who 'ask' 'Keep a note of this.')
+  ;<  *  bind:m
+    (do-arvo wire:(snag 0 (model-requests asked)) [%iris %http-response %finished [401 ~] ~])
+  ;<  failed=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.failed) 'room')) !>(|))
+  ;<  again=(list card)  bind:m  (do-poke %harness-action !>(`action:h`[%retry 'room']))
+  ;<  *  bind:m
+    ?.  send  (pure:(mare ,(list card)) ~)
+    (do-poke %harness-action !>(`action:h`[%send 'room' 'A local note.']))
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests again)) (write-answer saved 'room-note'))
+  ;<  after=state-0  bind:m  get-state
+  (pure:m [(tool-results log:(~(got by sessions.after) 'room')) after])
+::  Both writes were refused and memory is as in .saved.
+::
+++  ex-writes-refused
+  |=  [results=(map @t @t) after=state-0 saved=state-0]
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  refusal  (cat 3 'error: ' refused-memory:command)
+  ;<  ~  bind:m
+    (ex-equal !>(results) !>(`(map @t @t)`(malt ~[['save-1' refusal] ['forget-1' refusal]])))
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.saved))
+::  A retried turn runs no speaker's input on the hand, so in a Tlon
+::  conversation it cannot save or forget, whoever it answered: a guest's
+::  retried turn is refused, and so is the owner's.
+::
+++  test-a-retried-guest-turn-cannot-save-or-forget-memory
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried-writes saved '~bus' |)
+  (ex-writes-refused results after saved)
+::
+++  test-a-retried-owner-turn-cannot-save-or-forget-memory
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried-writes saved '~nec' |)
+  (ex-writes-refused results after saved)
+::  A local send while a guest's retried turn waits for its model does not
+::  let that turn write.
+::
+++  test-a-local-send-during-a-retried-guest-turn-cannot-unlock-memory-writes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  ;<  [results=(map @t @t) after=state-0]  bind:m  (retried-writes saved '~bus' &)
+  (ex-writes-refused results after saved)
+::  The operator's local prompt into a Tlon conversation, with no speaker's
+::  input running there, cannot save or forget.
+::
+++  test-a-local-prompt-in-a-tlon-conversation-cannot-save-or-forget-memory
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'room-note' 'The room meets on Fridays.' 'room' '~bus' |)
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  asked=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%send 'room' 'Keep a note of this.']))
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests asked)) (write-answer saved 'room-note'))
+  ;<  after=state-0  bind:m  get-state
+  (ex-writes-refused (tool-results log:(~(got by sessions.after) 'room')) after saved)
+::  A local prompt in a conversation with no Tlon binding still saves and
+::  forgets.
+::
+++  test-a-conversation-without-a-tlon-binding-still-saves-and-forgets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'local-note' 'The operator likes tea.' 'local' '~zod' |)
+  =.  sessions.saved  (~(put by sessions.saved) 'local' (idle saved))
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  asked=(list card)  bind:m
+    (do-poke %harness-action !>(`action:h`[%send 'local' 'Keep a note of this.']))
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests asked)) (write-answer saved 'local-note'))
+  ;<  after=state-0  bind:m  get-state
+  %^  ex-memory-writes-saved  (tool-results log:(~(got by sessions.after) 'local'))
+    after
+  'local-note'
+::  A run of the owner's schedule in their DM is admitted on the run's Tlon
+::  binding as the owner's input, so it saves and forgets.
+::
+++  test-the-owners-scheduled-run-still-saves-and-forgets
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  (seed owned 'owner-note' 'Owner likes tea.' 'owner' '~nec' |)
+  =/  source=binding:hh  ['tlon' 'dm/~nec' 'owner' ~['~nec'] &]
+  =/  args
+    %-  pairs:enjs:format
+    :~  ['schedule' %s '* * * * *']  ['timezone' %s 'UTC']  ['prompt' %s 'Check status']
+        ['runs' %s '2']
+    ==
+  =/  job  (create:schedule [%add 0v1 'owner' '~nec' %prompt args] source ~ t0)
+  =/  run  run-sid.job
+  =.  schedules.saved  (my ~[[0v1 job]])
+  =.  sessions.saved  (~(put by sessions.saved) run (idle saved))
+  =.  bindings.hands.saved  (~(put by bindings.hands.saved) run source(sid run))
+  ;<  ~  bind:m  (load saved ceiling-scry)
+  ;<  loaded=state-0  bind:m  get-state
+  =/  tick  (need schedule-wake.loaded)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now tick)))
+  ;<  *  bind:m  (do-arvo /schedules/(scot %da tick) [%behn %wake ~])
+  ;<  ready=state-0  bind:m  get-state
+  =/  at  (need schedule-wake.ready)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now at)))
+  ;<  fired=(list card)  bind:m  (do-arvo /schedules/(scot %da at) [%behn %wake ~])
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests fired)) (write-answer saved 'owner-note'))
+  ;<  after=state-0  bind:m  get-state
+  %^  ex-memory-writes-saved  (tool-results log:(~(got by sessions.after) run))
+    after
+  'owner-note'
+::  A subagent that a guest's channel turn starts answers for that turn, so
+::  it cannot save; one the owner's turn starts can.
+::
+++  test-a-subagent-keeps-its-root-turns-memory-rule
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  child-save
+    |=  who=@t
+    =/  m  (mare ,@t)
+    ^-  form:m
+    ;<  ~  bind:m  (load owned subagent-scry)
+    ;<  [child=@t sent=(list card)]  bind:m  (spawn-child who)
+    ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests sent)) child-note)
+    ;<  after=state-0  bind:m  get-state
+    (pure:m (tool-result log:(~(got by sessions.after) child)))
+  ;<  guest=@t  bind:m  (child-save '~bus')
+  ;<  owner=@t  bind:m  (child-save '~nec')
+  ;<  ~  bind:m  (ex-equal !>(guest) !>((cat 3 'error: ' refused-memory:command)))
+  (ex-equal !>(=('error: ' (end [3 7] owner))) !>(|))
+::  A guest's subagent fails and the guest's turn finishes. The operator
+::  retries the subagent, and the owner speaks in the channel before its
+::  model answers. The subagent's parent call has settled, so it answers no
+::  running turn, the owner's included, and cannot save.
+::
+++  test-a-retried-subagent-cannot-save-during-the-owners-turn
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (load owned subagent-scry)
+  ;<  before=state-0  bind:m  get-state
+  ;<  [child=@t sent=(list card)]  bind:m  (spawn-child '~bus')
+  ;<  resumed=(list card)  bind:m
+    (do-arvo wire:(snag 0 (model-requests sent)) [%iris %http-response %finished [401 ~] ~])
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests resumed)) (answer 'Done.' ~))
+  ;<  settled=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((~(has by active.hands.settled) 'room')) !>(|))
+  ;<  again=(list card)  bind:m  (do-poke %harness-action !>(`action:h`[%retry child]))
+  ;<  *  bind:m  (hear 'room' '~nec' 'owner' 'Hello.')
+  ;<  owner=state-0  bind:m  get-state
+  ;<  ~  bind:m  (ex-equal !>((running-speaker owner 'room')) !>(`(unit @t)``'~nec'))
+  ;<  *  bind:m  (do-arvo wire:(snag 0 (model-requests again)) child-note)
+  ;<  after=state-0  bind:m  get-state
+  ;<  ~  bind:m
+    %+  ex-equal  !>((tool-result log:(~(got by sessions.after) child)))
+    !>((cat 3 'error: ' refused-memory:command))
+  (ex-equal !>(records.knowledge.after) !>(records.knowledge.before))
+::  The actor of the hand's running input in .sid.
+::
+++  running-speaker
+  |=  [saved=state-0 sid=@t]
+  ^-  (unit @t)
+  =/  current  (~(get by active.hands.saved) sid)
+  ?~  current  ~
+  `actor:(~(got by observations.hands.saved) u.current)
+::  .ceiling-scry, but a guest's ceiling also grants subagents.
+::
+++  subagent-scry
+  |=  =path
+  ^-  (unit vase)
+  =/  parts=(list @ta)  path
+  ?.  ?=([%gx @ %harness-tlon @ %authority @ @ %noun ~] parts)  (ceiling-scry path)
+  =/  owner  =('~nec' i.t.t.t.t.t.t.parts)
+  `!>(`hand-authority:adapter`[& ?:(owner ~ `~[%subagents %tlon-read %tlon-write])])
+::  .who asks in the channel and the model starts a subagent; the
+::  subagent's session and the cards that start it.
+::
+++  spawn-child
+  |=  who=@t
+  =/  m  (mare ,[@t (list card)])
+  ^-  form:m
+  ;<  asked=(list card)  bind:m  (hear 'room' who 'ask' 'Start a subagent.')
+  ;<  called=(list card)  bind:m
+    %+  do-arvo  wire:(snag 0 (model-requests asked))
+    (answer '' ~[['call-1' 'run_subagent' '{"prompt":"Write a short note."}']])
+  =/  spawn=cage
+    %+  snag  0
+    %+  murn  called
+    |=  c=card
+    ^-  (unit cage)
+    ?.  ?=([%pass * %agent *] c)  ~
+    ?.  ?=([%spawn *] p.c)  ~
+    ?.  ?=(%poke -.task.q.c)  ~
+    `cage.task.q.c
+  ;<  sent=(list card)  bind:m  (do-poke p.spawn q.spawn)
+  ;<  after=state-0  bind:m  get-state
+  =/  child
+    %+  snag  0
+    %+  murn  ~(tap by sessions.after)
+    |=  [sid=@t =session:h]
+    ^-  (unit @t)
+    =/  link  (delegation:hl log.session)
+    ?.  &(?=(^ link) =('room' parent.u.link))  ~
+    `sid
+  (pure:m [child sent])
+::  The subagent's model saves a new fact.
+::
+++  child-note
+  ^-  sign-arvo
+  %+  answer  ''
+  ~[['save-1' 'memory' '{"operation":"save","name":"child-note","text":"Noted.","revision":"0"}']]
 ::  The channel facts a multi-term search ranks: five fillers' worth of
 ::  common terms, and two facts that tie when no private count is used.
 ::  .private adds an owner fact that shares one of the terms.
@@ -1070,9 +1469,9 @@
   =/  first  (answer-of before)
   ;<  ~  bind:m  (ex-equal !>(?=(^ first)) !>(&))
   (ex-equal !>((answer-of after)) !>(first))
-::  ~bus's DM sees the channel's fact but cannot replace or forget it with
-::  /remember or /forget; the fact is unchanged and the channel still lists
-::  it.
+::  ~bus's DM sees the channel's fact, but even the operator's own prompt
+::  there cannot replace or forget it with /remember or /forget; the fact is
+::  unchanged and the channel still lists it.
 ::
 ++  test-a-non-owner-dm-cannot-save-over-or-forget-a-channel-fact
   %-  eval-mare
@@ -1080,10 +1479,11 @@
   ^-  form:m
   =/  saved  (seed owned 'standup' 'Standup is at nine.' 'room' '~nec' |)
   =/  refusal  `'This conversation cannot change a memory learned in another place.'
+  =/  send  |=(text=@t (do-poke %harness-action !>(`action:h`[%send 'dm' text])))
   ;<  ~  bind:m  (load saved lane-scry)
-  ;<  *  bind:m  (hear 'dm' '~bus' 'save' '/remember standup Standup is cancelled.')
+  ;<  *  bind:m  (send '/remember standup Standup is cancelled.')
   ;<  saving=state-0  bind:m  get-state
-  ;<  *  bind:m  (hear 'dm' '~bus' 'forget' '/forget standup')
+  ;<  *  bind:m  (send '/forget standup')
   ;<  forgetting=state-0  bind:m  get-state
   ;<  *  bind:m  (hear 'room' '~bus' 'read' '/memory standup')
   ;<  after=state-0  bind:m  get-state

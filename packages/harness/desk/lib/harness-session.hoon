@@ -25,10 +25,12 @@
   ?:  &((lth compact-attempts.view 4) !=(~ (group:lcm lcm.view)))  `[%compact ~]
   ::  After a compaction that followed a size rejection, send the turn again
   ::  only if it shrank; the same request would be refused the same way.
+  ::  Compare bytes: the token estimate rounds, so a shrink of a few bytes
+  ::  could count as none.
   ::
   =/  rejected  (rejected-size view skills log)
   ?~  rejected  next
-  ?:  (lth (estimate:provider view %turn skills) u.rejected)  next
+  ?:  (lth (encoded-bytes:provider view %turn skills) u.rejected)  next
   `[%halt (overflow:head 'compaction did not make the request smaller')]
 ::  The newest turn request since the last admission or explicit Retry, if a
 ::  provider rejected it for size, and whether a compaction completed since.
@@ -50,7 +52,7 @@
   ?.  &(?=(^ failed) =(req.i.log req.u.failed) (oversized:failure err.u.failed))
     ~
   `[req.i.log compacted]
-::  Estimate the turn request a provider rejected for size, when compaction
+::  Measure the turn request a provider rejected for size, when compaction
 ::  completed after that rejection and the route has not changed since. An
 ::  admission or an explicit Retry ends the search, so they always dispatch.
 ::
@@ -72,7 +74,7 @@
   =/  sent  (play:head dispatched)
   =.  memory.sent  memory.view
   =.  tools.config.sent  tools.config.view
-  `(estimate:provider sent %turn skills)
+  `(encoded-bytes:provider sent %turn skills)
 ::
 ++  inspect
   |=  [=session:h skills=(map @t skill:h)]

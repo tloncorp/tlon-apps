@@ -116,9 +116,10 @@
       =/  speaker  (slaw %p i.t.t.t.path)
       :^  ~  ~  %noun
       !>(`hand-authority:ad`?~(speaker [| ~] (speaker-authority:cor i.t.t.path `u.speaker)))
-        [%x %settings @ @ ~]
+        [%x ?(%settings %work) @ @ ~]
       =/  speaker  (slaw %p i.t.t.t.path)
-      ``noun+!>(`?`?~(speaker | (speaker-configures:cor i.t.t.path u.speaker)))
+      =/  work  ?=(%work i.t.path)
+      ``noun+!>(`?`?~(speaker | (speaker-configures:cor i.t.t.path u.speaker work)))
         [%x %admin @ ~]
       ``noun+!>((owner-lane:cor i.t.t.path))
         [%x %browser-owner @ ~]
@@ -2393,16 +2394,17 @@
   ::  %tlon and %code out of it too, so only the owner holds them.
   [& ?:(|(operator (actor-owner u.who)) ~ `(guest-tools:ht (with-tlon:ht u.grants)))]
 ::  Whether a speaker may change a conversation's settings: its model,
-::  history, memory or work. A DM's partner may. A shared channel is the
-::  owner's alone, decided as its tools are: only a speaker without a
-::  ceiling may.
+::  history or memory, or with .work its work. Settings are the owner's
+::  alone, in a DM as in a channel, decided as tools are: only a speaker
+::  without a ceiling may. A DM's partner keeps /work, which answers to
+::  their own Workspace permissions.
 ::
 ++  speaker-configures
-  |=  [sid=@t speaker=@p]
+  |=  [sid=@t speaker=@p work=?]
   ^-  ?
   =/  lane  (~(get by lanes) sid)
   ?~  lane  |
-  ?:  ?=(%dm -.to.u.lane)  &
+  ?:  &(work ?=(%dm -.to.u.lane))  &
   =/  authority  (speaker-authority sid `speaker)
   &(live.authority ?=(~ ceiling.authority))
 ::

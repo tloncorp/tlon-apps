@@ -242,6 +242,32 @@ opt-outs apply to both capture paths.
   descendants; `/memory on` removes this conversation's opt-out.
 - The `memory` tool supports search, read, save and forget. Changes require the
   current revision, so delayed updates cannot overwrite a correction.
+- Only the owner changes memory. In a Tlon conversation, a DM or a channel,
+  anyone else's `/remember`, `/forget` and `/memory on` or `off` get `Only
+  the owner can change this conversation's settings.` A turn the Tlon hand
+  runs for anyone else, a DM's partner included, has the `memory` tool's
+  search and read, but its save and forget get `error: Only the owner can
+  change shared memory.` The hand decides this as it decides the turn's
+  tools: the turn answers the speaker whose message started it, and only a
+  speaker without a tool ceiling, the owner, a sibling moon the owner check
+  counts, or the operator, may write. A subagent answers for its root
+  turn's speaker while the call that started it is outstanding; a subagent
+  retried after that call settled answers no turn and cannot write. A
+  message that arrives while another speaker's turn runs waits for its own
+  turn and changes neither. A scheduled run answers for its schedule's
+  actor, who on Tlon is the owner, since only the owner may schedule there,
+  so the owner's runs still write. Steward's run **Retry** and a
+  schedule's **Retry failed run** admit the run again for its original
+  speaker or the schedule's actor, and follow the same rule. In a
+  conversation bound to the Tlon hand, a turn while the hand runs no
+  speaker's message there cannot write either: a failed turn resumed with
+  the native `retry` action, the owner's included (the owner sends the
+  message again instead), and local ACP or
+  poke prompts, webhook text, peer calls and timers delivered into that
+  conversation. Both refusals change nothing. A save or forget the place
+  rule below refuses gets that refusal instead. Conversations with no Tlon
+  binding are not restricted this way: local sessions, a fork without a
+  binding, and peer and webhook sessions keep the place rule alone.
 
 Settings → Memory shows 25 compact rows per page, word-prefix search, source
 attribution and recent revisions. Previous and Next replace the visible page.
@@ -427,7 +453,12 @@ facts only to the owner's private conversations.
 `harness-memory-migration.hoon` cover bounded recall, capture scheduling,
 corrections, opt-out, source validation, persistence and who sees a fact.
 `tests-integration/harness-hand.hoon` checks that rule through the head for an
-owner's DM, a channel, a subagent, a fork and a peer session, and
+owner's DM, a channel, a subagent, a fork and a peer session, and that a
+guest's or a DM partner's turn and its subagents cannot save or forget while
+the owner's can, also when the two speak in one channel at once, that the
+owner's scheduled run writes, that a retried turn, a retried subagent and a
+local prompt in a Tlon conversation cannot, and that a conversation without a Tlon binding
+can; and
 `tests-js/tlon-memory-conformance.mjs` checks it through native Tlon. The native integration
 suite `harness-memory-worker.hoon` drives dreaming alongside an active reply
 and checks compaction capture, model routing, reloads, timeouts and late responses.

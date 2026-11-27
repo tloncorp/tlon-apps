@@ -1334,13 +1334,7 @@
   =/  parent  (delegation:hl log.u.session)
   ?^  parent
     ?:  rehearsal.u.parent  ~
-    =/  parent-session  (~(get by sessions) parent.u.parent)
-    ?~  parent-session  ~
-    =/  generation  (request-generation:hl u.parent-session call-id.u.parent)
-    ?.  ?&  =(sid (delegated-id:hl parent.u.parent call-id.u.parent | generation))
-            (request-current:hl u.parent-session generation call-id.u.parent)
-        ==
-      ~
+    ?.  (delegation-current sid u.parent)  ~
     $(sid parent.u.parent, depth +(depth))
   =/  access  (~(get by names.corpus) sid)
   ?~  access  ~
@@ -4188,7 +4182,7 @@
   =/  parsed-command  (parse:command body.item.input.event)
   ?:  ?&  ?=(^ parsed-command)
           (changing:command u.parsed-command)
-          !(speaker-configures sid source.input.event)
+          !(speaker-configures sid source.input.event =('work' name.u.parsed-command))
       ==
     =/  refusal=event:h
       [%command-completed id.input.event name.u.parsed-command refused:command]
@@ -4281,22 +4275,65 @@
   =^  recorded  session  (record-all sid session events)
   =^  driven  state  (drive-put sid session)
   [(weld recorded driven) state]
-::  Whether an input's speaker may change its conversation. The Tlon hand
-::  decides for its speakers, since only it knows who owns a shared
-::  conversation; local, peer and scheduled input may.
+::  Whether an input's speaker may change its conversation, or with .work
+::  use /work in it. The Tlon hand decides for its speakers, since only it
+::  knows who owns a conversation; local, peer and scheduled input may.
 ::
 ++  speaker-configures
-  |=  [sid=session-id:h source=input-source:h]
+  |=  [sid=session-id:h source=input-source:h work=?]
   ^-  ?
   ?.  &(?=(%hand -.source) =('tlon' hand.source))  &
   ?.  .^(? %gu /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/$)  |
+  =/  question=@ta  ?:(work %work %settings)
   =/  found
     %-  mole
     |.
     .^  ?  %gx
-      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/settings/[sid]/[actor.source]/noun
+      /(scot %p our.bowl)/harness-tlon/(scot %da now.bowl)/[question]/[sid]/[actor.source]/noun
     ==
   =(`& found)
+::  Whether the turn running in .sid may save or forget shared memory. In a
+::  conversation bound to the Tlon hand, only while the hand runs a
+::  speaker's input there and that speaker has no ceiling, as the owner
+::  has: a retried turn, or local or webhook input, has no speaker and may
+::  not. A subagent's turn answers for its root parent's, and only while
+::  each parent's call that started it is outstanding: a child retried after
+::  that call settled answers no running turn. A conversation without a
+::  Tlon binding keeps the place rule alone.
+::
+++  memory-writable
+  |=  sid=session-id:h
+  ^-  ?
+  =/  left=@ud  8
+  =/  settled=?  |
+  |-  ^-  ?
+  =/  session  (~(get by sessions) sid)
+  ?~  session  |
+  =/  parent  (delegation:hl log.u.session)
+  ?^  parent
+    ?:  =(0 left)  |
+    %=  $
+      sid  parent.u.parent
+      left  (dec left)
+      settled  |(settled !(delegation-current sid u.parent))
+    ==
+  ?.  (session-tlon sid)  &
+  ?:  settled  |
+  =/  speaker  (hand-speaker sid)
+  ?~  speaker  |
+  =/  authority  (execution-authority sid & speaker)
+  &(live.authority ?=(~ ceiling.authority))
+::  Whether .sid is the child of its parent's still-outstanding call.
+::
+++  delegation-current
+  |=  [sid=session-id:h link=[parent=session-id:h call-id=@t rehearsal=?]]
+  ^-  ?
+  =/  parent-session  (~(get by sessions) parent.link)
+  ?~  parent-session  |
+  =/  generation  (request-generation:hl u.parent-session call-id.link)
+  ?&  =(sid (delegated-id:hl parent.link call-id.link rehearsal.link generation))
+      (request-current:hl u.parent-session generation call-id.link)
+  ==
 ::  A stop is out of band, not another queued request. Idle sessions need no
 ::  synthetic cancellation; their command acknowledgement is sufficient.
 ::  With .who, a hand speaker other than the owner stops only their own work.
@@ -5294,6 +5331,13 @@
         [sid ?~(turn 0v0 input.u.turn) revision.view now.bowl ?~(turn 'agent' actor.u.turn)]
       =/  result  (operate:memory-json (memory-reach sid) knowledge.batch source u.args)
       ?:  ?=(%| -.result)  (complete (cat 3 'error: ' p.result))
+      ::  Only a write that would succeed reaches this, so reads and the place
+      ::  rule's refusals answer as before.
+      =/  operation  (tool-str:effects args.call 'operation')
+      ?:  ?&  |(=(`'save' operation) =(`'forget' operation))
+              !(memory-writable sid)
+          ==
+        (complete (cat 3 'error: ' refused-memory:command))
       =.  knowledge.batch  db.p.result
       (complete (en:json:html result.p.result))
     ++  complete
@@ -6051,12 +6095,8 @@
   =?  granted  ?=(^ parent)
     ::  The child identity must match a still-outstanding parent request.
     ::  Recursing through the parent also applies its current grant limits.
-    =/  parent-session  (~(get by sessions) parent.u.parent)
-    ?~  parent-session  ~
-    =/  generation  (request-generation:hl u.parent-session call-id.u.parent)
-    ?.  =(sid (delegated-id:hl parent.u.parent call-id.u.parent rehearsal.u.parent generation))  ~
-    ?.  (request-current:hl u.parent-session generation call-id.u.parent)  ~
-    =/  parent-view  (play:hl log.u.parent-session)
+    ?.  (delegation-current sid u.parent)  ~
+    =/  parent-view  (play:hl log:(~(got by sessions) parent.u.parent))
     =/  ceiling
       %=  $
         sid  parent.u.parent

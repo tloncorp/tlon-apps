@@ -286,11 +286,12 @@
   ;<  ~  bind:m  (ex-equal !>(~(key by jobs.s)) !>((silt ~[0v2])))
   ;<  ~  bind:m  (ex-equal !>((~(get by routes.s) room-sid)) !>(`['binding-room' %ready]))
   (ex-equal !>((disabled caz 'binding-room')) !>(|))
-::  The head asks whether a speaker may change a conversation's settings.
-::  In the room only the owner and the operator's local prompt may; a DM's
-::  partner may change their own DM.
+::  The head asks whether a speaker may change a conversation's settings,
+::  and whether they may use /work there. Only the owner and the operator's
+::  local prompt change settings, in the room as in a DM; a DM's partner
+::  keeps /work in their own DM.
 ::
-++  test-only-the-owner-may-change-a-shared-channel
+++  test-only-the-owner-may-change-a-conversation
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -299,14 +300,18 @@
   ;<  ~  bind:m  (set-scry-gate (scries *stream:v10:a hands))
   ;<  *  bind:m  (do-load adapter `!>(ready))
   =/  may
-    |=  [sid=@t who=@p]
+    |=  [question=@ta sid=@t who=@p]
     =/  m  (mare ,?)
     ^-  form:m
-    ;<  =cage  bind:m  (got-peek /x/settings/[sid]/(scot %p who))
+    ;<  =cage  bind:m  (got-peek /x/[question]/[sid]/(scot %p who))
     (pure:m !<(? q.cage))
-  ;<  guest=?  bind:m  (may room-sid ~bus)
-  ;<  owner=?  bind:m  (may room-sid ~nec)
-  ;<  operator=?  bind:m  (may room-sid ~zod)
-  ;<  partner=?  bind:m  (may 'dm' ~bus)
-  (ex-equal !>([guest owner operator partner]) !>([| & & &]))
+  ;<  guest=?  bind:m  (may %settings room-sid ~bus)
+  ;<  owner=?  bind:m  (may %settings room-sid ~nec)
+  ;<  operator=?  bind:m  (may %settings room-sid ~zod)
+  ;<  partner=?  bind:m  (may %settings 'dm' ~bus)
+  ;<  ~  bind:m  (ex-equal !>([guest owner operator partner]) !>([| & & |]))
+  ;<  guest=?  bind:m  (may %work room-sid ~bus)
+  ;<  owner=?  bind:m  (may %work room-sid ~nec)
+  ;<  partner=?  bind:m  (may %work 'dm' ~bus)
+  (ex-equal !>([guest owner partner]) !>([| & &]))
 --
