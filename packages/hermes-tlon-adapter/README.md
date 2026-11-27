@@ -356,6 +356,10 @@ OpenClaw's tool instead writes a file that tlonbot's wrapper reads into `userTim
 -   At startup the gateway runs on the config.yaml zone until the adapter has loaded settings from the ship.
 -   Hermes 0.22 ignores `HERMES_TIMEZONE` under a multiplexed gateway, which hosted bots don't run.
 
+Core-command preservation is broader than the popup: when Hermes exposes `GATEWAY_KNOWN_COMMANDS`, the adapter recognizes all built-in gateway commands and aliases from that runtime registry. Owner-typed commands in chat channels and DMs reach the gateway without history, reaction notes, or message-ID suffixes; `/profile`, `/reset`, and `/reasoning` therefore continue to work after a channel has history. Hermes still enforces command permissions and configuration gates. On older Hermes versions without that registry, recognition falls back to the six advertised core commands. This does not change the popup fixtures or promote gallery content and quoted commands into control input.
+
+Explicit slash-prefixed confirmation replies (`/approve`, `/always`, `/cancel` and their gateway aliases) are also preserved verbatim. Hermes consumes these through its pending-confirmation handler, outside the regular command registry. The adapter does not resolve approvals itself or change approval preferences, and ordinary unprefixed yes/no dialogue is not reclassified.
+
 ## Telemetry
 
 Opt-in PostHog telemetry (official `posthog` SDK): set `TLON_TELEMETRY=true` and `TLON_TELEMETRY_API_KEY` (optional `TLON_TELEMETRY_HOST`). Disabled by default and zero-cost when off.
