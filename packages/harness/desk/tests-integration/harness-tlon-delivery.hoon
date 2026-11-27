@@ -203,6 +203,19 @@
     (claim bus-trusted (my ~[[~bus ~2026.9.30..01.00.00]]) ~2026.9.30..02.00.00)
   ;<  ~  bind:n  (ex-equal !>(stale) !>([| failed]))
   (ex-equal !>(fresh) !>([& `(list action:hh)`~]))
+::  An allow grants ~bus the room and admits its waiting message in one
+::  event, so the head observes it at the instant of the room's cutoff.
+::
+++  test-reply-observed-in-the-event-of-the-grant-is-published
+  %-  eval-mare
+  =/  n  (mare ,~)
+  ^-  form:n
+  =/  policy=policy:t  [& `~nec ~ %all ~ ~ ~ (my ~[[[%chat ~lux %test] (silt ~[~bus])]])]
+  =/  granted  ~2026.9.30..01.00.00
+  =/  place-cuts  (my ~[[[~bus `[%chat ~lux %test]] granted]])
+  ;<  same=[sent=? receipts=(list action:hh)]  bind:n
+    (claim-with ~zod ~bus policy ~ place-cuts *@da granted)
+  (ex-equal !>(same) !>([& `(list action:hh)`~]))
 ::  A sibling moon's owner asked with owner authority; sibling ownership was
 ::  then turned off. The sibling is still trusted in the channel, but a reply
 ::  from before the change is not sent.

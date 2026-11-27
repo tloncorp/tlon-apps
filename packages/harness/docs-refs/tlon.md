@@ -789,8 +789,34 @@ hand handles no message from its own ship.
   save that adds a per-place grant does, with the same cutoffs and
   cancellation: a DM request adds a DM grant, and the ship's pending DM
   invitation is then accepted; a channel request adds a grant for that
-  channel. The ship's next message there is answered; the message it asked
-  with is not. The reply is `Approved DM access for ~ship. They will be able
+  channel. The bot then answers the ship's newest message there, as OpenClaw
+  answers the message it kept: one turn, on that message alone. The hand
+  stores nothing of it; it reads it at the allow, from `%chat` for a DM,
+  where Activity reports no message of a pending invitation, and for a
+  channel from Activity, checked against `%channels`. It is the newest of
+  the ship's messages there that is an attempt (in a DM, a top-level post;
+  in a channel, a mention or a reply under the bot's post, or in a thread,
+  which is answered in that thread, but not a post that does not mention the
+  bot, even in a channel that answers every message) and that came after
+  the ship's cutoff there when the request opened, so it is never one from
+  before the request's attempts counted. A message the head has already
+  taken, under any conversation's binding, is not answered again, as when a
+  settings save has since dropped the cutoff of a ship that lost the access
+  it was answered under. DM thread replies are not read: in a DM, the
+  ship's newest top-level post is the one answered. The edited text of a channel
+  post is not read; the answer is to the text Activity reported.
+  It is let past the cutoff the grant sets, which still stops every earlier
+  message and a later catch-up of this one, so it could not be read again:
+  catch-up finds that message first and carries out an `/allow` only when
+  the conversation the message is admitted to (a thread reply's thread, for
+  one) has room in the head's queues, eight inputs per conversation and 128
+  across the head, as it admits a message only then, and otherwise waits
+  before it and tries again. An `/allow` with nothing to hand on does not
+  wait. If the ship wrote several times,
+  only the newest is answered; if the newest was deleted, or is itself an
+  approval command, which is the owner's alone, or the bot has left the
+  channel, or the ship is blocked on Tlon since it wrote, nothing is. A grant made by a settings save, `/reject`
+  and `/ban` answer nothing. The reply is `Approved DM access for ~ship. They will be able
   to message the bot.` or `Approved ~ship for <channel>. They will be able to
   interact in this channel.`, where the channel is named `Title in Group
   (chat/~host/name)`, or with what of the titles it has.
@@ -881,7 +907,8 @@ hand handles no message from its own ship.
   accepted; a grant for a channel does not accept a DM invitation. An invitation
   still pending when its sender gains access is accepted at that point, or when
   the adapter next loads; messages the sender sent before it gained access are
-  not answered.
+  not answered, unless it gained it by `/allow`, which answers its newest
+  one (see above).
 - Joining a group subscribes to its readable channels. When the bot's own group
   roles change, the hand rechecks native read permissions and joins accessible
   channels that are not already joined. Role notifications do not grant chat
@@ -954,7 +981,8 @@ Adding or removing a per-place grant changes that ship's access in that place
 alone: it retires the ship's DM route for a DM grant, or cancels the ship's
 running and queued work in that channel for a channel grant, and it moves the
 ship's admission cutoff for that place only. Messages the ship sent in that
-place at or before the change are not answered; its messages in its DM and in
+place at or before the change are not answered, except the one an `/allow`
+answers; its messages in its DM and in
 other places keep their own cutoffs. A grant that changes nothing there, because
 the ship already has access as the owner, a sibling moon's owner, through a
 ship-wide list or as a reader of an open channel, and the removal of such a
@@ -968,7 +996,9 @@ sending, and the reply's speaker: it is sent only while that speaker is still
 granted there and if the speaker's input came after the speaker's latest
 permission change, or for a sibling moon's owner the latest change to sibling
 ownership, so a reply to a speaker revoked mid-turn, or a stale one
-after a later re-grant, is not published. Async callbacks and self-dispatched work carry request generations,
+after a later re-grant, is not published. Input the head observes in the
+event of the change itself counts as after it, as the message an `/allow`
+answers does. Async callbacks and self-dispatched work carry request generations,
 so reusing a tool-call ID cannot revive an old request. Previously emitted network
 operations cannot be undone; their receipts and uncertainty remain evidence.
 Saving unchanged policy leaves routes and sessions alone. Conversation heads
@@ -1444,9 +1474,11 @@ itself and a rejected card.
 `tests-js/tlon-approval-commands-channel-conformance.mjs` check the approval
 commands on three ships, the bot and two others that take turns as its owner
 and as the ship that asks: the owner's tap on Allow gives a DM request DM
-access, accepts the invitation and answers the ship's next message; the
-owner's typed `/allow` gives a channel request that channel only, so the ship
-is answered there and not in a DM; the owner's `/allow` posted in the channel
+access, accepts the invitation and answers the message the ship asked with,
+once, without its writing again, and then its next message; the owner's
+typed `/allow` gives a channel request that channel only, so the ship's
+waiting mention and its next one are answered there and it is not answered
+in a DM; the owner's `/allow` posted in the channel
 is an ordinary message, answered as any unknown slash text, and grants nothing; the owner's
 `/reject` typed in the DM then leaves the ship unanswered with no request
 open; a command from a ship with DM access that is not the owner changes
@@ -1460,7 +1492,11 @@ among one or several requests, a command in a DM thread, a command in
 inline code, in a blockquote, beside a code block, and in inline code in a
 heading or a list, a
 command from a trusted ship that is not the owner, and a command in a channel,
-the owner's included, handled as an ordinary message.
+the owner's included, handled as an ordinary message. It also covers the
+message an allow answers: only the newest of several, in a DM and in a
+channel, none when it was deleted or came before the request's cutoff, none
+after a settings grant or a reject, and no second answer on the catch-up
+that follows the DM's acceptance.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending

@@ -17,6 +17,17 @@
         =.  out  [(dec left.out) [n.tree rows.out]]
         $(tree r.tree)
   (flop rows.out)
+::  +latest: the newest row after .after that .take accepts
+::
+++  latest
+  |=  [tree=(tree row) after=@da take=$-(row ?)]
+  ^-  (unit row)
+  ?~  tree  ~
+  ?:  (lte at.n.tree after)  $(tree r.tree)
+  =/  found  $(tree r.tree)
+  ?^  found  found
+  ?:  (take n.tree)  `n.tree
+  $(tree l.tree)
 ++  supported
   |=  event=event:v10:a
   ^-  (unit incoming-event:v8:a)

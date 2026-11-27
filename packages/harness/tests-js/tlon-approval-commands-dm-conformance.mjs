@@ -2,7 +2,8 @@
 // (the peer) and a ship on no list (the guest). A guest's command in the DM it was
 // given does nothing and gets no reply. The guest DMs the bot and the owner is sent a card. The owner's tap on the
 // card's Allow button gives the guest DM access, accepts its pending invitation and
-// answers it there; the guest's next message is answered, the one it asked with is not.
+// answers the message it asked with, once, without its writing again; its next message
+// is answered too.
 // No command text is in a model request. Runs apart from tlon-approval-commands-channel-conformance: the
 // denial limit lets a ship open one request per five minutes. Restores policy and
 // defaults. Leaves the fixture messages, the card and the replies.
@@ -17,6 +18,8 @@ const { bot, peer: owner, guest, until, status } = t
 const sentText = (label) => `${marker}-${label}`
 const requests = (s) => s.requests.filter((request) => request.ship === guest.ship)
 const answered = (posts) => posts.some((post) => t.words(post).includes(`${marker}-answer`))
+// The bot's join notice in the DM it accepts is its post too; only answers count.
+const answers = async (start) => (await t.dmFromBot(guest, start)).filter((post) => t.words(post).includes(`${marker}-answer`)).length
 try {
   await t.start()
   await t.client.call('harness/tlon/configure', { ...(await status()).policy, enabled: false })
@@ -55,11 +58,16 @@ try {
   })
   console.log('PASS the owner\'s tap on Allow gives the guest DM access and accepts its invitation')
 
+  await until('the guest\'s waiting message is answered without its writing again', async () => answered(await t.dmFromBot(guest, start)))
+  assert.ok(t.seen(sentText('first')), 'the message the guest asked with did not reach the model')
+  await sleep(3000)
+  assert.equal(await answers(start), 1, 'the guest\'s waiting message was answered more than once')
+  console.log('PASS the message the guest asked with is answered once, without its writing again')
+
   await t.dm(guest, bot, sentText('after'))
-  await until('the guest\'s next message is answered', async () => answered(await t.dmFromBot(guest, start)))
+  await until('the guest\'s next message is answered', async () => (await answers(start)) === 2)
   assert.ok(t.seen(sentText('after')))
-  assert.ok(!t.seen(sentText('first')), 'the message the guest asked with reached the model')
-  console.log('PASS the guest\'s next message is answered, the one it asked with is not')
+  console.log('PASS the guest\'s next message is answered')
 
   // A ship that is not the owner, with access: the guest in the DM it was given.
   const banned = `/ban ${request.id}`

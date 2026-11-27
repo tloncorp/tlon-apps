@@ -124,21 +124,43 @@
   ::  The first DM arrives as an invitation, not a post notification. After
   ::  accepting, project a bounded page through the usual admission gate.
   ::  Original writ ids make overlap with live activity idempotent.
+  (murn (their-writs who since) dm-post)
+::
+::  +newest-post: .who's newest DM post after .since, as +invitation-posts
+::  projects it; ~ when it was deleted
+::
+++  newest-post
+  |=  [who=@p since=@da]
+  ^-  (unit incoming-event:v8:a)
+  =/  theirs  (flop (their-writs who since))
+  ?~  theirs  ~
+  (dm-post i.theirs)
+::
+::  +their-writs: .who's posts in its DM after .since, live or deleted, from
+::  the newest page, oldest first
+::
+++  their-writs
+  |=  [who=@p since=@da]
+  ^-  (list [time=@da item=(may:v7:cv writ:v7:cv)])
   =/  page=paged-writs:v7:cv
     .^  paged-writs:v7:cv  %gx
       (weld (dm-writs:read-path who) /newest/64/light/chat-paged-writs-4)
     ==
-  %+  murn  (tap:on:writs:v7:cv writs.page)
+  %+  skim  (tap:on:writs:v7:cv writs.page)
+  |=  [time=@da item=(may:v7:cv writ:v7:cv)]
+  ?.  (gth time since)  |
+  ?:  ?=(%| -.item)  =(who p.id.item)
+  =/  post  +.item
+  &(=(who p.id:-.post) =(chat+/ kind:+.post))
+::
+::  +dm-post: a live DM writ as admission reads a DM post; ~ when deleted
+::
+++  dm-post
   |=  [time=@da item=(may:v7:cv writ:v7:cv)]
   ^-  (unit incoming-event:v8:a)
-  ?.  ?=(%& -.item)  ~
+  ?:  ?=(%| -.item)  ~
   =/  post  +.item
-  ?.  ?&  =(who p.id:-.post)
-          (gth time since)
-          =(chat+/ kind:+.post)
-      ==
-    ~
-  `[%dm-post [id:-.post time] [%ship who] content:+.post |]
+  `[%dm-post [id:-.post time] [%ship p.id:-.post] content:+.post |]
 ::
 ::  +dm-recent: the newest posts of a DM, oldest first, with their blobs.
 ::  Workspace cards and taps are read from here; nothing else records them.
