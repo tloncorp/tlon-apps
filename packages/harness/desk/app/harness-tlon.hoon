@@ -3749,12 +3749,18 @@
 ::    %chat reports a pending invitation once, so an invitation left pending
 ::    would keep the ship from ever opening a request by DM. Declined, the
 ::    ship's next message invites the bot again and has another chance.
+::    Activity reports a group invite once too, so the group is declined, as
+::    expiry declines it, and the bot holds no invite the owner was not asked
+::    about. No request is open for the group, or +askable would have stopped
+::    first, so declining every invite to it leaves none without one.
 ::
 ++  dropped
   |=  [who=@p event=incoming-event:v8:a]
   ^+  cor
-  ?.  ?=(%dm-invite -.event)  cor
-  (decline-invitation who)
+  ?+  -.event  cor
+    %dm-invite  (decline-invitation who)
+    %group-invite  (decline-group group.event)
+  ==
 ::  +approvals-full: tell the owner no more requests open, at most once per
 ::  ten minutes
 ::

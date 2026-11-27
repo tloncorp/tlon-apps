@@ -740,7 +740,8 @@ where granted, read messages by every author.
   open, the bot declines the invitation, for the reason expiry does: left
   pending, `%chat` would report none of the ship's later messages. The ship's
   next message invites the bot again and is a new attempt, under the same
-  limits. An invitation
+  limits. The request limits decline a group invitation the same way (see
+  group invite requests below). An invitation
   that would open no request anyway, from a comet, a blocked ship, or while
   the hand has no explicit owner or is disabled, stays pending, and is
   accepted if the ship gains access later.
@@ -980,8 +981,12 @@ approval commands above, with these differences.
 - None opens for a comet, a ship this ship blocks (whose invitations `%groups`
   drops anyway), an invitation of the ship's no longer on the ship, though
   another ship's to the group is, or while the hand has no explicit owner or
-  is disabled. One the request limits keep from opening stays on the ship;
-  the ship's next invitation is a new event under the same limits.
+  is disabled. When the request limits keep one from opening, the bot
+  declines the group's invitations, as expiry does, so it holds none the
+  owner was not asked about: Activity reports an invitation once, and one
+  left pending would never open a request. No request is open for the
+  group then, so the decline leaves no other ship's invitation without
+  one. The ship's next invitation is a new event under the same limits.
 - The card is OpenClaw's group card: the notice `Group invite request from
   ~ship for <group>`, the eyebrow `Group invite`, the title `Let the bot join
   <title>?`, `Inviter: ~ship` and `Group: <group>`, and `The bot will be able

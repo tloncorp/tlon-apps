@@ -842,6 +842,47 @@
   ;<  ~  bind:m  (ex-equal !>((held:ask approvals.w ~dev)) !>(0))
   %+  ex-equal  !>((lent (skim (requests w) |=(=approval:t ?=(%group -.topic.approval)))))
   !>(1)
+::  Activity reports an invite once, so one a request limit keeps from
+::  opening a request is declined rather than left with none.
+::
+++  test-a-group-invite-dropped-at-a-ships-limit-declines-the-group
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved
+    %+  roll  (gulf 1 ship-limit:ask)
+    |=  [n=@ud approvals=_approvals.saved]
+    =/  nest=nest:dv  [%chat ~lux `@tas`(crip (weld "other" (a-co:co n)))]
+    (open:ask approvals (cat 3 'c' (crip (a-co:co n))) [~dev [%place `nest] start])
+  ;<  [caz=(list card) s=state-8:t]  bind:m
+    (admit saved later ~[[told (invite ~dev)]])
+  ;<  ~  bind:m
+    (ex-equal !>((declines caz)) !>(`(list [wire flag:g])`~[[/invite/group-decline club]]))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(`(list [@p @t @t])`~))
+  (ex-equal !>(approvals.s) !>(approvals.saved))
+::  As above at the limit on open requests: the owner is still told the
+::  queue is full.
+::
+++  test-a-group-invite-dropped-at-the-request-limit-declines-the-group
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  saved  fixture
+  =.  approvals.saved
+    %+  roll  (gulf 1 limit:ask)
+    |=  [n=@ud approvals=_approvals.saved]
+    (open:ask approvals (cat 3 'c' (crip (a-co:co n))) [`@p`(add 0x1.0000 n) [%place `room-nest] start])
+  ;<  [caz=(list card) s=state-8:t]  bind:m
+    (admit saved later ~[[told (invite ~dev)]])
+  ;<  ~  bind:m
+    (ex-equal !>((declines caz)) !>(`(list [wire flag:g])`~[[/invite/group-decline club]]))
+  ;<  ~  bind:m  (ex-equal !>((sent caz)) !>(`(list [@p @t @t])`~))
+  ;<  ~  bind:m  (ex-equal !>((kinds s 'approval-cap')) !>(1))
+  ;<  ~  bind:m
+    %+  ex-equal  !>((lent (skim caz |=(c=card ?=([%pass [%approval-full @ ~] *] c)))))
+    !>(1)
+  (ex-equal !>(approvals.s) !>(approvals.saved))
 ::  %chat rejects the card of ~dev's group request. An invite is reported
 ::  once, so the request stays open, and /pending lists it.
 ::
