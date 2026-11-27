@@ -4093,11 +4093,12 @@
 ::
 ::    Every invite of the ship's on the ship is declined, but for a group
 ::    another ship has invited the bot to as well: %groups would decline
-::    that ship's invite too. A group request the ban answers closes once
-::    %groups has its decline, so a refused one leaves it open for another
-::    ban, which declines again; when another ship's invite to the group is
-::    live and a request could open for that ship, it closes at once and the
-::    request opens. The ship's other requests close at once.
+::    that ship's invite too. The ship's request for such a group closes and
+::    a request opens for another inviter one could open for; with none, the
+::    group is declined. A group request the ban answers and declines closes
+::    once %groups has the decline, so a refused one leaves it open for
+::    another ban, which declines again. The ship's other requests close at
+::    once.
 ::
 ++  banned
   |=  [who=@p id=@t to=destination:t]
@@ -4110,17 +4111,19 @@
     ?~  group  ~
     ?>  ?=(%group -.topic.u.group)
     `flag.topic.u.group
-  ::  An inviter no request could open for, such as a blocked one or one at
-  ::  its limit, would be left with its invite and no request.
-  =/  others=(list @p)
+  =/  handoff=(unit [=flag:gv other=@p])
     ?~  answered  ~
-    =/  rest  cor(approvals (close:ask approvals id))
-    %+  skim  (inviters-besides u.answered who)
-    |=  other=@p
-    ?&  (askable:rest other [%group u.answered])
-        (lth (held:ask approvals.rest other) ship-limit:ask)
-    ==
-  =?  group  ?=(^ others)  ~
+    %+  bind  (heir:cor(approvals (close:ask approvals id)) u.answered who)
+    |=(other=@p [u.answered other])
+  =?  group  ?=(^ handoff)  ~
+  ::  The ship's other group requests, for groups another ship has invited
+  ::  the bot to as well, whose invites are not declined below
+  =/  shared=(list flag:gv)
+    %+  murn  ~(tap by by-id.approvals)
+    |=  [key=@t =approval:t]
+    ?.  &(=(who who.approval) !=(id key) ?=(%group -.topic.approval))  ~
+    ?~  (inviters-besides flag.topic.approval who)  ~
+    `flag.topic.approval
   =.  cor
     %+  roll  (invites-from who)
     |=  [=flag:gv engine=_cor]
@@ -4132,13 +4135,34 @@
   =.  cor  (decline-invitation who)
   ::  A block refused earlier is no longer the hand's state once one took.
   =?  error  =(error block-refused)  ''
-  ?^  group  (decline-request %ban id u.group to)
-  =.  cor  (note 'approval-banned' who ?~(found (scot %p who) (address:ask u.found)) id)
-  =.  cor  (answer-order to (confirmation:ask %ban who ~))
-  ?~  answered  cor
-  ?~  others  cor
-  =/  invited=incoming-event:v8:a  [%group-invite u.answered i.others]
-  (ask-owner i.others [%group u.answered] invited after)
+  =.  cor
+    ?^  group  (decline-request %ban id u.group to)
+    =.  cor  (note 'approval-banned' who ?~(found (scot %p who) (address:ask u.found)) id)
+    (answer-order to (confirmation:ask %ban who ~))
+  ::  One at a time, so that each request opened counts toward its ship's
+  ::  limit for the next.
+  =?  cor  ?=(^ handoff)
+    (ask-owner other.u.handoff [%group flag.u.handoff] [%group-invite u.handoff] after)
+  %+  roll  shared
+  |=  [=flag:gv engine=_cor]
+  =/  other  (heir:engine flag who)
+  ?~  other  (decline-group:engine flag)
+  (ask-owner:engine u.other [%group flag] [%group-invite flag u.other] after)
+::  +heir: an inviter to .flag besides .who that a request could open for
+::
+::    An inviter none could open for, such as a blocked one or one at its
+::    limit, would be left with its invite and no request.
+::
+++  heir
+  |=  [=flag:gv who=@p]
+  ^-  (unit @p)
+  =/  others
+    %+  skim  (inviters-besides flag who)
+    |=  other=@p
+    ?&  (askable other [%group flag])
+        (lth (held:ask approvals other) ship-limit:ask)
+    ==
+  ?~(others ~ `i.others)
 ::  +inviters-besides: the other ships whose invites to .flag are pending on
 ::  the ship
 ::

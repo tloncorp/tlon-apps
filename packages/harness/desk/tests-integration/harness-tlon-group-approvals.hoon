@@ -748,6 +748,50 @@
   ;<  ~  bind:m  (ex-equal !>((sent out)) !>(`(list [@p @t @t])`~))
   ;<  [out=(list card) w=state-8:t]  bind:m  (ack-groups out ~ ~)
   (ex-equal !>(approvals.w) !>(busy))
+::  ~dev, whose request for .club ~bus's invite shares, also has a DM
+::  request d0001
+::
+++  dev-dm-asked
+  ^-  state-8:t
+  =/  s  asked
+  s(approvals (open:ask approvals.s 'd0001' [~dev [%place ~] start]))
+::  A ban from ~dev's DM card blocks ~dev and closes its request for .club
+::  too, which ~bus also invited the bot to: a request opens for ~bus
+::  instead, and the owner gets its card.
+::
+++  test-a-ban-elsewhere-hands-the-ships-group-request-to-another-inviter
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  held  `(list [flag:g @p])`~[[club ~dev] [club ~bus]]
+  ;<  [caz=(list card) s=state-8:t]  bind:m
+    (admit-held dev-dm-asked later ~[[told (said ~nec '/ban d0001' told)]] held)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
+  ;<  ~  bind:m  (ex-equal !>((declines out)) !>(`(list [wire flag:g])`~))
+  ;<  ~  bind:m  (ex-equal !>((requests w)) !>(`(list approval:t)`~[[~bus [%group club] later]]))
+  =/  cards  (sent out)
+  ?>  ?=([* ~] cards)
+  ;<  ~  bind:m
+    (ex-equal !>(text.i.cards) !>((cat 3 'Group invite request from ~bus for ' label)))
+  %+  ex-equal  !>((answered out))
+  !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
+::  As above, but the bot blocks ~bel, the other inviter: no request could
+::  open for ~bel, so the ban declines .club and leaves no request.
+::
+++  test-a-ban-elsewhere-declines-the-ships-group-when-no-other-inviter-can-be-asked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  held  `(list [flag:g @p])`~[[club ~dev] [club ~bel]]
+  ;<  [caz=(list card) s=state-8:t]  bind:m
+    (admit-held dev-dm-asked later ~[[told (said ~nec '/ban d0001' told)]] held)
+  ;<  [out=(list card) w=state-8:t]  bind:m  (ack-block caz)
+  ;<  ~  bind:m
+    (ex-equal !>((declines out)) !>(`(list [wire flag:g])`~[[/invite/group-decline club]]))
+  ;<  ~  bind:m  (ex-equal !>(approvals.w) !>(*approvals:t))
+  ;<  ~  bind:m  (ex-equal !>((sent out)) !>(`(list [@p @t @t])`~))
+  %+  ex-equal  !>((answered out))
+  !>(`(list [@t @t])`~[['dm/~nec' 'Blocked ~dev. They will no longer be able to contact the bot.']])
 ::  %chat rejects the card of ~dev's group request. An invite is reported
 ::  once, so the request stays open, and /pending lists it.
 ::
