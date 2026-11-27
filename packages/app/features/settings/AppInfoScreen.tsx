@@ -58,7 +58,7 @@ function makeDebugEmail(
 Insert description of problem here.
 ----------------------------------------------
 
-Tlon ID: ${currentUserId}
+Sato ID: ${currentUserId}
 
 Platform Information:
 ${JSON.stringify(platformInfo)}

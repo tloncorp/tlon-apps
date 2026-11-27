@@ -384,7 +384,7 @@ export const hermesDriver: BotDriver = {
         // The cronjob toolset is offered to every Tlon session; the adapter's
         // pre_tool_call hook refuses a non-owner's call.
         refusal: 'refused',
-        refusalText: 'Blocked: cronjob_manage is owner-only in Tlon chats.',
+        refusalText: 'Blocked: cronjob_manage is owner-only in Sato chats.',
       };
     },
 

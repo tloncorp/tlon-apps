@@ -30,7 +30,7 @@ describe('Tlon product guide contracts', () => {
   it('distinguishes hosted subscriptions from API-key billing', () => {
     const frontmatter = guide.match(/^---\n([\s\S]*?)\n---/)?.[1];
     expect(frontmatter).toContain(
-      "A hosted Tlonbot can use models included with a ChatGPT, Claude or Grok subscription through Tlon's own connection flow"
+      "A hosted Sato can use models included with a ChatGPT, Claude or Grok subscription through Tlon's own connection flow"
     );
     expect(frontmatter).toContain(
       'this is not generic API or OpenRouter billing'

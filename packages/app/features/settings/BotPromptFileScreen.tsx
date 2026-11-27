@@ -201,8 +201,8 @@ export function BotPromptFileScreen(props: Props) {
     body = (
       <>
         <BotSettingsSection
-          title="Tlon's default"
-          subtitle="Tlon keeps this part up to date."
+          title="Sato's default"
+          subtitle="Sato keeps this part up to date."
         >
           <ExpandableContent
             // Keyed to the file: the desktop drawer reuses this screen, and
@@ -219,7 +219,7 @@ export function BotPromptFileScreen(props: Props) {
           {additions ? (
             <BotSettingsSection
               title="Additions"
-              subtitle="Kept when Tlon updates the defaults."
+              subtitle="Kept when Sato updates the defaults."
             >
               <PromptText text={additions} testID="BotPromptFileAdditions" />
             </BotSettingsSection>
@@ -262,11 +262,11 @@ export function BotPromptFileScreen(props: Props) {
   // A file the owner can't add to says who keeps it, with what it is for.
   const note =
     access?.kind === 'unmanaged'
-      ? "This file is missing Tlon's defaults, so you can't edit it here. They come back the next time your bot restarts."
+      ? "This file is missing Sato's defaults, so you can't edit it here. They come back the next time Sato restarts."
       : access?.kind === 'read-only'
         ? access.keptBy === 'bot'
-          ? 'Read-only. Your bot keeps this file up to date as it learns.'
-          : 'Read-only. Tlon keeps this file up to date so your bot keeps working.'
+          ? 'Read-only. Sato keeps this file up to date as it learns.'
+          : 'Read-only. Sato keeps this file up to date so it keeps working.'
         : null;
   const description = promptDescription(name);
 
@@ -310,7 +310,7 @@ export function BotPromptFileScreen(props: Props) {
         open={dialog?.kind === 'warning' && isThisFile(dialog)}
         onOpenChange={handleDialogOpenChange}
         title={`Edit ${label}?`}
-        description="What you add changes how your bot behaves in every conversation. Tlon's defaults stay, and you can reset at any time."
+        description="What you add changes how Sato behaves in every conversation. Sato's defaults stay, and you can reset at any time."
         confirmText="Continue"
         onConfirm={handleWarningConfirmed}
       />
@@ -319,7 +319,7 @@ export function BotPromptFileScreen(props: Props) {
         onOpenChange={handleDialogOpenChange}
         destructive
         title="Reset to default?"
-        description="This removes all additions, including any your bot made. Tlon's defaults stay."
+        description="This removes all additions, including any Sato made. Sato's defaults stay."
         confirmText="Reset"
         onConfirm={handleReset}
       />

@@ -99,7 +99,7 @@ export function WebAppSplashSheet({
 
           <YStack gap="$s" alignItems="center" marginBottom="$l">
             <Text fontSize="$xl" fontWeight="600" textAlign="center">
-              Tlon Messenger is on the web
+              Sato is on the web
             </Text>
             <Text size="$label/m" color="$tertiaryText" textAlign="center">
               Sign in to your account using a desktop browser.

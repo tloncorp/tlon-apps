@@ -13,6 +13,7 @@
       stable-id=(map cord token:reel)
       =^subs:s
   ==
++$  state-8  _%*(. *state-7 - %8)
 ++  dap  %reel-test
 ++  provider  ~loshut-lonreg
 ++  group-invite-meta
@@ -226,8 +227,8 @@
     :~  %'invitedGroupTitle'^'Early Sunrise'
         %'invitedGroupDescription'^'Sunrise, sunset.'
         %'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
-        %'$og_title'^'Tlon Messenger: You\'re Invited to Early Sunrise'
-        %'$twitter_title'^'Tlon Messenger: You\'re Invited to Early Sunrise'
+        %'$og_title'^'Sato: You\'re Invited to Early Sunrise'
+        %'$twitter_title'^'Sato: You\'re Invited to Early Sunrise'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -263,8 +264,8 @@
     :~  %'invitedGroupTitle'^'Early Sunrise'
         %'invitedGroupDescription'^'Sunrise, sunset.'
         %'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
-        %'$og_title'^'Tlon Messenger: Sampel Palnet invited you to Early Sunrise'
-        %'$twitter_title'^'Tlon Messenger: Sampel Palnet invited you to Early Sunrise'
+        %'$og_title'^'Sato: Sampel Palnet invited you to Early Sunrise'
+        %'$twitter_title'^'Sato: Sampel Palnet invited you to Early Sunrise'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -340,8 +341,8 @@
     :~  %'inviterNickname'^'Best Sampel'
         %'inviterAvatarImage'^'https://sampel-palnet.arvo.network/best-sampel.jpg'
         %'inviterColor'^'ff.0000'
-        %'$og_title'^'Tlon Messenger: Best Sampel invited you to Sunrise'
-        %'$twitter_title'^'Tlon Messenger: Best Sampel invited you to Sunrise'
+        %'$og_title'^'Sato: Best Sampel invited you to Sunrise'
+        %'$twitter_title'^'Sato: Best Sampel invited you to Sunrise'
     ==
   =/  personal-update=metadata:reel
     :-  %groups-0
@@ -349,8 +350,8 @@
     :~  %'inviterNickname'^'Best Sampel'
         %'inviterAvatarImage'^'https://sampel-palnet.arvo.network/best-sampel.jpg'
         %'inviterColor'^'ff.0000'
-        %'$og_title'^'Tlon Messenger: Best Sampel Sent You an Invite'
-        %'$twitter_title'^'Tlon Messenger: Best Sampel Sent You an Invite'
+        %'$og_title'^'Sato: Best Sampel Sent You an Invite'
+        %'$twitter_title'^'Sato: Best Sampel Sent You an Invite'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -399,4 +400,179 @@
   ;<  ~  bind:m
     (ex-cards caz ~)
   (pure:m ~)
+::  +titled: metadata with an open-graph title
+::
+++  titled
+  |=  [=metadata:reel title=@t]
+  ^-  metadata:reel
+  %=  metadata  fields
+    (~(gas by fields.metadata) ~[%'$og_title'^title %'$twitter_title'^title])
+  ==
+::  +profile-update: expected bait update for a profile without avatar
+::  or color
+::
+++  profile-update
+  |=  [nickname=@t title=(unit @t)]
+  ^-  metadata:reel
+  :-  %groups-0
+  %-  ~(gas by *(map field:reel cord))
+  %+  weld
+    ^-  (list [field:reel cord])
+    :~  %'inviterNickname'^nickname
+        %'inviterAvatarImage'^''
+        %'inviterColor'^''
+    ==
+  ^-  (list [field:reel cord])
+  ?~  title  ~
+  ~[%'$og_title'^u.title %'$twitter_title'^u.title]
+::  +ex-load-timer: expect the profile update timer within a day of .now
+::
+++  ex-load-timer
+  |=  now=@da
+  |=  car=card
+  ^-  tang
+  ?.  ?=([%pass [%load %profile ~] %arvo %b %wait @] car)
+    (expect-eq:test !>(`card`[%pass /load/profile %arvo %b %wait now]) !>(car))
+  =*  wen  +>+>+.car
+  ?:  &((gte wen now) (lth wen (add now ~d1)))  ~
+  ['timer outside of a day from now' >wen< ~]
+::  +do-migrate-7: load a state-7 and fire the profile update timer
+::
+++  do-migrate-7
+  |=  [=contact:t md=(map token:reel metadata:reel)]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
+  ;<  *  bind:m  (do-init dap reel-agent)
+  ;<  ~  bind:m
+    %-  set-scry-gate
+    |=  =(pole knot)
+    ?:  ?=([%gx @ %contacts @ %v1 %self %contact-1 ~] pole)
+      `!>(contact)
+    (scry pole)
+  =/  old=state-7
+    :*  %7
+        'https://tlon.network/lure/'
+        provider
+        contact
+        md
+        ~
+        ~
+        %-  ~(gas by *(map cord token:reel))
+        %+  murn  ~(tap by md)
+        |=  [=token:reel =metadata:reel]
+        ?~  id=(~(get by fields.metadata) %'invitedGroupId')  ~
+        `[u.id token]
+        ~
+    ==
+  ;<  =bowl  bind:m  get-bowl
+  ;<  caz=(list card)  bind:m  (do-load reel-agent `!>(old))
+  ;<  ~  bind:m  (ex-cards caz (ex-load-timer now.bowl) ~)
+  (do-arvo /load/profile %behn %wake ~)
+::  +test-load-7-titles-nickname: v7 -> v8 retitles links
+::
+::  loading a state-7 schedules the profile update, which rewrites the
+::  open-graph title of every group and personal link, whether or not we
+::  host the group, and sends each link to the provider. links of an
+::  unknown type keep their title.
+::
+++  test-load-7-titles-nickname
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  forest-meta=metadata:reel
+    :-  %groups-0
+    %-  my
+    :~  [%'inviterUserId' '~sampel-palnet']
+        [%'inviteType' 'group']
+        [%'invitedGroupTitle' 'Forest']
+        [%'invitedGroupId' '~zod/forest']
+        [%'bite-type' '2']
+    ==
+  =/  other-meta=metadata:reel
+    :-  %groups-0
+    %-  my
+    :~  [%'inviterUserId' '~sampel-palnet']
+        [%'inviteType' 'other']
+        [%'invitedGroupId' '~sampel-palnet/other']
+        [%'bite-type' '2']
+    ==
+  =/  md=(map token:reel metadata:reel)
+    %-  my
+    :~  :-  ~.0v1
+        (titled group-invite-meta 'Tlon Messenger: Sampel Palnet invited you to Sunrise')
+        :-  ~.0v2
+        (titled personal-invite-meta 'Tlon Messenger: Sampel Palnet Sent You an Invite')
+        [~.0v3 forest-meta]
+        [~.0v4 (titled other-meta 'Tlon Messenger: Other')]
+    ==
+  ;<  caz=(list card)  bind:m  (do-migrate-7 my-profile md)
+  =/  group-title  'Sato: Sampel Palnet invited you to Sunrise'
+  =/  personal-title  'Sato: Sampel Palnet Sent You an Invite'
+  =/  forest-title  'Sato: Sampel Palnet invited you to Forest'
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-poke /bait [provider %bait] bait-update+!>([~.0v2 (profile-update 'Sampel Palnet' `personal-title)]))
+        (ex-poke /bait [provider %bait] bait-update+!>([~.0v4 (profile-update 'Sampel Palnet' ~)]))
+        (ex-poke /bait [provider %bait] bait-update+!>([~.0v1 (profile-update 'Sampel Palnet' `group-title)]))
+        (ex-poke /bait [provider %bait] bait-update+!>([~.0v3 (profile-update 'Sampel Palnet' `forest-title)]))
+    ==
+  ;<  =vase  bind:m  get-save
+  =+  !<(new=state-8 vase)
+  =/  title
+    |=  [=token:reel =field:reel]
+    (~(get by fields:(~(got by our-metadata.new) token)) field)
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v1 %'$og_title')) !>(`group-title))
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v1 %'$twitter_title')) !>(`group-title))
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v2 %'$og_title')) !>(`personal-title))
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v2 %'$twitter_title')) !>(`personal-title))
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v3 %'$og_title')) !>(`forest-title))
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v3 %'$twitter_title')) !>(`forest-title))
+  ;<  ~  bind:m
+    (ex-equal !>((title ~.0v4 %'$og_title')) !>(`'Tlon Messenger: Other'))
+  (ex-equal !>(our-profile.new) !>(my-profile))
+::  +test-load-7-titles-no-nickname: v7 -> v8 retitles links
+::
+::  the update runs even though the profile has not changed and has no
+::  nickname, avatar or color to compare.
+::
+++  test-load-7-titles-no-nickname
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  md=(map token:reel metadata:reel)
+    %-  my
+    :~  [~.0v1 (titled group-invite-meta 'Tlon Messenger: You\'re Invited to Sunrise')]
+        [~.0v2 (titled personal-invite-meta 'Tlon Messenger: You\'ve Been Invited')]
+    ==
+  ;<  caz=(list card)  bind:m  (do-migrate-7 *contact:t md)
+  =/  group-title  'Sato: You\'re Invited to Sunrise'
+  =/  personal-title  'Sato: You\'ve Been Invited'
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-poke /bait [provider %bait] bait-update+!>([~.0v2 (profile-update '' `personal-title)]))
+        (ex-poke /bait [provider %bait] bait-update+!>([~.0v1 (profile-update '' `group-title)]))
+    ==
+  ;<  =vase  bind:m  get-save
+  =+  !<(new=state-8 vase)
+  =/  title
+    |=  [=token:reel =field:reel]
+    (~(get by fields:(~(got by our-metadata.new) token)) field)
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v1 %'$og_title')) !>(`group-title))
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v1 %'$twitter_title')) !>(`group-title))
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v2 %'$og_title')) !>(`personal-title))
+  ;<  ~  bind:m  (ex-equal !>((title ~.0v2 %'$twitter_title')) !>(`personal-title))
+  (ex-equal !>(our-profile.new) !>(*contact:t))
+::  +test-load-8: reloading a state-8 does not retitle links again
+::
+++  test-load-8
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
+  ;<  *  bind:m  (do-init dap reel-agent)
+  ;<  ~  bind:m  (set-scry-gate scry)
+  ;<  *  bind:m  (do-register-invite ~.0v2 personal-invite-meta)
+  ;<  caz=(list card)  bind:m  (do-load reel-agent ~)
+  (ex-cards caz ~)
 --

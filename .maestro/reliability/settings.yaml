@@ -55,7 +55,7 @@ env:
           childOf:
             id: 'ThemeOption-.*'
             selected: true
-- evalScript: ${output.reliability.originalTheme = "ThemeOption-" + maestro.copiedText.toLowerCase().replace("tlon ", "")}
+- evalScript: ${output.reliability.originalTheme = "ThemeOption-" + maestro.copiedText.toLowerCase().replace("sato ", "")}
 - scrollUntilVisible:
     element:
       id: ThemeOption-light

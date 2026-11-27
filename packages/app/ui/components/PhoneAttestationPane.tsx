@@ -114,7 +114,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
         </Text>
         <Text size="$label/m">
           Only friends who already have your phone number will be able to find
-          you on Tlon.
+          you on Sato.
         </Text>
       </YStack>
       <YStack gap="$l" marginBottom="$xl">
@@ -122,7 +122,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
           What will be displayed on my profile?
         </Text>
         <Text size="$label/m">
-          Your Tlon profile will show a verified badge, but your phone number
+          Your Sato profile will show a verified badge, but your phone number
           itself will not be revealed.
         </Text>
       </YStack>

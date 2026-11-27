@@ -1,7 +1,7 @@
 {
   "name": "@tloncorp/openclaw",
   "version": "0.42.0",
-  "description": "OpenClaw Tlon/Urbit channel plugin",
+  "description": "OpenClaw Sato channel plugin",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -84,8 +84,8 @@
     "setupEntry": "./dist/setup-entry.js",
     "channel": {
       "id": "tlon",
-      "label": "Tlon",
-      "selectionLabel": "Tlon (Urbit)",
+      "label": "Sato",
+      "selectionLabel": "Sato",
       "docsPath": "/channels/tlon",
       "docsLabel": "tlon",
       "blurb": "decentralized messaging on Urbit; install the plugin to enable.",

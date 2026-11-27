@@ -17,7 +17,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   owner: 'tlon',
   slug: 'groups',
-  name: isPreview ? 'Tlon - Preview' : 'Tlon',
+  name: isPreview ? 'Sato - Preview' : 'Sato',
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
   scheme: appScheme,
@@ -128,7 +128,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-contacts',
       {
         contactsPermission:
-          'Tlon Messenger uses your contacts to help you find people you know who are already on the network and to invite others via SMS or email. Your contacts are never uploaded — only anonymous, hashed identifiers are sent to our server for matching.',
+          'Sato uses your contacts to help you find people you know who are already on the network and to invite others via SMS or email. Your contacts are never uploaded — only anonymous, hashed identifiers are sent to our server for matching.',
       },
     ],
     'expo-audio',

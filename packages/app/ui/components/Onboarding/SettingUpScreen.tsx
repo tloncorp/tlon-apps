@@ -1,12 +1,12 @@
 import { NodeBootPhase } from '@tloncorp/shared/domain';
 import { LoadingSpinner, Text } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
-import Svg, { Path, Rect } from 'react-native-svg';
-import { View, XStack, YStack, useTheme } from 'tamagui';
+import Svg, { Path } from 'react-native-svg';
+import { View, XStack, YStack } from 'tamagui';
 
 import { useOnboardingGlyph } from './line/AvatarGlyphPicker';
 import { ART_TO_CONTENT_GAP, LineStepFrame } from './line/LineStepFrame';
-import { LINE, LineOutline, useLineColors } from './line/lineKit';
+import { LineOutline, useLineColors } from './line/lineKit';
 import { SetupArt } from './line/onboardingArt';
 
 export type SetupStepKey = 'computer' | 'network' | 'bot';
@@ -19,7 +19,7 @@ const SETUP_STEPS: {
 }[] = [
   {
     key: 'computer',
-    label: 'Preparing your Tlon computer',
+    label: 'Preparing your Sato’s computer',
     lastPhase: NodeBootPhase.BOOTING,
   },
   {
@@ -29,7 +29,7 @@ const SETUP_STEPS: {
   },
   {
     key: 'bot',
-    label: 'Setting up your Tlonbot',
+    label: 'Setting up your Sato',
     lastPhase: NodeBootPhase.ACCEPTING_INVITES,
   },
 ];
@@ -52,8 +52,8 @@ const SPOKEN_STATE: Record<StepState, string> = {
   pending: 'not started',
 };
 
-const STEP_ROW = 48;
-const MARKER = 32;
+const STEP_ROW = 24;
+const MARKER = 22;
 
 /**
  * The Setting up screen at the end of signup, step 3 of onboarding. The first
@@ -74,7 +74,6 @@ export function SettingUpScreen({
   step?: number;
 }) {
   const glyph = useOnboardingGlyph();
-  const { ink } = useLineColors();
   const currentIndex =
     current === 'done'
       ? SETUP_STEPS.length
@@ -93,23 +92,12 @@ export function SettingUpScreen({
     >
       <SetupArt glyph={glyph} />
       <YStack
-        marginTop={ART_TO_CONTENT_GAP}
-        marginHorizontal="$2xl"
+        marginTop={ART_TO_CONTENT_GAP + 8}
+        marginLeft={56}
+        marginRight="$2xl"
+        gap={14}
         accessibilityLabel="Setup steps"
       >
-        {/* The rule joins the markers, behind them. It's drawn in SVG like
-            the other lines: a 0.5 pt wide view rounds to two pixels. */}
-        <Svg
-          width={1}
-          height={STEP_ROW * (SETUP_STEPS.length - 1)}
-          style={{
-            position: 'absolute',
-            left: MARKER / 2 - LINE / 2,
-            top: STEP_ROW / 2,
-          }}
-        >
-          <Rect width={LINE} height="100%" fill={ink} />
-        </Svg>
         {SETUP_STEPS.map((step, index) => (
           <SetupStepRow
             key={step.key}
@@ -129,58 +117,45 @@ export function SettingUpScreen({
 }
 
 function SetupStepRow({ label, state }: { label: string; state: StepState }) {
-  // The check is cut out of its dot in the page's lightest color.
-  const check = useTheme().background?.val as string;
+  const { ink } = useLineColors();
   return (
     <XStack
       // Grows with larger system text sizes.
       minHeight={STEP_ROW}
       alignItems="center"
-      gap="$l"
+      gap={12}
       accessible
       accessibilityLabel={`${label}, ${SPOKEN_STATE[state]}`}
     >
       <View
         width={MARKER}
         height={MARKER}
-        borderRadius={MARKER / 2}
-        backgroundColor="$secondaryBackground"
         alignItems="center"
         justifyContent="center"
       >
         {state === 'done' ? (
-          <View
-            width={22}
-            height={22}
-            borderRadius={11}
-            backgroundColor="$primaryText"
-            alignItems="center"
-            justifyContent="center"
-          >
-            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M19 7L10 17L5 12"
-                stroke={check}
-                strokeWidth={2.6}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </View>
+          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M5 12.5l4.5 4.5L19 7.5"
+              stroke={ink}
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
         ) : state === 'current' ? (
-          <LoadingSpinner size="small" color="$secondaryText" />
+          <LoadingSpinner size="small" color="$primaryText" />
         ) : (
           <View width={12} height={12}>
-            <LineOutline radius={6} />
+            <LineOutline radius={6} color="$tertiaryText" />
           </View>
         )}
       </View>
       <Text
         flex={1}
-        fontSize={17}
-        lineHeight={24}
-        letterSpacing={-0.2}
-        color={state === 'pending' ? '$secondaryText' : '$primaryText'}
+        size="$label/xl"
+        trimmed={false}
+        color={state === 'current' ? '$primaryText' : '$secondaryText'}
       >
         {label}
       </Text>

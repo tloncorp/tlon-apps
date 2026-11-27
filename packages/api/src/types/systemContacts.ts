@@ -19,5 +19,5 @@ export interface SystemContactInviteParams {
 }
 
 export const SystemContactInviteMessages = {
-  Personal: `I'm inviting you to Tlon Messenger`,
+  Personal: `I'm inviting you to Sato`,
 };

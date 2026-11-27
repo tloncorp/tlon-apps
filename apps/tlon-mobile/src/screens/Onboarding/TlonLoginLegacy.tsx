@@ -93,11 +93,11 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
   });
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        title="Tlon Login"
+        title="Sato Login"
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
@@ -109,7 +109,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
         <YStack gap="$m" paddingHorizontal="$2xl">
           <OnboardingTextBlock>
             <TlonText.Text size="$body" color="$primaryText">
-              Enter the email and password associated with your Tlon account.
+              Enter the email and password associated with your Sato account.
             </TlonText.Text>
             <TlonText.Text size="$body" color="$negativeActionText">
               {remoteError}

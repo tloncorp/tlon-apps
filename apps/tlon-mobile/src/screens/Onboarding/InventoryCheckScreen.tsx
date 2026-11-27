@@ -52,9 +52,9 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
   return (
     <View flex={1}>
       <ScreenHeader
-        title="Welcome to Tlon"
+        title="Welcome to Sato"
         loadingSubtitle={isChecking ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
       />
 
@@ -79,7 +79,7 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
           </View>
           <YStack gap="$xs" flex={1}>
             <Text fontWeight="$xl">
-              Tlon operates on a peer-to-peer network.
+              Sato operates on a peer-to-peer network.
             </Text>
             <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
               Practically, this means your free account is a cloud computer. You

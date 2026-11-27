@@ -138,7 +138,7 @@ class NotificationService: UNNotificationServiceExtension {
 
     private func applyGenericMessage(_ message: String, notification: UNMutableNotificationContent) -> UNNotificationContent {
         if notification.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            notification.title = "Tlon"
+            notification.title = "Sato"
         }
         notification.body = message
         notification.sound = UNNotificationSound.default

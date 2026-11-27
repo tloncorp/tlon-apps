@@ -150,7 +150,7 @@ export function WorkspaceInstructionsSheet({
     : !writable
       ? "This group's bot settings were saved by a newer version of the app. Update to edit them."
       : botsQuery.isSuccess && !bot
-        ? 'You need a Tlonbot to set instructions for this group.'
+        ? 'You need Sato to set instructions for this group.'
         : isDirty
           ? 'Unsaved changes'
           : 'Anyone in this group can read these.';
@@ -174,7 +174,7 @@ export function WorkspaceInstructionsSheet({
     <ActionSheet
       open
       onOpenChange={handleOpenChange}
-      title="Tlonbot instructions"
+      title="Sato instructions"
       modal
       closeButton
       dialogContentProps={{ width: 576, minWidth: 520, maxWidth: 576 }}
@@ -192,7 +192,7 @@ export function WorkspaceInstructionsSheet({
             <BotPromptHeader
               title="Instructions"
               meta={bot ?? undefined}
-              description={`How your Tlonbot behaves in every channel of ${group.title || 'this group'}.`}
+              description={`How Sato behaves in every channel of ${group.title || 'this group'}.`}
               paddingLeft="$xl"
               paddingRight={isWindowNarrow ? '$xl' : '$4xl'}
             />
@@ -271,8 +271,8 @@ export function WorkspaceInstructionsSheet({
                   name="text"
                   control={control}
                   inputProps={{
-                    accessibilityLabel: 'Tlonbot instructions',
-                    placeholder: 'How should your Tlonbot behave here?',
+                    accessibilityLabel: 'Sato instructions',
+                    placeholder: 'How should Sato behave here?',
                     multiline: true,
                     minHeight: editorHeight,
                     textAlignVertical: 'top',

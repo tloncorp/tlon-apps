@@ -294,7 +294,7 @@
     =/  url=tape
       (trip (fall invite ''))
     ?:  =(`0 (find "https://tlon.network/" url))
-      [url "DM {owner} on Tlon Messenger"]
-    ["https://tlon.io" "Not on Tlon Messenger? Join now"]
+      [url "DM {owner} on Sato"]
+    ["https://tlon.io" "Not on Sato? Join now"]
   --
 --

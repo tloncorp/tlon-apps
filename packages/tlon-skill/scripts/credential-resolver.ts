@@ -660,7 +660,7 @@ function missingConfigError(): Error {
       '  - Set URBIT_URL/TLON_URL with URBIT_COOKIE/TLON_COOKIE\n' +
       '  - Set URL + SHIP + CODE via URBIT_* or TLON_* env vars\n' +
       '  - Set TLON_SHIP + TLON_SKILL_DIR for ships/<ship>.json\n' +
-      '  - Configure Tlon channel in OpenClaw JSON (~/.openclaw/openclaw.json)'
+      '  - Configure the Sato channel (channels.tlon) in OpenClaw JSON (~/.openclaw/openclaw.json)'
   );
 }
 

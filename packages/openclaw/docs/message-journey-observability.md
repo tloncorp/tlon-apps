@@ -1,7 +1,7 @@
 # Bot message journey observability
 
 This instrumentation traces bot messages across `%steward`, the bot moon,
-and the OpenClaw Tlon plugin. Events contain routing metadata and message
+and the OpenClaw Sato plugin. Events contain routing metadata and message
 correlation keys; they contain no message or reply text.
 
 The stateless journey observer in `%steward` watches local `%chat /v4` and

@@ -133,9 +133,9 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   }, [setValue]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
       />
       <SafeAreaView style={{ flex: 1 }}>
@@ -150,8 +150,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                 Have an invite?
               </TlonText.Text>
               <TlonText.Text size="$body" color="$secondaryText">
-                If someone invited you to Tlon Messenger, enter it now to stay
-                connected.
+                If someone invited you to Sato, enter it now to stay connected.
               </TlonText.Text>
             </OnboardingTextBlock>
             <YStack marginTop="$2xl" flex={1}>
@@ -166,7 +165,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                       paddingTop="$l"
                     >
                       <TextInput
-                        placeholder="TLON  or  join.tlon.io/0v4.pca..."
+                        placeholder="SATO  or  join.tlon.io/0v4.pca..."
                         // fontSize="$3xl"
                         onBlur={onBlur}
                         onChangeText={onChange}

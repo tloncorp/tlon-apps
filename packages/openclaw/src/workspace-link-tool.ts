@@ -10,7 +10,7 @@ const GROUP_ID_REGEX = /^~[a-z][a-z-]*\/[a-z][a-z0-9-]*$/;
 
 export const workspaceLinkToolMetadata = {
   name: 'tlon_workspace_link',
-  label: 'Tlon Workspace Link',
+  label: 'Sato Workspace Link',
   description:
     "Point your owner to a workspace they already have, in their DM: posts your one line naming it and the workspace's card. " +
     'Use it instead of proposing a new workspace when one already covers the topic, once per conversation. ' +

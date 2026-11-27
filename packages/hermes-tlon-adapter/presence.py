@@ -34,7 +34,7 @@ TOOL_LABELS = {
     "exec": "Running a command",
     "image_search": "Searching images",
     "read": "Reading files",
-    "tlon": "Using Tlon",
+    "tlon": "Working in Sato",
     "web_extract": "Checking the web",
     "web_fetch": "Checking the web",
     "web_search": "Searching the web",

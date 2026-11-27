@@ -2,11 +2,9 @@ import { View } from 'tamagui';
 
 import { useOnboardingGlyph } from '../../Onboarding/line/AvatarGlyphPicker';
 import {
-  ART_TOP_GAP,
   ART_TO_BULLETS_GAP,
   LineBulletList,
   LineStepFrame,
-  LineTextLink,
 } from '../../Onboarding/line/LineStepFrame';
 import { LineIcon } from '../../Onboarding/line/lineIcons';
 import { MeetArt, PrivateArt } from '../../Onboarding/line/onboardingArt';
@@ -20,26 +18,19 @@ export function FeaturePointList({ points }: { points: FeaturePoint[] }) {
   return (
     <LineBulletList
       items={points.map((point) => ({
-        icon: <LineIcon name={point.icon} />,
+        icon: <LineIcon name={point.icon} size={24} />,
         label: point.label,
       }))}
     />
   );
 }
 
-/**
- * Yours to keep's data link reads as the subtitle's next line: its tap area
- * reaches this far up into the subtitle's last line.
- */
-const DATA_LINK_OVERLAP = 11;
-/** The drawing then starts this far under the link's tap area. */
-const DATA_LINK_TO_ART_GAP = 21;
-/** Meet's drawing sits closer under its two-line subtitle, as on the canvas. */
-const MEET_ART_TOP_GAP = 33;
+/** The drawing sits this close under the subtitle. */
+const INTRO_ART_TOP_GAP = 33;
 
 /**
- * Meet your Tlonbot and Yours to keep, the first run's opening pair. Yours
- * to keep links to How your data is kept.
+ * Meet your Sato and Yours to keep, the first run's opening pair. Yours to
+ * keep links to How your data is kept from under its main button.
  */
 export function FirstRunIntroScreen({
   slide,
@@ -66,24 +57,18 @@ export function FirstRunIntroScreen({
         onPress: onNext,
         testID: 'first-run-primary',
       }}
-      contentGap={
-        slide === 1
-          ? MEET_ART_TOP_GAP
-          : dataLink
-            ? -DATA_LINK_OVERLAP
-            : ART_TOP_GAP
+      secondary={
+        dataLink
+          ? {
+              label: firstRunCopy.private.dataLink,
+              onPress: dataLink,
+              testID: 'first-run-data-link',
+            }
+          : undefined
       }
+      contentGap={INTRO_ART_TOP_GAP}
       testID={slide === 1 ? 'first-run-meet' : 'first-run-private'}
     >
-      {dataLink ? (
-        <View marginBottom={DATA_LINK_TO_ART_GAP}>
-          <LineTextLink
-            label={firstRunCopy.private.dataLink}
-            onPress={dataLink}
-            testID="first-run-data-link"
-          />
-        </View>
-      ) : null}
       {slide === 1 ? <MeetArt glyph={glyph} /> : <PrivateArt glyph={glyph} />}
       <View marginTop={ART_TO_BULLETS_GAP}>
         <FeaturePointList points={copy.points} />

@@ -32,7 +32,7 @@ export const TIP_COPY: TipCopy = {
   'recurring-help':
     'One thing you can ask me: ‘Every Friday, find three interesting things about architecture.’ What would your version be?',
   archive:
-    'The useful bits can build up here. I can save research in a notebook so you have somewhere to return to it. Your notes and conversations live on your own Tlon node; Tlon can host it, or you can run it yourself. What’s one question you’d like to keep working on?',
+    'The useful bits can build up here. I can save research in a notebook so you have somewhere to return to it. Your notes and conversations live on your own node; Tlon can host it, or you can run it yourself. What’s one question you’d like to keep working on?',
   'own-material':
     'I can also work with your own material. Send me a note or a link about a project, and I’ll help you work out what to do next.',
   'task-feedback':
@@ -53,7 +53,7 @@ export const TIP_COPY: TipCopy = {
   closingQuiet:
     'I’ll leave you to explore after today. Whenever something comes up, send it my way.',
   ownership:
-    'Your notes and conversations in Tlon Messenger live on your own personal server, called a node. Tlon can host it for you, or you can export it and run it yourself. Want a quick explanation of how that works?',
+    'Your notes and conversations in Sato live on your own personal server, called a node. Tlon can host it for you, or you can export it and run it yourself. Want a quick explanation of how that works?',
   startNotebook:
     'What would you like to start a notebook about? A project, something you’re learning, or a collection of ideas?',
   growingNotebook:

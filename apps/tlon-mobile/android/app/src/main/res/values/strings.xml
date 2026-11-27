@@ -1,8 +1,8 @@
 <resources>
-  <string name="app_name">Tlon</string>
+  <string name="app_name">Sato</string>
   <string name="expo_splash_screen_resize_mode">contain</string>
   <string name="expo_runtime_version">4.0.2</string>
-  <string name="landscape_notification_channel_name">Tlon Notifications</string>
-  <string name="landscape_notification_channel_description">Channel for receiving push notifications from your Tlon app.</string>
+  <string name="landscape_notification_channel_name">Sato Notifications</string>
+  <string name="landscape_notification_channel_description">Channel for receiving push notifications from your Sato app.</string>
   <string name="landscape_notification_mark_as_read">Mark as read</string>
 </resources>

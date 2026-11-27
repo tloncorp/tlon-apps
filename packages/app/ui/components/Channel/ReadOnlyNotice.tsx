@@ -51,7 +51,7 @@ export function ReadOnlyNotice({
       <>This workspace no longer exists.</>
     ) : (
       <>
-        Your node&apos;s version of the Tlon app doesn&apos;t match the{' '}
+        Your node&apos;s version of the Sato app doesn&apos;t match the{' '}
         {type === 'dm-mismatch'
           ? 'other node.'
           : type === 'group-dm-mismatch'

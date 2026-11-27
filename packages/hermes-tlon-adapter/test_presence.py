@@ -98,7 +98,7 @@ class ComputingStatusTests(unittest.TestCase):
         self.assertEqual(presence.format_computing_tool_call_label("web_extract"), "Checking the web")
         self.assertEqual(presence.format_computing_tool_call_label("web_search"), "Searching the web")
         self.assertEqual(presence.format_computing_tool_call_label("image_search"), "Searching images")
-        self.assertEqual(presence.format_computing_tool_call_label("tlon"), "Using Tlon")
+        self.assertEqual(presence.format_computing_tool_call_label("tlon"), "Working in Sato")
         self.assertEqual(presence.format_computing_tool_call_label("custom_tool"), "Using custom tool")
         self.assertEqual(presence.format_computing_tool_call_label(), "Using a tool")
 

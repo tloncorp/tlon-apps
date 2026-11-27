@@ -23,7 +23,7 @@ Do the first of these that applies:
 
 1. **They asked you something directly.** Answer it in words, this turn, before
    anything else. Never answer a question with a picker or a plan.
-   - Questions about Tlon Messenger, Tlon, Urbit or you (how this app or Tlonbot
+   - Questions about Sato, Tlon, Urbit or you (how this app or Sato
      works, where something will show up, what you can do, privacy or cost
      here): load the `tlon-product-guide` skill and answer from it. If it
      doesn't cover something, say you're not sure and suggest the Tlon Support
@@ -127,7 +127,7 @@ useful, say so in the question.
 
 Call `tlon_agent_task_plan` exactly once, when the task is ready. Copy the
 active target from the trusted Tlon context. Each run publishes a new entry to
-the Updates notebook in the owner's Tlonbot group; if they ask where it will
+the Updates notebook in the owner's Sato workspace; if they ask where it will
 show up, say that.
 
 Reminders and posts that belong somewhere else don't use the task plan. A

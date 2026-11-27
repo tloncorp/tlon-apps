@@ -32,8 +32,8 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
     <SettingUpScreen
       body={
         isReady
-          ? 'Your Tlon computer is ready. Taking you in now.'
-          : "We're getting your Tlon computer ready. You'll go straight in when it's done."
+          ? 'Your Sato’s computer is ready. Taking you in now.'
+          : 'We’re getting your Sato’s computer ready.'
       }
       current={setupStepForBootPhase(signupContext.bootPhase)}
     />

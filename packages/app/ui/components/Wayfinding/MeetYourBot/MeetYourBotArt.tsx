@@ -765,7 +765,7 @@ function EdgeFade({ mode }: { mode: Mode }) {
 }
 
 /**
- * The picture for the Meet your Tlonbot slides: on slide 1 the frosted bot
+ * The picture for the Meet Sato slides: on slide 1 the frosted bot
  * floats over a field of emoji; on slide 2 it sits under a frosted glass dome.
  */
 export function MeetYourBotArt({
@@ -791,8 +791,8 @@ export function MeetYourBotArt({
       accessibilityRole="image"
       accessibilityLabel={
         slide === 1
-          ? 'Your Tlonbot: a frosted green tile with a smile'
-          : 'Your Tlonbot under a frosted glass dome'
+          ? 'Sato: a frosted green tile with a smile'
+          : 'Sato under a frosted glass dome'
       }
     >
       <EmojiField mode={mode} />

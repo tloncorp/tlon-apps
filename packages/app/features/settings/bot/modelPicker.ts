@@ -101,6 +101,7 @@ export function buildDefaultModelSections({
         !query ||
         [
           provider.label,
+          'sato',
           'tlon',
           ...provider.models.flatMap((model) => [
             getModelDisplayName(model),
@@ -112,7 +113,7 @@ export function buildDefaultModelSections({
         ? [
             {
               key,
-              title: 'Included with Tlon',
+              title: 'Included with Sato',
               rows: provider.models.map((model) => ({
                 key: `${provider.id}:${model.id}`,
                 title: getModelDisplayName(model),

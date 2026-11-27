@@ -55,8 +55,10 @@ function genDefaultEmail() {
   return `${DEFAULT_ONBOARDING_TLON_EMAIL}+test.${entropy.slice(0, 4)}.${entropy.slice(4, 8)}@tlon.io`;
 }
 
-export const SignupScreen = ({ navigation }: Props) => {
-  const [otpMethod, setOtpMethod] = useState<'phone' | 'email'>('phone');
+export const SignupScreen = ({ navigation, route }: Props) => {
+  const [otpMethod, setOtpMethod] = useState<'phone' | 'email'>(
+    route.params?.method ?? 'phone'
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
   const { hostingApi } = useOnboardingContext();
@@ -199,9 +201,9 @@ export const SignupScreen = ({ navigation }: Props) => {
   }, [navigation, signupContext]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         title={lureMeta ? 'Accept invite' : 'Sign up'}
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={goBack}

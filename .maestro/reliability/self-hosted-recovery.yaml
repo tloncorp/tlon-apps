@@ -8,7 +8,7 @@ env:
 - launchApp:
     clearState: true
     clearKeychain: true
-- assertVisible: '^Tlon Messenger$'
+- assertVisible: '^It’s yours\.$'
 - tapOn: '^Have an account\? Log in$'
 - tapOn: '^Or configure self hosted$'
 - assertVisible: '^Connect Ship$'

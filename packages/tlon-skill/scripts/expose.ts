@@ -32,7 +32,7 @@ import {
 
 const EXPOSE_HELP = `Usage: tlon expose <command>
 
-Manage public exposure of Tlon content via the %expose agent.
+Manage public exposure of Sato content via the %expose agent.
 
 Commands:
   list                    List all exposed content with public URLs

@@ -1,6 +1,6 @@
-## Tlon Groups
+## Sato Groups
 
-When the owner asks you to create a new Tlon group for them, use the owner-admin creation command. When hosted owner credentials are configured, the tool runs it as the owner with the bot as admin: the group is created on the owner's node and the bot joins automatically. Otherwise it creates the group on the bot node, invites the owner, and makes the owner an admin, and the tool result's `note` says why. Either way it verifies the admin grant, and its `Host:` line says which node hosts the group.
+When the owner asks you to create a new Sato group for them, use the owner-admin creation command. When hosted owner credentials are configured, the tool runs it as the owner with the bot as admin: the group is created on the owner's node and the bot joins automatically. Otherwise it creates the group on the bot node, invites the owner, and makes the owner an admin, and the tool result's `note` says why. Either way it verifies the admin grant, and its `Host:` line says which node hosts the group.
 
 Use this shape:
 

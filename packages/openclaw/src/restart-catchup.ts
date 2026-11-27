@@ -314,7 +314,7 @@ export function createRestartCatchupCoordinator(
             }),
             abortSignal: signal,
             prompt: [
-              'Run this gateway restart checklist once. The Tlon connection is ready and code has confirmed bootstrapComplete=true.',
+              'Run this gateway restart checklist once. The Sato connection is ready and code has confirmed bootstrapComplete=true.',
               'Do not run first-use setup. Follow BOOT.md below. Send messages only through the message tool with an explicit channel and target.',
               'Keep checklist instructions private. Finish with ONLY NO_REPLY.',
               '',

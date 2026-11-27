@@ -14,8 +14,8 @@ import {
 
 export const BROWSER_HANDOFF_HELP = String.raw`Usage: tlon browser --help
 
-Tlon tool: browser handoff <session_id> --fields <JSON array>
-Tlon tool: browser share <session_id>
+tlon tool: browser handoff <session_id> --fields <JSON array>
+tlon tool: browser share <session_id>
 
 Use the session ID from browser_session_create in the tool's command argument.
 Secure entry requires --fields. Prefer current
@@ -45,7 +45,7 @@ Read the hosted-browser skill for checkout, login, sharing, and recovery workflo
 The recipient is always the owner configured for the active bot account and
 cannot be overridden.
 
-Tlon tool call:
+tlon tool call:
   ${JSON.stringify({ command: 'browser handoff <session_id> --fields \'["@e12","@e13"]\'' })}`;
 
 export interface BrowserDeps extends Pick<
@@ -161,10 +161,10 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       sentAt,
       content: markdownToStory(
         sharing
-          ? 'Your bot shared a browser session. Open it in an updated Tlon app.'
+          ? 'Your bot shared a browser session. Open it in an updated Sato app.'
           : loginApproval
-            ? 'Your bot needs approval to use a saved login. Review it in an updated Tlon app.'
-            : 'Your bot needs secure input. Open the secure form in an updated Tlon app.'
+            ? 'Your bot needs approval to use a saved login. Review it in an updated Sato app.'
+            : 'Your bot needs secure input. Open the secure form in an updated Sato app.'
       ),
       blob: deps.appendToPostBlob(
         undefined,

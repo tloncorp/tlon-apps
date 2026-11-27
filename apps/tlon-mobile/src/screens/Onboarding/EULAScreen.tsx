@@ -8,10 +8,10 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'EULA'>;
 
 export const EULAScreen = ({ navigation }: Props) => {
   return (
-    <View flex={1} backgroundColor={'$secondaryBackground'}>
+    <View flex={1} backgroundColor={'$background'}>
       <ScreenHeader
         title="EULA"
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
       />
       <ScrollView style={{ flex: 1 }}>
@@ -26,7 +26,7 @@ export const EULAScreen = ({ navigation }: Props) => {
           <SizableText>
             Please read this End-User License Agreement carefully before
             checking the &ldquo;I have read and agree to the End User License
-            Agreement&rdquo; checkbox, downloading or using Tlon.
+            Agreement&rdquo; checkbox, downloading or using Sato.
           </SizableText>
 
           <SizableText>Interpretation and Definitions</SizableText>
@@ -55,7 +55,7 @@ export const EULAScreen = ({ navigation }: Props) => {
           <SizableText>
             &ldquo;Application&rdquo; means the software program provided by the
             Company downloaded by You through an Application Store&rsquo;s
-            account to a Device, named Tlon
+            account to a Device, named Sato
           </SizableText>
 
           <SizableText>

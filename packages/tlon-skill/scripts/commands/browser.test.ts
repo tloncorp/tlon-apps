@@ -81,7 +81,7 @@ describe('browser handoff', () => {
       const context = makeDeps();
       expect(await run([...args], context.deps)).toBe(0);
       const help = context.stdout.join('');
-      expect(help).toContain('Tlon tool: browser handoff <session_id>');
+      expect(help).toContain('tlon tool: browser handoff <session_id>');
       expect(help).toContain('--fields <JSON array>');
       expect(help).toContain('Secure entry requires --fields');
       expect(help).not.toContain('browser approve-login');
@@ -98,7 +98,7 @@ describe('browser handoff', () => {
     expect(await run(['--help'], context.deps)).toBe(0);
     const json = context.stdout
       .join('')
-      .match(/Tlon tool call:\n\s*(\{.*\})/)?.[1];
+      .match(/tlon tool call:\n\s*(\{.*\})/)?.[1];
     expect(json).toBeDefined();
     expect(JSON.parse(json!)).toEqual({
       command: 'browser handoff <session_id> --fields \'["@e12","@e13"]\'',
@@ -114,7 +114,7 @@ describe('browser handoff', () => {
     };
     expect(await run(['handoff', 'calm-blue-fox'], context.deps)).toBe(1);
     expect(context.stderr.join('')).toContain(
-      'Tlon tool: browser handoff <session_id>'
+      'tlon tool: browser handoff <session_id>'
     );
     expect(authenticated).toBe(false);
     expect(context.sent).toEqual([]);

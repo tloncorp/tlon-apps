@@ -3,7 +3,7 @@
 The `hosted-browser` skill owns browser workflow: collecting checkout details,
 choosing secure entry or live sharing, successive login steps, recovery, and
 resuming the task. Read it from the available-skills listing before planning
-those flows. This reference covers only the Tlon command contract. If the
+those flows. This reference covers only the `tlon` command contract. If the
 browser skill is unavailable, report the missing installation resource rather
 than inventing a workflow or collecting secrets in chat.
 
@@ -29,7 +29,7 @@ sending to someone else. Claim delivery only after the command succeeds.
 {"command":"browser share <session_id>"}
 ```
 
-Sends a rich link card in Tlon Messenger that opens the live session for viewing
+Sends a rich link card in Sato that opens the live session for viewing
 and interaction. It does not request credentials or generate a task
 continuation.
 
@@ -39,7 +39,7 @@ continuation.
 {"command":"browser handoff <session_id> --fields '[\"@e12\",\"@e13\"]'"}
 ```
 
-Sends a native Tlon secure-entry card for the selected controls. Take a current
+Sends a native Sato secure-entry card for the selected controls. Take a current
 browser snapshot and use its `@eN` references. The JSON array also accepts
 exact HTML names (`{"name":"ssn_3"}`) or accessible labels
 (`{"label":"Birth month"}`) when they identify one visible snapshot control.
@@ -86,8 +86,8 @@ through browser tools when appropriate. Dismiss optional passkey enrollment
 unless the owner asked to create a passkey.
 
 `browser_session_handoff` is a separate MCP viewer/elicitation operation, not
-a prerequisite for either Tlon command or a way to refresh signed viewer URLs.
-Its `client_capability_missing` error does not establish whether the Tlon card
+a prerequisite for either `tlon` command or a way to refresh signed viewer URLs.
+Its `client_capability_missing` error does not establish whether the Sato card
 is available.
 
 ## Errors and discovery

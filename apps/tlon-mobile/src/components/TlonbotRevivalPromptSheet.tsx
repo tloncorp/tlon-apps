@@ -136,11 +136,11 @@ export function TlonbotRevivalPromptSheet({
       onNativeDismissed={onNativeDismissed}
       modal
     >
-      <ActionSheet.SimpleHeader title="Ready for Tlonbot?" />
+      <ActionSheet.SimpleHeader title="Ready for Sato?" />
       <ActionSheet.Content marginHorizontal="$xl">
         <ActionSheet.ContentBlock>
           <Text size="$body" color="$secondaryText">
-            Tlonbot is now available. Set up only takes a few minutes.
+            Sato is now available. Set up only takes a few minutes.
           </Text>
         </ActionSheet.ContentBlock>
         <ActionSheet.ContentBlock>

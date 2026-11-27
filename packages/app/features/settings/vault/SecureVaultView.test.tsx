@@ -65,7 +65,7 @@ describe('Secure Vault UI', () => {
       );
     });
     const section = byType(tree, 'SettingsListScreenView').props.sections[0];
-    expect(section.footer).toContain('Your Tlonbot will use your vault logins');
+    expect(section.footer).toContain('Sato will use your vault logins');
     expect(section.rows[0].title).toBe('www.wikipedia.org');
     section.rows[0].onPress();
     expect(select).toHaveBeenCalledWith(login);

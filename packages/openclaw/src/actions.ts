@@ -81,7 +81,7 @@ export const tlonMessageActions: ChannelMessageActionAdapter = {
   handleAction: async ({ action, params, cfg, accountId, toolContext }) => {
     const account = resolveTlonAccount(cfg, accountId ?? undefined);
     if (!account.configured || !account.ship || !account.url || !account.code) {
-      throw new Error('Tlon account not configured');
+      throw new Error('Sato account not configured');
     }
 
     return await withAuthenticatedTlonApi(
@@ -98,7 +98,7 @@ export const tlonMessageActions: ChannelMessageActionAdapter = {
           const level = account.reactionLevel ?? 'minimal';
           if (level === 'off' || level === 'ack') {
             throw new Error(
-              `Tlon agent reactions disabled (reactionLevel="${level}"). ` +
+              `Sato agent reactions disabled (reactionLevel="${level}"). ` +
                 `Set channels.tlon.reactionLevel to "minimal" or "extensive" to enable.`
             );
           }
@@ -118,7 +118,7 @@ export const tlonMessageActions: ChannelMessageActionAdapter = {
           });
         }
 
-        throw new Error(`Tlon action "${action}" is not supported.`);
+        throw new Error(`Sato action "${action}" is not supported.`);
       }
     );
   },
@@ -134,17 +134,17 @@ async function handleReact({
   toolContext?: { currentChannelId?: string };
 }) {
   const { emoji, remove, isEmpty } = readReactionParams(params, {
-    removeErrorMessage: 'Emoji is required to remove a Tlon reaction.',
+    removeErrorMessage: 'Emoji is required to remove a Sato reaction.',
   });
   if (isEmpty && !remove) {
     throw new Error(
-      'Tlon react requires emoji parameter. Use action=react with emoji=<emoji> and messageId=<message_id>.'
+      'Sato react requires emoji parameter. Use action=react with emoji=<emoji> and messageId=<message_id>.'
     );
   }
 
   const messageId = readStringParam(params, 'messageId');
   if (!messageId) {
-    throw new Error('Tlon react requires messageId parameter.');
+    throw new Error('Sato react requires messageId parameter.');
   }
 
   const to =
@@ -153,13 +153,13 @@ async function handleReact({
     toolContext?.currentChannelId;
   if (!to) {
     throw new Error(
-      "Tlon react requires 'to' parameter (target channel or DM)."
+      "Sato react requires 'to' parameter (target channel or DM)."
     );
   }
 
   const parsed = parseTlonTarget(to);
   if (!parsed) {
-    throw new Error(`Invalid Tlon target: ${to}`);
+    throw new Error(`Invalid Sato target: ${to}`);
   }
 
   const parentId =
@@ -188,7 +188,7 @@ async function handleReact({
   }
 
   if (parsed.kind === 'notebook') {
-    throw new Error('Tlon reactions are not supported for notebook entries.');
+    throw new Error('Sato reactions are not supported for notebook entries.');
   }
 
   const nestPrefix = parsed.nest.split('/')[0];
@@ -224,7 +224,7 @@ async function handleDelete({
 }) {
   const messageId = readStringParam(params, 'messageId');
   if (!messageId) {
-    throw new Error('Tlon delete requires messageId parameter.');
+    throw new Error('Sato delete requires messageId parameter.');
   }
 
   const to =
@@ -232,18 +232,18 @@ async function handleDelete({
     readStringParam(params, 'to') ??
     toolContext?.currentChannelId;
   if (!to) {
-    throw new Error("Tlon delete requires 'to' parameter.");
+    throw new Error("Sato delete requires 'to' parameter.");
   }
 
   const parsed = parseTlonTarget(to);
   if (!parsed || parsed.kind !== 'channel') {
-    throw new Error('Tlon delete is only supported for channel posts.');
+    throw new Error('Sato delete is only supported for channel posts.');
   }
 
   const nestPrefix = parsed.nest.split('/')[0];
   if (nestPrefix !== 'heap') {
     throw new Error(
-      'Tlon delete is currently only supported for heap posts. Use heap/~host/channel as the target.'
+      'Sato delete is currently only supported for heap posts. Use heap/~host/channel as the target.'
     );
   }
 
@@ -270,13 +270,13 @@ async function handleReply({
   const messageId = readStringParam(params, 'messageId');
   if (!messageId) {
     throw new Error(
-      'Tlon reply requires messageId parameter (the ID of the post to reply to).'
+      'Sato reply requires messageId parameter (the ID of the post to reply to).'
     );
   }
 
   const message = readStringParam(params, 'message');
   if (!message) {
-    throw new Error('Tlon reply requires message parameter (the reply text).');
+    throw new Error('Sato reply requires message parameter (the reply text).');
   }
 
   const to =
@@ -284,23 +284,23 @@ async function handleReply({
     readStringParam(params, 'to') ??
     toolContext?.currentChannelId;
   if (!to) {
-    throw new Error("Tlon reply requires 'to' parameter (target channel).");
+    throw new Error("Sato reply requires 'to' parameter (target channel).");
   }
 
   const parsed = parseTlonTarget(to);
   if (!parsed) {
-    throw new Error(`Invalid Tlon target: ${to}`);
+    throw new Error(`Invalid Sato target: ${to}`);
   }
 
   if (parsed.kind === 'dm') {
     throw new Error(
-      'Tlon reply action is supported for channel targets. For DMs, use action=send with replyTo.'
+      'Sato reply action is supported for channel targets. For DMs, use action=send with replyTo.'
     );
   }
 
   if (parsed.kind === 'notebook') {
     throw new Error(
-      'Tlon reply action is not supported for notebook entries. Send a new notebook entry instead.'
+      'Sato reply action is not supported for notebook entries. Send a new notebook entry instead.'
     );
   }
 

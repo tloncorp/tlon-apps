@@ -42,11 +42,11 @@ If you don't want Tlon to host you, you can self-host on Native Planet hardware,
 
 ### Closing your account
 
-There's no delete button in the app itself. Account changes happen on your account page: `Settings` → `Manage Tlon account` opens tlon.network/account inside the app. If you close the account there, the app signs you out.
+There's no delete button in the app itself. Account changes happen on your account page: `Settings` → `Manage Sato account` opens tlon.network/account inside the app. If you close the account there, the app signs you out.
 
 ### What if Tlon disappears?
 
-The software survives: Tlon Messenger is open source and peer-to-peer, so it keeps working even if the company doesn't, and a node you already hold runs anywhere.
+The software survives: Sato is open source and peer-to-peer, so it keeps working even if the company doesn't, and a node you already hold runs anywhere.
 
 Your data survives if you've kept a copy. This is the honest version, and it's worth saying plainly rather than reassuring someone into skipping it: on a hosted account your node runs on Tlon's hardware, and the dashboard you'd export it from is Tlon's too. Open source doesn't reconstitute a node nobody has. Export your node archive and master ticket now, keep them somewhere you control, and refresh them from time to time — then the promise is real. Anyone asking this question is asking the right one, and the useful answer is to go do the export today.
 

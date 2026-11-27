@@ -1655,7 +1655,7 @@
               <span class="menu-icon"><svg class="icon"><use href="#i-globe"/></svg></span>Unpublish
             </button>
             <button onclick="copyNoteReference(); closeOverflow();">
-              <span class="menu-icon"><svg class="icon"><use href="#i-link"/></svg></span>Copy Tlon reference
+              <span class="menu-icon"><svg class="icon"><use href="#i-link"/></svg></span>Copy Sato reference
             </button>
             <button onclick="deleteNote();" class="danger">
               <span class="menu-icon"><svg class="icon"><use href="#i-trash"/></svg></span>Delete note
@@ -5370,7 +5370,7 @@ async function copyNoteReference() {
       setTimeout(() => { if (el.textContent === "Reference copied") el.textContent = prev; }, 1500);
     }
   } catch(_) {
-    prompt("Tlon reference:", ref);
+    prompt("Sato reference:", ref);
   }
 }
 

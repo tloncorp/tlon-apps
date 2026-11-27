@@ -82,7 +82,7 @@ export function renderPublishedNoteHtml({
 <main>
 <h1>${escapeHtml(safeTitle)}</h1>
 ${bodyHtml || '<p></p>'}
-<div class="tlon-published-footer">Published from <a href="https://tlon.io">Tlon</a></div>
+<div class="tlon-published-footer">Published from <a href="https://tlon.io">Sato</a></div>
 </main>
 </body>
 </html>`;

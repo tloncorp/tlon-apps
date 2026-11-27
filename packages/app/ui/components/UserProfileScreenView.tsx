@@ -347,7 +347,7 @@ function OwnerRow({
 
 function botVersionLabel(contact: db.Contact | null | undefined) {
   const info = domain.parseBotInfo(contact?.botInfo);
-  return info ? `Tlonbot ${info.version}` : null;
+  return info ? `Sato ${info.version}` : null;
 }
 
 /**

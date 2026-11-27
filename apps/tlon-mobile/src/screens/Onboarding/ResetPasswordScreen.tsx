@@ -65,11 +65,11 @@ export const ResetPasswordScreen = ({
   });
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         title="Reset Password"
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
+        backgroundColor="$background"
         backAction={() => navigation.goBack()}
         rightControls={
           isValid && (
@@ -82,7 +82,7 @@ export const ResetPasswordScreen = ({
       <OnboardingKeyboardScrollView>
         <YStack gap="$2xl" padding="$2xl">
           <SizableText size="$l">
-            Enter the email associated with your Tlon account. We&rsquo;ll send
+            Enter the email associated with your Sato account. We&rsquo;ll send
             you a link to reset your password.
           </SizableText>
           <Controller

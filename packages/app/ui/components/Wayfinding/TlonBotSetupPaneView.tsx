@@ -49,7 +49,7 @@ export function TlonBotSetupPaneView(props: {
             marginHorizontal="$xl"
             textAlign="center"
           >
-            {props.title ?? 'Setting up your Tlonbot...'}
+            {props.title ?? 'Setting up Sato...'}
           </TlonText.Text>
           <FadingTextCarousel messages={props.messages ?? SETUP_MESSAGES} />
         </YStack>

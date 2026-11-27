@@ -452,7 +452,7 @@ function SplashSequenceComponent(props: {
 
   const saveDeferredTlonbotConfig = useCallback(
     (config: TlonbotSplashConfig = {}) => {
-      const resolvedBotName = botName.trim() || 'Tlonbot';
+      const resolvedBotName = botName.trim() || 'Sato';
       return db.tlonbotRevivalSetup.setValue((current) => ({
         ...current,
         botName: resolvedBotName,
@@ -479,7 +479,7 @@ function SplashSequenceComponent(props: {
       nickname: string;
       avatarUrl: string | null;
     }) => {
-      const name = nickname.trim() || 'Tlonbot';
+      const name = nickname.trim() || 'Sato';
       const meta = {
         flow,
         provider,
@@ -985,7 +985,7 @@ function SplashSequenceComponent(props: {
                 : () => setCurrentPane(SplashPane.Channels)
             }
             hostingBotEnabled={hostingBotEnabled}
-            botName={botName || 'Tlonbot'}
+            botName={botName || 'Sato'}
             didConfigureBot={didConfigureBot}
             botSetupStatus={customBotSetupStatus}
             userShipId={userShipId}
@@ -1078,7 +1078,7 @@ export function WelcomePane(props: {
       />
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
-          Welcome to <Text color="$positiveActionText">Tlon Messenger.</Text>
+          Welcome to <Text color="$positiveActionText">Sato.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -1091,8 +1091,8 @@ export function WelcomePane(props: {
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Tlonbot, your AI agent, helps you search, summarize, draft
-              messages, and more.
+              Your AI agent helps you search, summarize, draft messages, and
+              more.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -1131,7 +1131,7 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
       />
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
-          Meet your <Text color="$positiveActionText">Tlonbot.</Text>
+          Meet <Text color="$positiveActionText">Sato.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1, marginBottom: getTokenValue('$l', 'size') }}
@@ -1139,8 +1139,8 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
           bounces={false}
         >
           <SplashParagraph>
-            Tlonbot has its own identity on the network. DM it to search the
-            web, draft messages, or set up daily briefings. Add it to workspace
+            Sato has its own identity on the network. DM it to search the web,
+            draft messages, or set up daily briefings. Add it to workspace
             channels and it can participate in conversations alongside you.
           </SplashParagraph>
           <SplashParagraph>
@@ -1238,7 +1238,7 @@ export function BotNamePane(props: {
                 placeholder={
                   props.userNickname
                     ? getDefaultBotName(props.userNickname)
-                    : 'My Tlonbot'
+                    : 'Sato'
                 }
                 frameStyle={{
                   height: 72,
@@ -1355,7 +1355,7 @@ export function BotAvatarPane(props: {
           Choose an <Text color="$positiveActionText">avatar.</Text>
         </SplashTitle>
         <SplashParagraph marginBottom={0}>
-          Pick an avatar for your Tlonbot, or skip and add one later.
+          Pick an avatar for Sato, or skip and add one later.
         </SplashParagraph>
         <YStack flex={1} alignItems="center" justifyContent="center">
           <Pressable
@@ -1735,7 +1735,7 @@ export function BotModelPane(props: {
         </SplashTitle>
         <YStack gap="$s" paddingHorizontal="$xl" paddingBottom="$m">
           <SplashParagraph marginHorizontal={0} marginBottom={0}>
-            Your key is valid. Choose which model your Tlonbot should use.
+            Your key is valid. Choose which model Sato should use.
           </SplashParagraph>
           <SearchBar
             placeholder="Search models"
@@ -2091,7 +2091,7 @@ export function GroupsPane(props: {
         <SplashTitle>
           {props.hostingBotEnabled ? (
             <>
-              Your <Text color="$positiveActionText">Tlonbot</Text> is ready.
+              <Text color="$positiveActionText">Sato</Text> is ready.
             </>
           ) : (
             <>
@@ -2107,9 +2107,9 @@ export function GroupsPane(props: {
           {props.hostingBotEnabled ? (
             <>
               <SplashParagraph>
-                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} is
-                waiting for you in a private chat, with a workspace ready on
-                your server. It reads along and chimes in to help.
+                {props.didConfigureBot ? props.botName : 'Sato'} is waiting for
+                you in a private chat, with a workspace ready on your server. It
+                reads along and chimes in to help.
               </SplashParagraph>
               <SplashParagraph>
                 Share the link below and friends can find you and message you
@@ -2219,8 +2219,8 @@ export function ChannelsPane(props: {
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Mention your Tlonbot in any channel and it can search the web,
-              summarize threads, or draft messages for you.
+              Mention Sato in any channel and it can search the web, summarize
+              threads, or draft messages for you.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -2399,14 +2399,14 @@ function MatchedContactsSection({
         <View flexDirection="row" alignItems="center" gap="$s">
           <LoadingSpinner size="small" />
           <Text size="$label/m" color="$secondaryText">
-            Finding your contacts on Tlon…
+            Finding your contacts on Sato…
           </Text>
         </View>
       ) : (
         <Text size="$label/m" color="$secondaryText">
           {matches.length === 1
-            ? '1 of your contacts is on Tlon'
-            : `${matches.length} of your contacts are on Tlon`}
+            ? '1 of your contacts is on Sato'
+            : `${matches.length} of your contacts are on Sato`}
         </Text>
       )}
       {matches.map((contact) => (
@@ -2416,7 +2416,7 @@ function MatchedContactsSection({
           iconProps={{ icon: 'Checkmark' }}
           endContent={
             <Text size="$label/s" color="$positiveActionText">
-              On Tlon
+              On Sato
             </Text>
           }
           showEndContent
@@ -2837,7 +2837,7 @@ const InviteCard = (props: ComponentProps<typeof View>) => {
           <View flex={1} backgroundColor="$black" opacity={0.4} />
           <YStack flex={1} justifyContent="center" marginLeft="$l" gap="$m">
             <Text size="$label/s" color="$white" fontWeight="500">
-              Tlon Messenger: kylie invited you to The Garden
+              Sato: kylie invited you to The Garden
             </Text>
             <Text size="$label/s" color="$white" opacity={0.8}>
               join.tlon.io

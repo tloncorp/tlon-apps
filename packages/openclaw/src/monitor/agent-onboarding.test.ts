@@ -1304,7 +1304,7 @@ describe('agent onboarding requests', () => {
     const firstGroup = await promptFor(true);
     expect(firstGroup).toHaveLength(1);
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
-      'Welcome! This is your private chat with me, your Tlonbot.'
+      'Welcome! This is your private chat with me, Sato.'
     );
     for (const line of [
       "Here's what I can do:",

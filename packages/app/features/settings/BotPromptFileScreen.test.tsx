@@ -148,7 +148,7 @@ describe('BotPromptFileScreen', () => {
     expect(byTestID(tree, 'BotPromptFileContents')).toHaveLength(1);
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
     expect(byTestID(tree, 'BotPromptFileReset')).toHaveLength(0);
-    expect(headerDescription(tree)).toContain('Tlon keeps this file');
+    expect(headerDescription(tree)).toContain('so it keeps working');
   });
 
   it("shows the bot's memory, kept by the bot, without any way to edit it", async () => {
@@ -159,7 +159,7 @@ describe('BotPromptFileScreen', () => {
       ).props.content
     ).toEqual(['# MEMORY.md\n\nPrefers metric units.']);
     expect(byTestID(tree, 'BotPromptFileEdit')).toHaveLength(0);
-    expect(headerDescription(tree)).toContain('Your bot keeps this file');
+    expect(headerDescription(tree)).toContain('as it learns');
   });
 
   it('warns before the first edit, then opens the additions editor', async () => {

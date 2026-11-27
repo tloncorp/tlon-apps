@@ -25,7 +25,7 @@ export function OnboardingBenefitsSheet({
 
           <YStack gap="$l">
             <Text fontSize={24} fontWeight={'600'}>
-              Welcome to Tlon Messenger
+              Welcome to Sato
             </Text>
             <Text size="$body" color="$tertiaryText">
               A messenger you can actually trust.
@@ -44,7 +44,7 @@ export function OnboardingBenefitsSheet({
             </View>
             <YStack gap="$xs" flex={1}>
               <Text fontSize={'$l'} fontWeight="$xl">
-                Tlon is a peer-to-peer network.
+                Sato is a peer-to-peer network.
               </Text>
               <Text color="$tertiaryText" fontSize={'$xs'} lineHeight={'$xs'}>
                 Each account is a personal cloud computer—run it yourself or let

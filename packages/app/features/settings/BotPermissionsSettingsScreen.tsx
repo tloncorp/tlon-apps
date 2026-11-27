@@ -36,7 +36,7 @@ export function BotPermissionsSettingsScreen(props: Props) {
     () => [
       {
         key: 'messaging',
-        title: 'Who can message Tlonbot',
+        title: 'Who can message Sato',
         rows: [
           {
             key: 'dm-allowlist',
@@ -68,7 +68,7 @@ export function BotPermissionsSettingsScreen(props: Props) {
         key: 'authorized-users',
         title: 'Authorized users',
         footer:
-          'These users can always interact with Tlonbot, regardless of per-channel rules.',
+          'These users can always interact with Sato, regardless of per-channel rules.',
         rows: [
           {
             key: 'default-authorized',
@@ -101,7 +101,7 @@ export function BotPermissionsSettingsScreen(props: Props) {
       {
         key: 'channels',
         title: 'Channels',
-        footer: 'Choose which channels Tlonbot can read and respond in.',
+        footer: 'Choose which channels Sato can read and respond in.',
         rows: [
           {
             key: 'channel-rules',

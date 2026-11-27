@@ -42,7 +42,7 @@ import { createUploadDeps } from './upload-runtime';
 import { CLI_VERSION } from './version';
 
 function printHelp() {
-  console.log(`tlon v${CLI_VERSION} - Tlon/Urbit CLI
+  console.log(`tlon v${CLI_VERSION} - Sato CLI
 
 Usage:
   tlon [options] <command> <subcommand> [args...]
@@ -94,7 +94,7 @@ Examples:
   tlon --url https://zod.tlon.network --cookie "urbauth-~zod=0v..." contacts self
   tlon --url https://zod.tlon.network --ship ~zod --code abcd-efgh-ijkl-mnop contacts self
 
-Hosted browser login (use the Tlon tool, not a shell command):
+Hosted browser login (use the tlon tool, not a shell command):
   ${JSON.stringify({ command: 'browser handoff <session_id> --fields \'["@e12","@e13"]\'' })}
   Use current snapshot refs to select the controls the owner should fill.
   Omit --fields for automatic discovery of the visible form.

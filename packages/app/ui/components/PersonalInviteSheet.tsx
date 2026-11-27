@@ -10,7 +10,7 @@ import { ActionSheet } from './ActionSheet';
 import { ListItem } from './ListItem';
 import { PersonalInviteButton } from './PersonalInviteButton';
 
-const PERSONAL_INVITE_TITLE = 'Invite Friends to Tlon Messenger';
+const PERSONAL_INVITE_TITLE = 'Invite Friends to Sato';
 
 export function PersonalInviteSheet({
   open,

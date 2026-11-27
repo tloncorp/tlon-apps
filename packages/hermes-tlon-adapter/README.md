@@ -1,13 +1,13 @@
 # Hermes Tlon Adapter
 
-Minimal Hermes platform plugin for Tlon Messenger.
+Minimal Hermes platform plugin for Sato.
 
 This first pass keeps the integration deliberately small:
 
 -   inbound reads use Eyre SSE subscriptions for `channels /v2` and `chat /v3`
 -   outbound sends use the packaged `tlon` CLI
 -   a single model-callable `tlon` tool wraps the packaged CLI for reads/admin
--   a plugin-owned `image_search` tool finds direct image URLs for Tlon uploads
+-   a plugin-owned `image_search` tool finds direct image URLs for Sato uploads
 -   group channels dispatch on bot ship/name/alias wakes, owner-listen, owner posts carrying a post-blob attachment (any monitored channel), explicit free-response config, or threads the bot has already replied to
 -   group dispatches carry recent channel/thread history as context
 -   DMs dispatch directly, deny-by-default: unknown senders queue for owner approval with rich A2UI approve/deny cards
@@ -19,11 +19,11 @@ Scope fences: attachment-only output is the separate TLON-6318 outbound-media di
 
 **Re-open condition (manual):** if the `hermes-agent` pin moves, re-derive this verdict against the new tag (grep for `visible_replies`, `reply_visibility`, `deliver_replies`, `delivery_mode`). There is no automated safety net — a pin bump will not surface this by itself.
 
-Migration assumes **one Tlon account per gateway process**. The diary-discovery notification sender is a module-global with last-writer-wins semantics, like the package's existing telemetry, recorder and presence singletons — so a second adapter in one process would silently take over the first's notifications. This is a package-wide invariant rather than something migration introduced, which is why it is documented here rather than enforced by a gate. (OpenClaw needs an explicit single-account gate because its notifications route through a process-global API client; Hermes' migration controller is constructed per adapter.)
+Migration assumes **one Sato account per gateway process**. The diary-discovery notification sender is a module-global with last-writer-wins semantics, like the package's existing telemetry, recorder and presence singletons — so a second adapter in one process would silently take over the first's notifications. This is a package-wide invariant rather than something migration introduced, which is why it is documented here rather than enforced by a gate. (OpenClaw needs an explicit single-account gate because its notifications route through a process-global API client; Hermes' migration controller is constructed per adapter.)
 
 When this package can find `@tloncorp/tlon-skill/SKILL.md`, it registers that file as the explicit plugin skill `tlon-platform:tlon`. The model-facing tool and platform hint point at `skill_view("tlon-platform:tlon")`, which works the same way in dev and production because the skill registration travels with the plugin. Set `TLON_SKILL_PATH` when the skill file lives somewhere non-standard.
 
-A second skill registers the same way: when `skills/tlon-product-guide/SKILL.md` is findable in the OpenClaw plugin tree, it becomes `tlon-platform:tlon-product-guide` and the platform hint points at it for questions about what Tlon Messenger is and how its features work — as opposed to requests to *do* something, which stay on the `tlon` tool. Set `TLON_PRODUCT_GUIDE_PATH` for an explicit file, or `TLON_PLUGIN_DIR` when you know the plugin root but not its internal layout. A deployment without the plugin tree simply doesn't register it.
+A second skill registers the same way: when `skills/tlon-product-guide/SKILL.md` is findable in the OpenClaw plugin tree, it becomes `tlon-platform:tlon-product-guide` and the platform hint points at it for questions about what Sato is and how its features work — as opposed to requests to *do* something, which stay on the `tlon` tool. Set `TLON_PRODUCT_GUIDE_PATH` for an explicit file, or `TLON_PLUGIN_DIR` when you know the plugin root but not its internal layout. A deployment without the plugin tree simply doesn't register it.
 
 Before 0.22, Hermes serves a plugin skill's `SKILL.md` and nothing else: `skill_view` ignores `file_path` for plugin skills. Both skills link to further files (`references/…`, `product/…`), so on those releases the platform hint names each registered skill's directory and has the model `read_file` them there. From 0.22 `skill_view` serves them, and the adapter leaves that sentence out, since `read_file` is owner-only in Tlon chats.
 
@@ -35,7 +35,7 @@ Run the Python unit tests with `./dev/test.sh` (or `pnpm --filter @tloncorp/herm
 
 ## Docker Dev Loop
 
-The fastest local loop is containerized and only requires this `tlon-apps` checkout. The image installs Hermes Agent from GitHub, mounts this monorepo, symlinks the adapter into a disposable Hermes profile, renders the managed Tlon prompt profile, builds a Linux `tlon` CLI from `packages/tlon-skill`, and runs `hermes gateway run`.
+The fastest local loop is containerized and only requires this `tlon-apps` checkout. The image installs Hermes Agent from GitHub, mounts this monorepo, symlinks the adapter into a disposable Hermes profile, renders the managed Sato prompt profile, builds a Linux `tlon` CLI from `packages/tlon-skill`, and runs `hermes gateway run`.
 
 ```bash
 cd packages/hermes-tlon-adapter
@@ -134,11 +134,11 @@ TLON_NUDGE_ACTIVE_HOURS_TIMEZONE=America/New_York
 TLON_TIMEZONE=America/Chicago # used when the active-hours timezone is user
 ```
 
-`TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/`set_timezone`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
+`TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/`set_timezone`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Sato chat-session tool calls fail closed.
 
 ## Context Lens
 
-Context Lens records each bot run (context sources, model, tool calls, timings, outputs) on-ship via the `%steward` agent and surfaces them in Tlon Messenger (badge / Bot Run sheet). Hermes uses the same protocol as OpenClaw.
+Context Lens records each bot run (context sources, model, tool calls, timings, outputs) on-ship via the `%steward` agent and surfaces them in the Sato app (badge / Bot Run sheet). Hermes uses the same protocol as OpenClaw.
 
 **Harness**
 
@@ -150,7 +150,7 @@ TLON_CONTEXT_LENS=true
 
 Restart the Hermes gateway after changing these.
 
-**Tlon Messenger (owner install)**
+**Sato app (owner install)**
 
 -   Context Lens is enabled by default; there is no feature flag to turn on.
 -   Leave **Context lens gateway URL** and **Context lens gateway token** blank. Those are the old direct HTTP stream to a local harness gateway (web-only). They are not required for durable `%steward` records and will not fix a missing steward.
@@ -202,16 +202,16 @@ Owner posts carrying a post-blob attachment (the essay `blob` field — e.g. a f
 
 Authorization is **deny-by-default**: a ship may interact only if it is the owner, on `TLON_ALLOWED_USERS`/`TLON_DM_ALLOWLIST`, granted through the settings store (see below — `dmAllowlist` for DMs; `channelRules`/`defaultAuthorizedShips` for channels), or `TLON_ALLOW_ALL_USERS=true` is set as an explicit dev override.
 
-The adapter is the single gate. It declares `enforces_own_access_policy` to Hermes core, and the platform registration deliberately does not export auth env names to core — otherwise core's own env-allowlist/pairing gate would re-check senders and block settings-store grants it cannot see (approved DMs, open channels). Hermes' generic pairing-code flow therefore does not apply to Tlon; the Tlon-native approval flow below replaces it. One caveat: a globally configured `GATEWAY_ALLOWED_USERS` re-engages core's gate for all platforms, Tlon included.
+The adapter is the single gate. It declares `enforces_own_access_policy` to Hermes core, and the platform registration deliberately does not export auth env names to core — otherwise core's own env-allowlist/pairing gate would re-check senders and block settings-store grants it cannot see (approved DMs, open channels). Hermes' generic pairing-code flow therefore does not apply to Sato; the Sato-native approval flow below replaces it. One caveat: a globally configured `GATEWAY_ALLOWED_USERS` re-engages core's gate for all platforms, Sato included.
 
 Unknown ships are not silently dropped — they queue for owner approval:
 
--   a **DM invite** from an unknown ship queues with a `(DM invite - no message yet)` preview (pending invites are also picked up by scry at connect and after every SSE reconnect, so invites that arrived while the gateway was down are not lost). An already-allowlisted ship (env allowlists or the `dmAllowlist` settings key) auto-accepts natively without queuing when `autoAcceptDmInvites` is on; with it off (the default), the invite is left pending in Tlon rather than re-queued as a fresh approval. Only the owner's invite bypasses the toggle — see [Settings-Key Parity](#settings-key-parity-dashboard--openclaw) below
+-   a **DM invite** from an unknown ship queues with a `(DM invite - no message yet)` preview (pending invites are also picked up by scry at connect and after every SSE reconnect, so invites that arrived while the gateway was down are not lost). An already-allowlisted ship (env allowlists or the `dmAllowlist` settings key) auto-accepts natively without queuing when `autoAcceptDmInvites` is on; with it off (the default), the invite is left pending in Sato rather than re-queued as a fresh approval. Only the owner's invite bypasses the toggle — see [Settings-Key Parity](#settings-key-parity-dashboard--openclaw) below
 -   a **DM message** from an unapproved ship in an accepted conversation queues with the message preview and is replayed after approval
 -   an **unauthorized mention** in a restricted group channel queues a channel request; approval grants that ship access in that channel and replays the mention (with channel context)
 -   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls its channels into the monitored set, while rejection declines the invite on the ship (`tlon groups reject-invite`, staying pending if that call fails). Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect and after every SSE reconnect; an undelivered owner notification is re-sent on later observations (no periodic timer, at most every 10 minutes), and a delivered request is never re-notified while it lives. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept.
 
-The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Tlon clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. `/pending` renders the same per-item View buttons on its card. Old clients fall back to the text, as does any card that fails validation — the notification itself always goes out.
+The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Sato clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. `/pending` renders the same per-item View buttons on its card. Old clients fall back to the text, as does any card that fails validation — the notification itself always goes out.
 
 Channel requests always get the View button; **DM requests only get one when the owner ship is the bot ship**. A DM source message lives in the bot's own DM conversation, which a separate owner ship has no copy of, so the link would dead-end on the usual hosted setup (owner ≠ bot). Channel sources stay navigable for any owner who is a member of the group.
 
@@ -226,7 +226,7 @@ Owner commands (deterministic, never wake the model):
 /banned                   list blocked ships
 ```
 
-Approved DM senders persist in the `dmAllowlist` %settings key and pending requests in `pendingApprovals` (48h TTL) — the same keys the OpenClaw plugin uses, so state carries over in both directions. Bans use Tlon's native ship blocking (no plugin state). A `/ban` on a group request blocks the inviter, removes it from `dmAllowlist`, then declines the invite — the DM grant is revoked before the decline so a partial ban (block succeeded, decline failed) leaves no live authorization behind, and the failed step keeps the request pending for a retry. Repeat messages from a still-pending ship update the stored preview but re-notify the owner at most every 10 minutes.
+Approved DM senders persist in the `dmAllowlist` %settings key and pending requests in `pendingApprovals` (48h TTL) — the same keys the OpenClaw plugin uses, so state carries over in both directions. Bans use Sato's native ship blocking (no plugin state). A `/ban` on a group request blocks the inviter, removes it from `dmAllowlist`, then declines the invite — the DM grant is revoked before the decline so a partial ban (block succeeded, decline failed) leaves no live authorization behind, and the failed step keeps the request pending for a retry. Repeat messages from a still-pending ship update the stored preview but re-notify the owner at most every 10 minutes.
 
 ### Per-Channel Open Access
 
@@ -278,7 +278,7 @@ Tlon's hosting service (the backend behind the web dashboard and in-app bot sett
 
 All seven load on connect, hot-reload live via the `%settings` subscription (no restart needed), and re-sync after every SSE reconnect. `autoAcceptDmInvites`/`autoDiscoverChannels` are read as strict booleans — a non-boolean or missing value falls back to the default (`autoAcceptDmInvites` to `false`; `autoDiscoverChannels` to the `TLON_AUTO_DISCOVER` seed) rather than being truthy-coerced. `defaultAuthorizedShips` accepts only string ship entries; non-string list items are dropped, not coerced. `groupInviteAllowlist` resolves exactly like OpenClaw's `settings.groupInviteAllowlist ?? account.groupInviteAllowlist`: only a list value is an owner-authored override (an empty list means "nobody auto-accepts"), and it too takes string entries only; a key that is absent, deleted, or holds a non-list value reverts to the `TLON_GROUP_INVITE_ALLOWLIST` seed instead of keeping whatever was loaded before, so a deletion missed during an outage cannot leave revoked authorization in memory.
 
-The `autoAcceptDmInvites` gate follows OpenClaw exactly: only the **owner's** invite bypasses the toggle; every other allowlisted ship — env `TLON_ALLOWED_USERS`/`TLON_ALLOW_ALL_USERS`/`TLON_DM_ALLOWLIST` or the settings-store `dmAllowlist` — is gated, and a gated-off invite is left pending in Tlon (not queued as a fresh approval; the ship is already approved). Unknown ships queue for owner approval regardless of the flag.
+The `autoAcceptDmInvites` gate follows OpenClaw exactly: only the **owner's** invite bypasses the toggle; every other allowlisted ship — env `TLON_ALLOWED_USERS`/`TLON_ALLOW_ALL_USERS`/`TLON_DM_ALLOWLIST` or the settings-store `dmAllowlist` — is gated, and a gated-off invite is left pending in Sato (not queued as a fresh approval; the ship is already approved). Unknown ships queue for owner approval regardless of the flag.
 
 **Read the current key, not OpenClaw's legacy duplicate.** OpenClaw historically also has an `autoDiscover` key; the hosting dashboard writes `autoDiscoverChannels`, and that is the only one Hermes reads.
 
@@ -336,7 +336,7 @@ Nothing is generated or checked in; identity is resolved at runtime. The same su
 
 ## Bot info
 
-At connect (and on reconnect catch-up) the adapter publishes the bot's identity — harness, adapter version, Hermes version — in the bot's own contact profile under `bot-info`, compare-then-poke (`bot_info.py`). Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this adapter publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
+At connect (and on reconnect catch-up) the adapter publishes the bot's identity — harness, adapter version, Hermes version — in the bot's own contact profile under `bot-info`, compare-then-poke (`bot_info.py`). Sato clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this adapter publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
 
 The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list, so adding or removing a command here fails until the client list changes too; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 
@@ -408,11 +408,11 @@ Inbound channel reaction snapshots and DM reaction deltas are deduplicated in bo
 
 The cache and reaction state are intentionally process-local. After restart or bounded-state eviction, the first channel snapshot for a post can replay its current entries once. This is bounded best-effort observability rather than durable reaction history. The legacy emoji approval path is deliberately not implemented: current A2UI approval cards and `/allow`, `/reject`, and `/ban` replace it.
 
-The `tlon` tool remains owner-only except that non-owner Tlon sessions may use `posts react|unreact` in their current channel or `dms react|unreact` in their current one-to-one DM, when reactions are enabled. They cannot target another conversation, mix the command family, or pass account/credential override flags.
+The `tlon` tool remains owner-only except that non-owner Sato sessions may use `posts react|unreact` in their current channel or `dms react|unreact` in their current one-to-one DM, when reactions are enabled. They cannot target another conversation, mix the command family, or pass account/credential override flags.
 
 ## Reply Placement
 
-Replies post **top-level** in the conversation (Tlon conversations are linear), and messages that arrive inside a thread are answered in that thread, attached to the thread root — this holds for both group channels and DMs (a reply to a DM-thread message lands in that thread, not the main DM). Gallery (`heap/`) conversations always anchor replies to the triggering post as comments. Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every non-gallery triggering message.
+Replies post **top-level** in the conversation (Sato conversations are linear), and messages that arrive inside a thread are answered in that thread, attached to the thread root — this holds for both group channels and DMs (a reply to a DM-thread message lands in that thread, not the main DM). Gallery (`heap/`) conversations always anchor replies to the triggering post as comments. Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every non-gallery triggering message.
 
 ## Bot Authorship
 
@@ -425,15 +425,15 @@ re-probe (and re-log) per send — a broken CLI costs them the cap each time, wh
 
 When the bot wakes in a group channel it prepends recent history to the dispatched message so it can answer in context: the last `TLON_CONTEXT_MESSAGES` channel messages (default 20) for top-level wakes, or the parent post plus thread replies for thread wakes. Context fetches use the same `/channels/v4` scries as OpenClaw and degrade gracefully — on failure the bare message is dispatched. Set `TLON_CONTEXT_MESSAGES=0` to disable.
 
-Hermes' Tlon home channel defaults to the explicit owner DM from `TLON_OWNER_SHIP`. Set `TLON_HOME_CHANNEL` only when cron, cross-platform deliveries, or startup notices should go somewhere else. `TLON_ALLOWED_USERS` and `TLON_DM_ALLOWLIST` are never used to infer ownership.
+Hermes' Sato home channel defaults to the explicit owner DM from `TLON_OWNER_SHIP`. Set `TLON_HOME_CHANNEL` only when cron, cross-platform deliveries, or startup notices should go somewhere else. `TLON_ALLOWED_USERS` and `TLON_DM_ALLOWLIST` are never used to infer ownership.
 
-Tlon profile changes such as nickname, avatar, bio, status, and cover are owner-only in Tlon chat sessions. For avatar/cover changes, the model should upload a direct raster image URL or local file with `tlon upload` and then pass the returned uploaded URL to `tlon contacts update-profile`; source image URLs and SVGs should not be used as profile images.
+Sato profile changes such as nickname, avatar, bio, status, and cover are owner-only in Sato chat sessions. For avatar/cover changes, the model should upload a direct raster image URL or local file with `tlon upload` and then pass the returned uploaded URL to `tlon contacts update-profile`; source image URLs and SVGs should not be used as profile images.
 
 `tlon upload` detects Tlon hosting from the node URL by default. Connections that reach their node over localhost/proxy fail that heuristic (the URL looks self-hosted), so set `TLON_HOSTING=true` to force the hosted (memex) upload path on such deployments. Run `/tlon status storage` to see which path a node resolves to and why.
 
 The bot can also send images in messages: `tlon upload <direct-image-url>` then `tlon posts send <target> [caption] --image <uploaded-url>` (group DMs: `tlon dms send <club-id> … --image <url>`). The CLI reads the image's pixel dimensions from its bytes and attaches a story image block, so clients render it inline. Image sends are exempt from the current-conversation send block — the streaming reply path is text-only, so `--image` is the only way to deliver an image, including into the chat the bot is answering.
 
-When `BRAVE_SEARCH_API_KEY` or `BRAVE_API_KEY` is configured, the adapter registers `image_search` under the Tlon toolset. Use this for user-requested images rather than asking the model to infer direct image URLs from ordinary web search results.
+When `BRAVE_SEARCH_API_KEY` or `BRAVE_API_KEY` is configured, the adapter registers `image_search` under the `tlon` toolset. Use this for user-requested images rather than asking the model to infer direct image URLs from ordinary web search results.
 
 When `TLON_GATEWAY_STATUS` is enabled, the adapter pokes `%steward`'s gateway module on connect, heartbeat, and disconnect. `TLON_GATEWAY_STATUS_OWNER` defaults to `TLON_OWNER_SHIP` when omitted.
 

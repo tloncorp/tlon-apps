@@ -136,7 +136,7 @@ function GroupChannels(props: { group: db.Group }) {
       <NoticeContainer gap="$xl">
         <NoticeText>
           Welcome to your workspace! We’ve created three basic channels to get
-          you started. Tap into each to explore how Tlon Messenger works.
+          you started. Tap into each to explore how Sato works.
         </NoticeText>
         <InviteFriendsToTlonButton group={props.group} />
       </NoticeContainer>
@@ -184,7 +184,7 @@ export function HomeAddTooltip({ top = 36 }: { top?: number }) {
         >
           <Text size="$label/l" color="$white">
             {botEnabled
-              ? 'Tap here to create a new workspace with your Tlonbot.'
+              ? 'Tap here to create a new workspace with Sato.'
               : 'Tap here to create a new workspace.'}
           </Text>
           <View position="absolute" top={8} right={8} padding={4}>
@@ -230,7 +230,7 @@ export function AgentOnboardingBackTooltip({
           borderRadius={999}
         />
         <Text size="$label/l" color="$white">
-          Tap Back to return Home and explore the rest of Tlon.
+          Tap Back to return Home and explore the rest of Sato.
         </Text>
         <View position="absolute" top={8} right={8} padding={4}>
           <Icon
@@ -297,9 +297,9 @@ export function BotMentionTooltip() {
           testID="BotMentionWayfindingTooltip"
         >
           <Text size="$label/l" color="$white">
-            This is your private chat with your Tlonbot: it answers everything
-            you say here, no @-mention needed. In a workspace, @-mention it to
-            bring it into the conversation.
+            This is your private chat with Sato: it answers everything you say
+            here, no @-mention needed. In a workspace, @-mention it to bring it
+            into the conversation.
           </Text>
           <View position="absolute" top={8} right={8} padding={4}>
             <Icon

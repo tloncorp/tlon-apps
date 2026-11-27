@@ -101,12 +101,12 @@ function resolveOutboundContext(params: {
 }) {
   const account = resolveTlonAccount(params.cfg, params.accountId ?? undefined);
   if (!account.configured || !account.ship || !account.url || !account.code) {
-    throw new Error('Tlon account not configured');
+    throw new Error('Sato account not configured');
   }
 
   const parsed = parseTlonTarget(params.to);
   if (!parsed) {
-    throw new Error(`Invalid Tlon target. Use ${formatTargetHint()}`);
+    throw new Error(`Invalid Sato target. Use ${formatTargetHint()}`);
   }
 
   return { account: account as ConfiguredTlonAccount, parsed };

@@ -169,7 +169,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         onOpenChange={setConfirmDisconnect}
         destructive
         title={`Disconnect ${subscriptionName}?`}
-        description="Tlonbot will no longer be able to use models from this subscription."
+        description="Sato will no longer be able to use models from this subscription."
         confirmText="Disconnect"
         onConfirm={handleDisconnect}
       />
@@ -188,7 +188,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         sections={[
           {
             key: 'status',
-            footer: `Tlonbot can use models included with your ${subscriptionName}.`,
+            footer: `Sato can use models included with your ${subscriptionName}.`,
             rows: [
               {
                 key: 'status',

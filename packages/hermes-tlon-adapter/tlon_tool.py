@@ -91,7 +91,7 @@ POSTS_COMMANDS = frozenset(
 EXPOSE_TARGET_COMMANDS = frozenset({"show", "hide", "check", "url"})
 
 TLON_TOOL_DESCRIPTION = (
-    "Tlon/Urbit CLI for reading data and administration: activity, buckets, "
+    "Sato CLI for reading data and administration: activity, buckets, "
     "channels, contacts, groups, messages, notes, posts, settings, upload, "
     "expose, hooks. "
     "Use the notes commands to manage %notes notebooks (Markdown notes at "
@@ -99,12 +99,12 @@ TLON_TOOL_DESCRIPTION = (
     "(note-create also accepts --markdown <file>); --stdin is blocked because "
     "Hermes cannot pipe stdin into the CLI process. "
     "Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) — "
-    "Tlon renders no math; write math as plain text/Unicode or in code "
-    "blocks. "
+    "the Sato app renders no math; write math as plain text/Unicode or in "
+    "code blocks. "
     "%diary channels are deprecated and unsupported by this tool. Ask the "
     "owner to type `/migrate <diary-nest>` to move one to %notes. Hermes "
     "delivery uses `tlon posts send`, which refuses diary/ targets. "
-    "The bot node has its own Tlon profile; when the configured owner asks "
+    "The bot node has its own Sato profile; when the configured owner asks "
     "to change the bot nickname, avatar, bio, status, or cover image, use "
     "contacts update-profile. For avatars/covers, upload a direct raster "
     "image URL or local image first with tlon upload, then set the returned "
@@ -175,7 +175,7 @@ TLON_TOOL_SCHEMA = {
                     "upload reports the ship cannot store uploads, in which "
                     "case set the direct https image_url (never a source/page "
                     "URL) on the profile field. "
-                    "In Tlon chat sessions, 'groups create' is blocked; use "
+                    "In Sato chat sessions, 'groups create' is blocked; use "
                     "'groups create-owned' so the requester is invited and made admin. "
                     "To post to a different channel or one-to-one DM, use "
                     "'posts send <channel> \"...\"' or 'posts send ~ship \"...\"'. "
@@ -777,7 +777,7 @@ def _user_group_create_block(
     suggested_args.extend(str(arg) for arg in command_args[3:])
     suggested = _tool_command_for_display(suggested_args)
     return (
-        "Blocked: use groups create-owned for user-requested Tlon groups. "
+        "Blocked: use groups create-owned for user-requested Sato groups. "
         "Plain groups create makes a bot-owned group and does not invite or "
         f"admin the requester. Retry with command parameter: {suggested}"
     )
@@ -795,14 +795,14 @@ def _profile_update_block(
     owner = _normalize_session_ship(owner_ship)
     if not owner:
         return (
-            "Blocked: Tlon profile updates from chat require TLON_OWNER_SHIP "
+            "Blocked: Sato profile updates from chat require TLON_OWNER_SHIP "
             "so the adapter knows who may change the bot identity."
         )
 
     requester = _normalize_session_ship(session_user_id)
     if requester != owner:
         return (
-            "Blocked: only the configured Tlon owner may change the bot "
+            "Blocked: only the configured owner may change the bot "
             f"profile. Configured owner: {owner}."
         )
 
@@ -1484,7 +1484,7 @@ async def execute_tlon_tool(
         return _json(
             {
                 "error": (
-                    "Tlon node URL/id/access code are not configured. Set "
+                    "Sato node URL/id/access code are not configured. Set "
                     "TLON_NODE_URL, TLON_NODE_ID, and TLON_ACCESS_CODE."
                 )
             }

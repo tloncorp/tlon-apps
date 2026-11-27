@@ -33,11 +33,11 @@ export const NOTES_HELP = `Usage: tlon notes <command>
 Manage %notes notebooks (Markdown-first notebooks). Notebooks are addressed as
 nests of the form notes/~host/name. Note bodies are plain Markdown.
 
-For Tlon app/group notebooks, create a notes channel with:
+For Sato app/group notebooks, create a notes channel with:
   tlon channels create ~host/group-slug "Title" --kind notes
 
 The notes create command is for standalone %notes notebooks only; it does not
-create a Tlon app group channel.
+create a Sato app group channel.
 
 Commands:
   status                                  Report %notes reachability
@@ -93,7 +93,7 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
     'Usage: tlon notes notes <nest>\nExample: tlon notes notes notes/~zod/blog',
   note: 'Usage: tlon notes note <nest> <id>\nExample: tlon notes note notes/~zod/blog 12',
   create:
-    'Usage: tlon notes create <title>\nCreates a standalone %notes notebook only. For Tlon app/group notebooks, use:\n  tlon channels create ~host/group-slug "Title" --kind notes',
+    'Usage: tlon notes create <title>\nCreates a standalone %notes notebook only. For Sato app/group notebooks, use:\n  tlon channels create ~host/group-slug "Title" --kind notes',
   'note-create':
     'Usage: tlon notes note-create <nest> <folder-id|root> <title> (--body <file> | --stdin | --markdown <file>)\n--stdin is for shell pipes only; the tlon tool requires a file.',
   'note-update':

@@ -171,7 +171,7 @@ Example: tlon activity unmute chat/~host/general`,
        tlon activity volume base [medium|soft|hush] [--self]
 Levels: loud (all activity), medium (posts, mentions and replies), soft (mentions and replies), hush (nothing), default (clear the setting and follow the inherited default).
 DMs and group DMs take medium, hush or default, as in the app.
-base is the app-wide level from the app's Settings → Notifications, for push notifications and in-app alerts: medium (All DMs and workspace posts), soft (DMs, mentions, and replies only) or hush (Nothing). Without a level it shows the current one. Chats with their own level ignore base; Settings → Notifications lists group and channel exceptions, and activity unmute <target> returns one to the inherited level. During TlonBot revival, the app may temporarily set base to hush; applying its staged restore level later can overwrite a CLI change.
+base is the app-wide level from the app's Settings → Notifications, for push notifications and in-app alerts: medium (All DMs and workspace posts), soft (DMs, mentions, and replies only) or hush (Nothing). Without a level it shows the current one. Chats with their own level ignore base; Settings → Notifications lists group and channel exceptions, and activity unmute <target> returns one to the inherited level. While Sato is being revived, the app may temporarily set base to hush; applying its staged restore level later can overwrite a CLI change.
 In the app: a chat's options → Chat/Channel/Group notifications; Settings → Notifications lists group and channel exceptions.
 ${OWNER_NOTE}
 Example: tlon activity volume chat/~host/general soft

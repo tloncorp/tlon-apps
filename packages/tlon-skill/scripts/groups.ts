@@ -172,7 +172,7 @@ function getCreateOwnedAdmin(args: string[]): string | undefined {
 
 const GROUPS_HELP = `Usage: tlon groups <command>
 
-The Tlon Messenger app calls groups "workspaces".
+The Sato app calls groups "workspaces".
 
 Commands:
   list

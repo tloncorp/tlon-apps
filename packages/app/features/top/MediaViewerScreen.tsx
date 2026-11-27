@@ -119,7 +119,7 @@ async function downloadMedia({
           });
           Alert.alert(
             'Permission needed',
-            `Tlon needs permission to save ${plural} to your photo library. Would you like to grant permission now?`,
+            `Sato needs permission to save ${plural} to your photo library. Would you like to grant permission now?`,
             [
               {
                 text: 'Cancel',
@@ -181,7 +181,7 @@ async function downloadMedia({
           );
           Alert.alert(
             'Permission needed',
-            `Tlon needs permission to save ${plural} to your photo library. Please grant permission in the next prompt.`
+            `Sato needs permission to save ${plural} to your photo library. Please grant permission in the next prompt.`
           );
           return;
         }

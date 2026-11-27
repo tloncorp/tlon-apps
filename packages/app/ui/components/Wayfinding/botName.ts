@@ -1,8 +1,8 @@
 export function getDefaultBotName(userNickname?: string | null) {
   const trimmedNickname = userNickname?.trim();
   if (!trimmedNickname) {
-    return 'Tlonbot';
+    return 'Sato';
   }
 
-  return `${trimmedNickname}'s Tlonbot 🌱`;
+  return `${trimmedNickname}'s Sato 🌱`;
 }

@@ -11,6 +11,7 @@
       state-5
       state-6
       state-7
+      state-8
   ==
 ::
 ::  vic: URL of bait service
@@ -92,13 +93,26 @@
       stable-id=(map cord token:reel)
       =^subs:s
   ==
++$  state-8
+  $:  %8
+      vic=@t
+      civ=ship
+      our-profile=contact:t
+      our-metadata=(map token:reel metadata:v1:reel)
+      open-link-requests=(set (pair ship cord))
+      ::  outstanding describes. true when metadata had been modified.
+      ::
+      open-describes=(map token:reel ?)
+      stable-id=(map cord token:reel)
+      =^subs:s
+  ==
 ::
 ::  url with old style token
 ++  url-for-token
   |=  [vic=cord token=cord]
   (cat 3 vic token)
 --
-=|  state-7
+=|  state-8
 =*  state  -
 ::
 %-  agent:dbug
@@ -132,18 +146,18 @@
     [[cad caz] etc]
   --
 ::  +group-og-title: render the open-graph title for a group invite.
-::  empty group title falls back to "a Groupchat".
+::  empty group title falls back to "a Workspace".
 ::
 ++  group-og-title
   |=  [nickname=(unit @t) group-title=@t]
   ^-  @t
   =/  title=@t
-    ?:  =('' group-title)  'a Groupchat'
+    ?:  =('' group-title)  'a Workspace'
     group-title
   %-  crip
   ?:  |(?=(~ nickname) =('' u.nickname))
-    "Tlon Messenger: You're Invited to {(trip title)}"
-  "Tlon Messenger: {(trip u.nickname)} invited you to {(trip title)}"
+    "Sato: You're Invited to {(trip title)}"
+  "Sato: {(trip u.nickname)} invited you to {(trip title)}"
 --
 |_  =bowl:gall
 +*  this  .
@@ -201,13 +215,9 @@
         stable-id
         ~  ::  subs
     ==
-  ::  v5 -> v6: trigger invites profile update
+  ::  v5 -> v6: the invites profile update is triggered by v7 -> v8
   ::
-  =^  caz=(list card)  old
-    ?.  ?=(%5 -.old)  `old
-    :_  old(- %6)
-    =+  wait=(~(rad og eny.bowl) ~h1)
-    [%pass /load/profile %arvo %b %wait (add now.bowl wait)]~
+  =?  old  ?=(%5 -.old)  old(- %6)
   =?  old  ?=(%6 -.old)
     %=  old  -  %7
         open-describes
@@ -215,7 +225,16 @@
       ^-  (list (pair token:reel ?))
       (turn ~(tap in open-describes.old) (late &))  ::  force sync on open describes
     ==
-  ?>  ?=(%7 -.old)
+  ::  v7 -> v8: trigger invites profile update, rewriting every link's
+  ::  open-graph title with the current text. the wait is spread over a
+  ::  day so that upgrading ships don't reach the bait provider at once.
+  ::
+  =^  caz=(list card)  old
+    ?.  ?=(%7 -.old)  `old
+    :_  old(- %8)
+    =+  wait=(~(rad og eny.bowl) ~d1)
+    [%pass /load/profile %arvo %b %wait (add now.bowl wait)]~
+  ?>  ?=(%8 -.old)
   =.  state  old
   :_  this
   %+  weld  caz
@@ -507,8 +526,8 @@
           =/  title=@t
             %-  crip
             ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You've Been Invited"
-            "Tlon Messenger: {(trip u.nickname)} Sent You an Invite"
+              "Sato: You've Been Invited"
+            "Sato: {(trip u.nickname)} Sent You an Invite"
           =.  fields.update
             (~(put by fields.update) %'$og_title' title)
           =.  fields.update
@@ -693,11 +712,18 @@
       (~(handle-wakeup s [subs bowl]) wire)
     [caz this]
   ::
-      ::
       ::  trigger invites profile update
+      ::
+      ::  the cached profile is made to differ from .profile in its
+      ::  nickname, so the update runs even when the profile is unchanged.
+      ::
       [%load %profile ~]
     =/  profile
       .^(contact:t %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
+    =.  our-profile
+      ?^  (~(get cy:t profile) %nickname %text)
+        (~(del by profile) %nickname)
+      (~(put by profile) %nickname text+'')
     (on-agent /contacts %fact contact-response-0+!>([%self profile]))
   ==
 ++  on-fail

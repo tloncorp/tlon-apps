@@ -311,9 +311,9 @@ export const HomeSidebar = memo(
                   backgroundColor="$positiveBackground"
                   justifyContent="center"
                 >
-                  <Text fontSize="$l">Welcome to Tlon</Text>
+                  <Text fontSize="$l">Welcome to Sato</Text>
                   <Text fontSize="$s" marginTop="$m">
-                    This is Tlon, an app for messaging friends and constructing
+                    This is Sato, an app for messaging friends and constructing
                     communities.
                   </Text>
                   <Text fontSize="$s" marginTop="$m">

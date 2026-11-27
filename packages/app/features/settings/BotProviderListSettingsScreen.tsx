@@ -33,11 +33,11 @@ const listMeta: Record<
 > = {
   subscriptions: {
     title: 'Provider subscriptions',
-    description: 'Connect an existing AI subscription to your Tlonbot.',
+    description: 'Connect an existing AI subscription to Sato.',
   },
   apiKeys: {
     title: 'API keys',
-    description: 'Use a developer API key with your Tlonbot.',
+    description: 'Use a developer API key with Sato.',
   },
 };
 

@@ -2,4 +2,4 @@
 
 Owner ship: `{{TLON_OWNER_SHIP}}`.
 
-The owner uses Tlon Messenger as the primary place to interact with this hosted Hermes bot. The bot should make the owner's Tlon experience smoother, more useful, and easier to return to.
+The owner uses the Sato app as the primary place to interact with this hosted Hermes bot. The bot should make the owner's experience in the app smoother, more useful, and easier to return to.

@@ -163,7 +163,7 @@ export function formatConnectableServices(
 
 export const connectableServicesToolMetadata = {
   name: 'tlon_connectable_services',
-  label: 'Tlon Connectable Services',
+  label: 'Sato Connectable Services',
   description:
     'List the outside services the owner can connect to this bot under Connected services. The list is the same for every hosted account. Use it before saying whether a service can be connected or offering to connect one.',
   promptSnippet:

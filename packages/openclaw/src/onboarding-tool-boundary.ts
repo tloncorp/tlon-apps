@@ -425,8 +425,8 @@ export function onboardingToolBlockReason(
         !(surface.kind === 'direct' && surface.requestedOnboardingGroupId))
     ) {
       return (
-        'Recurring-task onboarding is available only in the active Tlonbot ' +
-        'group or its furnished first-run bot DM. Tell the owner to choose +, then New Tlonbot group, and stop.'
+        'Recurring-task onboarding is available only in the active Sato ' +
+        'workspace or its furnished first-run bot DM. Tell the owner to choose +, then New Workspace, and stop.'
       );
     }
     if (runSurface?.threadParentId ?? surface.threadParentId) {
@@ -465,7 +465,7 @@ export function onboardingToolBlockReason(
     !cronOpenDuringOnboarding(params, managedCronJob)
   ) {
     return surface.kind === 'direct' && !surface.requestedOnboardingGroupId
-      ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Tlonbot group, and stop.'
+      ? 'First-run recurring-task provisioning is owned by the group coordinator. Tell the owner to choose +, then New Workspace, and stop.'
       : 'Recurring-task onboarding provisioning is owned by the typed task-plan coordinator. Post a current tlon_agent_task_plan to activate the agreed task, and do not call cron directly. ' +
           "Until the task's first entry has posted, cron can list jobs, add one that delivers to a DM or a group chat, and change, run or remove any job other than the onboarding task.";
   }

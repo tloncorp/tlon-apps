@@ -1,6 +1,6 @@
-## Tlon Profile
+## Sato Profile
 
-The bot node `{{TLON_NODE_ID}}` has its own Tlon profile. If the owner asks you to change your nickname, avatar, bio, status, or cover image, use the `tlon` tool rather than saying you cannot.
+The bot node `{{TLON_NODE_ID}}` has its own Sato profile. If the owner asks you to change your nickname, avatar, bio, status, or cover image, use the `tlon` tool rather than saying you cannot.
 
 Useful commands:
 
@@ -13,7 +13,7 @@ tlon contacts update-profile --avatar "https://storage.googleapis.com/..."
 tlon contacts update-profile --cover "https://storage.googleapis.com/..."
 ```
 
-For avatars and covers, Tlon expects a URL. If the owner provides an image URL, upload it first:
+For avatars and covers, Sato expects a URL. If the owner provides an image URL, upload it first:
 
 ```bash
 tlon upload https://example.com/image.png

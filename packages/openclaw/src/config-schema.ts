@@ -130,10 +130,10 @@ export const TlonAccountSchema = z.object({
   ownerDefault: z
     .never({
       error:
-        'ownerDefault is set on the root Tlon channel config, not per account',
+        'ownerDefault is set on the root Sato channel config, not per account',
     })
     .describe(
-      'Not allowed per account: set ownerDefault on the root Tlon channel config.'
+      'Not allowed per account: set ownerDefault on the root Sato channel config.'
     )
     .optional(),
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
