@@ -37,6 +37,39 @@
   ?~  remaining  text
   $(remaining t.remaining, text (rap 3 text '\0a' i.remaining ~))
 ::
+::  +quoted: whether a story holds a code block, inline code or a blockquote
+::  anywhere, in a heading or a list as much as in prose
+::
+++  quoted
+  |=  =story:d
+  ^-  ?
+  %+  lien  story
+  |=  =verse:d
+  ?:  ?=([%inline *] verse)  (quoted-inlines p.verse)
+  ?+  -.p.verse  |
+    %code  &
+    %header  (quoted-inlines q.p.verse)
+    %listing  (quoted-listing p.p.verse)
+  ==
+::
+++  quoted-listing
+  |=  =listing:d
+  ^-  ?
+  ?:  ?=(%item -.listing)  (quoted-inlines p.listing)
+  |((quoted-inlines r.listing) (lien q.listing quoted-listing))
+::
+++  quoted-inlines
+  |=  inlines=(list inline:d)
+  ^-  ?
+  %+  lien  inlines
+  |=  =inline:d
+  ?@  inline  |
+  ?+  -.inline  |
+    ?(%blockquote %inline-code %code)  &
+    ?(%bold %italics %strike)  (quoted-inlines p.inline)
+    %task  (quoted-inlines q.inline)
+  ==
+::
 ++  inlines-to-text
   |=  inlines=(list inline:d)
   ^-  @t

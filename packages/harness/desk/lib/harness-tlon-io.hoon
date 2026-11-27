@@ -28,10 +28,35 @@
   %~  has  in
   .^((set @p) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/blocked/ships)
 ::
+::  +block: add .who to Tlon's native block list, as the app's Block does
+::
+::    %chat crashes on a ship it already blocks, so check +blocked first.
+::
+++  block
+  |=  [=wire who=@p]
+  ^-  card
+  [%pass wire %agent [our.bowl %chat] %poke %chat-block-ship !>(who)]
+::
 ++  accept-invitation
   |=  who=@p
   ^-  card
-  [%pass /invite/dm/(scot %p who) %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who &])]
+  (rsvp /invite/dm/(scot %p who) who &)
+::
+::  +decline-invitation: %chat deletes a pending invitation it is told to
+::  decline, but leaves an accepted DM it is told the same, so only a pending
+::  one may be declined
+::
+++  decline-invitation
+  |=  who=@p
+  ^-  card
+  (rsvp /invite/decline/(scot %p who) who |)
+::
+::  +rsvp: answer .who's DM invitation
+::
+++  rsvp
+  |=  [=wire who=@p ok=?]
+  ^-  card
+  [%pass wire %agent [our.bowl %chat] %poke %chat-dm-rsvp !>([who ok])]
 ::
 ++  publish
   |=  [wire=wire to=destination:t text=@t sent=@da blob=(unit @t)]

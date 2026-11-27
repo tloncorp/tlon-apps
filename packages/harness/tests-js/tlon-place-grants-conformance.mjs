@@ -71,9 +71,13 @@ async function mention(nest, label) {
 }
 const answered = async (nest, reply = 'answer') => Object.values((await scry(`channels/v5/${nest}/posts/newest/32/post`))?.posts || {})
   .some((post) => authorShip(post?.essay?.author) === ship && JSON.stringify(post.essay.content).includes(`${marker}-${reply}`))
+const now = () => ((BigInt(Date.now()) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n
+// Whether the bot's Activity lists a DM invitation from the peer after .since.
+const invitedSince = async (since) => Object.entries(await scry('activity/v6/all/64') ?? {})
+  .some(([at, event]) => BigInt(at.replaceAll('.', '')) > since && JSON.stringify(event['dm-invite'] ?? null).includes(peer))
 // The peer writes to the bot in their DM.
 async function dm(label) {
-  const da = (((BigInt(Date.now()) * (1n << 64n)) / 1000n) + 170141184475152167957503069145530368000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const da = now().toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   await poke('chat', 'chat-dm-action-2', {
     ship, diff: { id: `${peer}/${da}`, delta: { add: { time: null, essay: {
       content: [{ inline: [`${marker}-${label}`] }], author: peer, sent: Date.now(), kind: '/chat', meta: null, blob: null,
@@ -138,16 +142,20 @@ try {
   await until('a ship granted channel A is answered there', async () => await answered(roomA) && seen('channel-a'))
   await mention(roomB, 'channel-b')
   await ignored('channel-b', 'a mention in channel B from a ship granted channel A', posted(roomB, 'channel-b'))
+  // The DM falls within five minutes of the channel B attempt, so the denial limit
+  // drops its invitation and the bot declines it rather than leave it pending.
+  const beforeDm = now()
   await dm('dm-before')
-  await ignored('dm-before', 'a DM from a ship granted channel A', async () => (await dms('dm/invited')).includes(peer))
-  assert.ok((await dms('dm/invited')).includes(peer), 'a channel grant accepted the DM invitation')
-  assert.ok(!(await dms('dm')).includes(peer))
+  await ignored('dm-before', 'a DM from a ship granted channel A', () => invitedSince(beforeDm))
+  await until('the dropped DM invitation is declined', async () => !(await dms('dm/invited')).includes(peer))
+  assert.ok(!(await dms('dm')).includes(peer), 'a channel grant accepted the DM invitation')
   console.log('PASS a ship granted one channel is answered there and ignored in another channel and in DMs')
 
-  // A DM grant accepts the pending invitation and is answered there, not in channels.
+  // With a DM grant, the peer's next message invites the bot again; the invitation is
+  // accepted and answered there, not in channels.
   await configure({ dmGrants: [peer] })
-  await until('a DM grant accepts the pending invitation', async () => (await dms('dm')).includes(peer) && !(await dms('dm/invited')).includes(peer))
   await dm('dm-granted')
+  await until('a DM grant accepts the next invitation', async () => (await dms('dm')).includes(peer) && !(await dms('dm/invited')).includes(peer))
   await until('a ship granted its DM is answered there', () => dmAnswered('dm-granted'))
   assert.ok(!seen('dm-before'), 'a DM sent before the DM grant was answered')
   await mention(roomA, 'channel-a-dm-only')

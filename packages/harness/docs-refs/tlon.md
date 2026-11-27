@@ -639,13 +639,13 @@ where granted, read messages by every author.
 - When a request opens, the bot sends the owner, in the owner's DM with the
   bot, the approval card the OpenClaw plugin sends: who wrote and where, the
   first 100 characters of the message when the bot can read it, and Allow,
-  Reject and Block buttons. A tap sends the owner's DM post `/allow <id>`,
-  `/reject <id>` or `/ban <id>` as ordinary text. Nothing acts on these yet:
-  the bot answers each with its usual `Unknown command. Send /help for the
-  available commands.` The id is `d` for a DM or `c` for a channel and four
-  hex digits, or eight hex digits when ten tries at four collide with open
-  requests; it is unique among open requests. The card is sent once, not again
-  for later messages.
+  Reject and Block buttons. A tap sends the owner's DM post `/allow <id>
+  <token>`, `/reject <id> <token>` or `/ban <id> <token>`, the approval
+  commands below with the request's token, so a tap and the same text typed
+  have the same effect. The id is `d` for a DM or `c` for
+  a channel and four hex digits, or eight hex digits when ten tries at four
+  collide with open requests; it is unique among open requests. The card is
+  sent once, not again for later messages.
 - A request holds the ship, the place, its id and the time it opened, and
   nothing of the message: the preview is read when the card is built (for a DM
   invitation, from the invited DM on the ship) and kept only in the card.
@@ -665,10 +665,158 @@ where granted, read messages by every author.
   records nothing for a post from before the cutoffs that stop it being
   answered: the ship's own and, in a channel, the last change to the channel's
   replies.
-- A request closes when its ship gains access in its place, by any settings
-  save that gives it, and when the bot leaves or loses the channel. If
+- A request closes when the owner answers it with an approval command, and
+  when its ship gains access in its place, by any settings save that gives it.
+  Leaving or losing the channel does not close it: it stays open, counted
+  against both limits, until the owner answers it or it expires, so a group
+  host cannot free a ship's slot by removing the channel and adding it back,
+  and the ship's next attempt there after the bot joins again opens no request
+  and sends no card. A DM
+  request closes when the bot accepts the ship's invitation, by `accept_dm` or
+  because the ship gained DM access: nothing is left to approve. Writing
+  into the DM with another tool, such as `send_dm`, `react` or
+  `forward_message`, accepts the invitation in `%chat` but leaves the request
+  open until the owner answers it or it expires; its expiry then declines
+  nothing, since the invitation is no longer pending. If
   Messenger rejects the card, the request closes too, so none stays open that
   the owner was not told of; the ship's next attempt opens it again.
+- A request expires 48 hours after it opened, as on OpenClaw. The next poke,
+  timer, upload response or response from another agent the hand handles
+  after that expires it, before the hand does anything else for it; a client
+  opening or closing a subscription to the hand, a reload and the
+  acknowledgements of its profile claim, Steward lease and telemetry do not.
+  When none comes, the
+  maintenance wake does, since the earliest expiry is one of its deadlines,
+  recomputed from saved state after a reload. A disabled hand expires nothing
+  and puts no expiry on its wake; once it is enabled again, the next of these
+  or its wake expires what is due. Expiry is recorded in the activity feed as
+  `approval-expired`. When a DM request
+  expires, the bot also declines the ship's DM invitation if it is still
+  pending: `%chat` reports a pending invitation once and none of its later
+  messages, so an invitation left pending would keep the ship from reaching
+  the bot by DM. Declining deletes it, so the ship's next message invites the
+  bot again and opens a new request. Expiry comes first, so the decline reaches
+  `%chat` before an accept or a message the same event sends the ship; after
+  them, `%chat` would take it as leaving the DM and delete it.
+  An `accept_dm` that follows the decline opens a new, empty DM with the
+  ship. A channel request's expiry declines
+  nothing. After expiry, the same ship in the same place opens a new request,
+  and the owner gets a new card, under the same limits.
+- At most 100 requests are open at once, as on OpenClaw. At that limit an
+  attempt opens no request and sends no card, and the owner is told in the
+  same DM, at most once per ten minutes, `Pending approval queue is full
+  (100). New requests are dropped until existing ones are approved, denied,
+  or blocked.`, recorded in the activity feed as `approval-cap`. The ten
+  minutes are counted from that entry, so a second notice can come sooner
+  once the feed has dropped it.
+- One ship has at most 5 requests open, across its DM and all channels. A
+  ship at that limit opens no request in a further place, and neither the ship
+  nor the owner is told, until one of its requests closes or expires.
+- When one of these limits, or the limit on `permission-denied` entries,
+  keeps a ship's DM invitation from opening a request it would otherwise
+  open, the bot declines the invitation, for the reason expiry does: left
+  pending, `%chat` would report none of the ship's later messages. The ship's
+  next message invites the bot again and is a new attempt, under the same
+  limits. An invitation
+  that would open no request anyway, from a comet, a blocked ship, or while
+  the hand has no explicit owner or is disabled, stays pending, and is
+  accepted if the ship gains access later.
+- A comet opens no request and sends no card; its attempt is still recorded
+  as `permission-denied`. The owner can give a comet access in settings, and a
+  comet with access is answered like any other ship.
+
+The owner answers a request with an approval command, `/allow <id>`,
+`/reject <id>` or `/ban <id>`, typed or sent by the card's button, in a DM
+with the bot. The Tlon hand reads these itself, as the OpenClaw plugin does,
+before a message would reach the head: an approval command never starts a
+turn and is not passed to the model as a message. The model's Tlon history
+tools, where granted, can still read it like any message on the ship. `/help`, which lists the head's commands, does not list them. The
+approval commands need an owner that is a different ship from the bot: the
+hand handles no message from its own ship.
+
+- Only the owner may use them: the explicit owner, or a sibling moon while
+  sibling moons count as owners, as for every other owner check. A command
+  in a DM from any other ship, with access or without, trusted or not, is
+  dropped: it changes nothing, gets no reply, starts no turn and opens no
+  request. The message with which a ship
+  opens a new DM with the bot reaches the hand only as a DM invitation, which
+  is handled as an invitation whatever that message says: from a ship without
+  DM access it is treated as any such invitation is, opening a request when
+  the limits allow, and from a ship with DM access the invitation is accepted
+  and that message is not handled.
+- A command counts only in the owner's DM with the bot, where the card is,
+  as a post or a reply in one of its threads; the reply is posted there,
+  outside a turn, like the card, in the same thread. The network
+  authenticates a DM's author, but a channel post's author is whatever the
+  channel's host reports, so a host could post a command as the owner. In a
+  channel, the text of a command, from anyone, the apparent owner included,
+  is not a command: it is an ordinary message, admitted or treated as an
+  attempt as any other message there would be. OpenClaw takes them in a
+  channel too; this differs on purpose. Catch-up carries out no command from
+  before the owner's admission cutoff.
+- The id is the rest of the text, trimmed, matched as OpenClaw matches it:
+  the exact id, else the one open id it begins, case as typed. With no id the
+  command acts on the open request only when it is the only one. With more
+  than one open it acts on none, so that it cannot act on a request the owner
+  did not mean, and the reply lists them, oldest first, one line each with id,
+  ship and place: `More than one approval is pending. Send the command again
+  with an ID:`, then lines such as `c1a2b ~ship chat/~host/name` or
+  `d3c4d ~ship dm/~ship`. OpenClaw acts on the newest; this differs on
+  purpose. A request whose 48 hours have
+  passed is never looked up, even when a reload's catch-up reaches the
+  command before anything has expired the request; the command does not
+  expire it, so that no decline follows an accept the same event sent. An
+  id that names no open request,
+  including a closed or expired one from an older card, changes nothing and
+  gets `No pending approval found for ID: #<id>`, or `No pending approval
+  found.` with no id; ids are unique only among open requests and are not
+  remembered once closed.
+- A message that holds inline code, a code block or a blockquote anywhere,
+  in a heading or a list as in prose, is not an approval command, even when the command is outside them: a command
+  shown as code or quoted is talked about, not given, and the message is
+  handled as any other. Harness's other slash commands are read as before.
+- A request's token is a hash of its id, ship, place and opening time, sent
+  as `@uv` (`0v…`). No two requests share a ship and an opening time, since
+  the denial limit lets a ship open at most one request per five minutes, so
+  a token names one request ever. When a token follows the id after one
+  space, as the card's buttons send it, the id must be exact, with no prefix
+  match, and the token must be that request's; otherwise the command gets the
+  unknown-id reply. A stale card's button therefore never acts on a later
+  request that reused its id, the same ship's in another place included, or
+  on one whose longer id begins with it. A command typed without a token
+  keeps the prefix match. OpenClaw's buttons send the id alone.
+- `/allow` gives the ship access in the request's place only, as a settings
+  save that adds a per-place grant does, with the same cutoffs and
+  cancellation: a DM request adds a DM grant, and the ship's pending DM
+  invitation is then accepted; a channel request adds a grant for that
+  channel. The ship's next message there is answered; the message it asked
+  with is not. The reply is `Approved DM access for ~ship. They will be able
+  to message the bot.` or `Approved ~ship for <channel>. They will be able to
+  interact in this channel.`, where the channel is named `Title in Group
+  (chat/~host/name)`, or with what of the titles it has.
+- `/reject` closes the request and gives nothing, so the ship can ask again.
+  For a DM request it also declines the ship's pending DM invitation, as
+  expiry does, so its next message invites the bot again. The reply is
+  `Denied DM request from ~ship.` or `Denied ~ship for <channel>.`
+- `/ban` blocks the ship with Tlon's native block list, as OpenClaw does
+  (the `%chat` block the app's Block sends). Once `%chat` has the block, the
+  ship's requests in every place close, its DM grant, if it has one, is
+  removed, its pending DM invitation is declined, and the reply is `Blocked
+  ~ship. They will no longer be able to contact the bot.` A blocked ship opens
+  no request. Grants for channels and the ship-wide lists are left as they
+  are; OpenClaw's ban likewise removes only DM access. If `%chat` refuses the
+  block, nothing else changes, the request stays open and the owner is told
+  `Could not block ~ship: block failed. Request stays pending, try again.` A
+  ship this ship already blocks is not blocked again. When `%chat` refuses
+  the block but has the ship on its block list by then, as when the owner
+  taps Block twice and both blocks are sent before the first is
+  acknowledged, the ban is carried out as if the block had been accepted:
+  the same closing and the same reply, with nothing left to close the second
+  time.
+- Each command is recorded in the activity feed as `approval-allowed`,
+  `approval-rejected` or `approval-banned`, with the request's id, and a
+  refused block as `approval-ban-failed`. The maintenance wake moves to the
+  next open request's expiry.
 
 - New owner conversations inherit the tools in **Settings → Defaults**, not the
   entire catalog. Existing conversations keep their configured grants. Ownership
@@ -722,8 +870,8 @@ where granted, read messages by every author.
   channel still answers every reader, and in a channel the ship also needs
   native read permission. When the bot leaves a channel or loses it (it
   leaves or is kicked from the group, or the channel or group is deleted),
-  every grant and open request for that channel is removed, so joining again
-  finds none. The
+  every grant for that channel is removed, so joining again finds none; an
+  open request there stays (see above). The
   `trusted` list holds at most 64 ships; the allowed list and per-place grants
   have no size limit.
 - Group invitations are accepted when sent by the owner or by a ship on a
@@ -1275,7 +1423,7 @@ message in the channel.
 tool with automatic replies disabled; `tests-js/tlon-denial-conformance.mjs`
 checks approval requests from a DM on two real ships: a disabled hand opens
 none; a DM from a ship without access opens one request and sends the owner one
-card, whose buttons carry the request's id; a later message and a fresh
+card, whose buttons carry the request's id and token; a later message and a fresh
 invitation in the same DM, within the denial limit, record no second denial and
 open nothing more; nothing the peer sends starts a model turn or gets an
 answer; and giving the peer access closes the request, accepts its pending
@@ -1283,14 +1431,36 @@ invitation, notes the acceptance and answers only what it sends afterward.
 `tests-js/tlon-approval-channel-conformance.mjs` checks the same in a fresh
 channel: a post that does not mention the bot opens nothing, a mention opens one
 request and one card, a thread reply within the limit opens nothing more, and
-leaving the channel closes it. Both print each card's A2UI entry on a `CARD`
+leaving the channel leaves the request open. Both print each card's A2UI entry on a `CARD`
 line, to check with the app's validator.
 `desk/tests-integration/harness-tlon-approvals.hoon` covers these rules on the
 agent, with those a two-ship script cannot reach within the denial limit: a
 later message joining the open request, the same ship in a second place, a
 blocked ship, a channel with replies off, a ship with access whose text is not
-admitted, a declined invitation, a channel the bot is not in, catch-up across a
-channel policy change, the limit itself and a rejected card.
+admitted, a declined invitation, a channel the bot is not in, a channel the bot
+leaves and joins again, catch-up across a channel policy change, the limit
+itself and a rejected card.
+`tests-js/tlon-approval-commands-dm-conformance.mjs` and
+`tests-js/tlon-approval-commands-channel-conformance.mjs` check the approval
+commands on three ships, the bot and two others that take turns as its owner
+and as the ship that asks: the owner's tap on Allow gives a DM request DM
+access, accepts the invitation and answers the ship's next message; the
+owner's typed `/allow` gives a channel request that channel only, so the ship
+is answered there and not in a DM; the owner's `/allow` posted in the channel
+is an ordinary message, answered as any unknown slash text, and grants nothing; the owner's
+`/reject` typed in the DM then leaves the ship unanswered with no request
+open; a command from a ship with DM access that is not the owner changes
+nothing and gets no reply; and no DM command text is in a model request. The two run
+apart, since the denial limit lets a ship ask once per five minutes.
+`desk/tests-integration/harness-tlon-approvals.hoon` covers each command on DM
+and channel requests, `/ban`'s block, its refusal and a second refused tap, unknown, closed and
+expired ids, an overdue request's id in a command caught up on reload, a button whose id was reused, by another ship or by the same
+ship in another place, or extended, a command with no id
+among one or several requests, a command in a DM thread, a command in
+inline code, in a blockquote, beside a code block, and in inline code in a
+heading or a list, a
+command from a trusted ship that is not the owner, and a command in a channel,
+the owner's included, handled as an ordinary message.
 `tests-js/tlon-place-grants-conformance.mjs` checks per-place grants between
 two ships with a local stand-in provider: a peer granted one channel is answered
 there and ignored in another channel and in DMs, a DM grant accepts the pending

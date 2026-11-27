@@ -26,9 +26,10 @@
 
 # Scripts that check they run on ~lux.
 lux_tests="tlon-notes-conformance tlon-completion-conformance tlon-hooks-publishing-conformance"
-# Scripts that need ~nec: one on ~nec alone, and one with ~zod as the bot, ~lux as its
-# owner and ~nec as a guest in the same channel.
-nec_tests="tlon-permissions-conformance tlon-shared-channel-conformance"
+# Scripts that need ~nec: one on ~nec alone, and those with ~zod as the bot and ~lux
+# and ~nec in the same channel, as owner, guest or a ship that asks for access.
+three_tests="tlon-shared-channel-conformance tlon-approval-commands-dm-conformance tlon-approval-commands-channel-conformance"
+nec_tests="tlon-permissions-conformance $three_tests"
 
 # A group's test files, in the order the full run takes them: the offline tests, the
 # live scripts on ~zod, with ~lux as their peer, those on ~lux and those needing ~nec.
@@ -67,7 +68,7 @@ then
 fi
 
 # Is the test file of this group in this shard? The last shard takes the offline tests
-# and the ~lux and ~nec scripts; it boots ~zod only for the shared channel script. The
+# and the ~lux and ~nec scripts; it boots ~zod only for the scripts that need three ships. The
 # others deal out the ~zod scripts in turn, sorted bytewise so that every machine deals
 # them alike; that also spreads the slow tlon- scripts, which sort together.
 function in_shard
@@ -762,7 +763,12 @@ then
     fi
   fi
 
-  if matches tlon-shared-channel-conformance && shard_has nec
+  three_matched=
+  for name in $three_tests
+  do
+    matches "$name" && three_matched="$three_matched $name"
+  done
+  if [ -n "$three_matched" ] && shard_has nec
   then
     echo "Live tests on ~zod with ~lux and ~nec in one channel"
     if boot_ships zod 9190 lux 9191 nec 9192
@@ -775,7 +781,10 @@ then
         SHIP_URL=$GUEST_URL SHIP_COOKIE=$GUEST_COOKIE node tests-js/lib/test-channel.mjs > /dev/null 2>> "$logs/test-channel.log"
       then
         export TEST_NEST
-        live tlon-shared-channel-conformance tests-js/tlon-shared-channel-conformance.mjs nec
+        for name in $three_matched
+        do
+          live "$name" "tests-js/$name.mjs" nec
+        done
       else
         result test-channel "FAILED (see $logs/test-channel.log)"
       fi

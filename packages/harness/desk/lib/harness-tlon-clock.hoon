@@ -1,6 +1,7 @@
-::  Maintenance and bounded Activity catch-up only. Publication retries never
+::  Maintenance, request expiry and bounded Activity catch-up only. Publication retries never
 ::  create timers: native head invalidations and receipts drive delivery.
 /-  t=harness-tlon
+/+  ask=harness-tlon-approval
 |%
 ::
 ++  deadline
@@ -23,6 +24,8 @@
     %+  murn  ~(val by records.lens.state)
     |=  record=lens-record:t
     next.record
+  =/  expiry  ?.(enabled.policy.state ~ (next-expiry:ask approvals.state))
+  =?  times  ?=(^ expiry)  [u.expiry times]
   =?  times  &(enabled.policy.state !watching.state)  [(add now ~s2) times]
   =?  times  &(enabled.policy.state catching-up.state)  [(add now ~s1) times]
   ?~  times  ~

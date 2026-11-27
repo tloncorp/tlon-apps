@@ -49,12 +49,16 @@
   +*  this  .
       def  ~(. (default-agent this %.n) bowl)
       cor  ~(. +> [bowl ~])
+      ::  An event first expires what is due, so a DM decline reaches %chat
+      ::  before anything the event sends there: a decline after an accept,
+      ::  or after a message that accepts implicitly, deletes the DM.
+      due  expire-approvals:cor
   ++  on-init
     ::  Listen from installation; owner/trust policy still gates every sender.
     ::  Saved enable/disable choices are preserved by on-load.
     =.  state  state(policy [& ~ ~ %mentions ~ ~ ~ ~], watching |, activity-through now.bowl)
     =.  state  initialize-owner:cor
-    =^  cards  state  abet:boot:refresh-peers:cor
+    =^  cards  state  abet:boot:refresh-peers:due
     [cards this]
   ++  on-save  !>(state)
   ++  on-load
@@ -73,17 +77,17 @@
     ?>  =(our.bowl src.bowl)
     ?:  =(%harness-hosted mark)
       =/  request  !<(request:hosted vase)
-      =/  result  (permission-request:cor action.request args.request)
+      =/  result  (permission-request:due action.request args.request)
       =/  response  -.result
       =/  engine  +.result
       =^  cards  state
         abet:(emit:engine [%give %fact ~[/hosted/[id.request]] %json !>(response)])
       [cards this]
     ?:  =(%harness-tool mark)
-      =^  cards  state  abet:(tool:cor !<(tool-request:ad vase))
+      =^  cards  state  abet:(tool:due !<(tool-request:ad vase))
       [cards this]
     ?>  =(%noun mark)
-    =^  cards  state  abet:(request:cor !<(request:ad vase))
+    =^  cards  state  abet:(request:due !<(request:ad vase))
     [cards this]
   ::
   ++  on-watch
@@ -185,7 +189,7 @@
         =^  cards  state  abet:cor
         [cards this]
       ==
-    =^  cards  state  abet:(agent:cor wire sign)
+    =^  cards  state  abet:(agent:due wire sign)
     [cards this]
   ::
   ++  on-arvo
@@ -196,11 +200,11 @@
       [cards this]
     ?:  &(?=([%media @ @ ~] wire) ?=([%iris %http-response *] sign))
       =^  cards  state
-        abet:(receive-upload:cor (slav %uv i.t.wire) i.t.t.wire client-response.sign)
+        abet:(receive-upload:due (slav %uv i.t.wire) i.t.t.wire client-response.sign)
       [cards this]
     ?.  &(?=([%poll ~] wire) ?=([%behn %wake *] sign))  `this
     =.  wake  ~
-    =^  cards  state  abet:maintain:cor
+    =^  cards  state  abet:maintain:due
     [cards this]
   ::
   ++  on-fail
@@ -211,7 +215,6 @@
     ==
   --
 ::  Effect-building core: each arm carries state and cards in reverse order.
-::  +abet schedules maintenance and returns the cards in dispatch order.
 ::
 |_  [=bowl:gall cards=(list card)]
 +*  messenger  ~(. io bowl)
@@ -228,6 +231,7 @@
   =.  policy  policy(owner explicit.seeded)
   ?~  owner.policy  state
   state(cuts (~(put by cuts) u.owner.policy now.bowl))
+::  +abet: schedule maintenance and return the cards in dispatch order
 ::
 ++  abet
   =/  engine  schedule:sync-liveness
@@ -816,8 +820,29 @@
 ++  accept-invitation
   |=  who=@p
   ^+  cor
+  =.  cor  (accepted who)
   =.  cor  (note 'dm-invite' who (scot %p who) '')
   (emit (accept-invitation:messenger who))
+::  +accepted: close .who's DM request, as the bot accepts its invitation;
+::  there is nothing left to approve
+::
+++  accepted
+  |=  who=@p
+  ^+  cor
+  =/  id  (find:ask approvals who ~)
+  ?~  id  cor
+  cor(approvals (close:ask approvals u.id))
+::  +decline-invitation: decline .who's DM invitation if it is still pending
+::
+::    %chat deletes it, so the ship's next message invites the bot again.
+::
+++  decline-invitation
+  |=  who=@p
+  ^+  cor
+  =/  pending
+    (mole |.((granted-invitations:messenger |=(invited=@p =(who invited)))))
+  ?.  ?=([~ ^] pending)  cor
+  (emit (decline-invitation:messenger who))
 ::
 ++  publications-connected
   ^-  ?
@@ -1594,6 +1619,8 @@
   ?~  effect.u.built  (finish-tool id (clip:ht body.u.built 24.000))
   =/  receipt  (~(got by tool-receipts) id)
   =.  tool-receipts  (~(put by tool-receipts) id receipt(body body.u.built))
+  =?  cor  =(`[%s 'accept_dm'] action)
+    (accepted (ship:tlon-spec (required:tlon-spec u.parsed 'ship' 128)))
   (emit u.effect.u.built)
 ::
 ++  tool-conversation
@@ -2686,6 +2713,7 @@
     [%tlon-notes @ ~]  (agent-tlon-notes wire sign)
     [%profile @ @ ~]  (agent-profile wire sign)
     [%invite %dm @ ~]  (agent-invite-dm wire sign)
+    [%invite %decline @ ~]  (agent-decline wire sign)
     [%client @ ~]  (agent-client wire sign)
     [%activity ~]  (agent-activity wire sign)
     [%route @ @ @ ~]  (agent-route wire sign)
@@ -2693,6 +2721,9 @@
     [%hand @ @ ~]  (agent-hand wire sign)
     [%refusal @ ~]  (agent-refusal wire sign)
     [%approval @ @ ~]  (agent-approval wire sign)
+    [%approval-full @ ~]  (agent-approval-full wire sign)
+    [%approval-ban @ @ @ ~]  (agent-approval-ban wire sign)
+    [%approval-reply @ ~]  (agent-approval-reply wire sign)
     [%publish @ @ ~]  (agent-publish wire sign)
   ==
 ::
@@ -2755,17 +2786,17 @@
     (confirmed:engine proof)
   ==
 ::
-::  +left: the bot left or lost a channel; its per-place grants and open
-::  requests there go
+::  +left: the bot left or lost a channel; its per-place grants there go
 ::
 ::    Groups leaves a deleted channel, and every channel of a group the bot
 ::    leaves, is kicked from or sees deleted, through %channels, which
-::    reports each leave with this response.
+::    reports each leave with this response. Open requests there stay until
+::    answered or expired: a host could otherwise free a ship's slots by
+::    removing and re-adding the channel, and send the owner a card each time.
 ::
 ++  left
   |=  nest=nest:dv
   ^+  cor
-  =.  approvals  (keep:ask approvals |=(=approval:t !=(`nest place.approval)))
   ?.  (~(has by channel-grants.policy) nest)  cor
   (configure policy(channel-grants (~(del by channel-grants.policy) nest)) sibling-moon-owners)
 ::
@@ -3005,6 +3036,16 @@
   |=  [event=incoming-event:v8:a engine=_cor]
   (activity:engine event)
 ::
+++  agent-decline
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%invite %decline @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: DM invitation decline rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %invitation-decline u.p.sign))
+  cor(error 'Messenger rejected a DM invitation decline; inspect the ship log.')
+::
 ++  agent-client
   |=  [=wire =sign:agent:gall]
   ^+  cor
@@ -3174,6 +3215,16 @@
   =/  to  (place-to:p [who place]:u.found)
   (note 'approval-card-rejected' who.u.found (address:p to) id)
 ::
+++  agent-approval-full
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%approval-full @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: full approval queue notice rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-full u.p.sign))
+  cor(error 'Messenger rejected a full approval queue notice; inspect the ship log.')
+::
 ++  agent-publish
   |=  [=wire =sign:agent:gall]
   ^+  cor
@@ -3275,6 +3326,9 @@
     =/  effects  (mole |.((reconcile:~(. io:membership bowl) u.changed)))
     ?~  effects  cor(error 'Could not inspect group channels after our role change.')
     (roll u.effects |=([effect=card engine=_cor] (emit:engine effect)))
+  ::  An approval command is the adapter's own; it never reaches the head.
+  =/  order  (approval-order event)
+  ?^  order  (carry-order who.u.order order.u.order event)
   =.  cor  (deny-unpermissioned event)
   =/  group-notice=(unit [actor=@p host=@p name=@ta])
     ?+  -.event  ~
@@ -3386,9 +3440,16 @@
           (lte (posted-at:continuity event) cutoff)
       ==
     cor
-  =/  id  (scot %uv (sham event))
+  ::  The id keeps one attempt from being recorded twice. Every invitation
+  ::  from a ship is the same event, and one a limit declined is followed by
+  ::  a new one, a new attempt.
+  =/  id  (scot %uv (sham ?:(?=(%dm-invite -.event) [event now.bowl] event)))
   ::  The denial limit also bounds how fast the owner is sent cards.
-  ?.  (allowed:denial now.bowl u.sender id notices)  cor
+  ?.  (allowed:denial now.bowl u.sender id notices)
+    ::  An invitation the limit drops is declined as one a cap drops, when
+    ::  it would otherwise open a request.
+    ?.  &(?=(%dm-invite -.event) (askable u.sender place))  cor
+    (dropped u.sender event)
   =.  cor  (note 'permission-denied' u.sender (scot %p u.sender) id)
   (ask-owner u.sender place event cutoff)
 ::  +admission-cutoff: the latest authority change a speaker's message in .to
@@ -3410,21 +3471,16 @@
   ^+  cor
   =/  owner  owner.policy
   ?~  owner  cor
-  ?^  (find:ask approvals who place)  cor
-  ::  A channel that answers nobody would not answer the ship once allowed.
-  ?:  &(?=(^ place) =(%off response:(channel-rule:p policy u.place)))  cor
-  ::  Nor would a channel the ship cannot read.
-  ?:  &(?=(^ place) !(native-read who u.place))  cor
-  ::  Activity outlives a declined invitation and a channel the bot left;
-  ::  there is nothing to approve there, and the card's preview must not read
-  ::  what is gone.
-  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  cor
-  ?:  (blocked:messenger who)  cor
+  ?.  (askable who place)  cor
+  ::  A ship at its own limit is ignored silently, without the owner's notice.
+  ?:  (gte (held:ask approvals who) ship-limit:ask)  (dropped who event)
+  =/  total  ~(wyt by by-id.approvals)
+  ?:  (gte total limit:ask)  (dropped:(approvals-full who place total) who event)
   =/  id  (fresh-id:ask approvals place eny.bowl)
   =.  approvals  (open:ask approvals id [who place now.bowl])
   =.  cor  (note 'approval-request' who (address:p (place-to:p who place)) id)
   =/  [text=@t blob=@t]
-    (card:ask id who (approval-channel place) (approval-preview who event cutoff))
+    (card:ask id [who place now.bowl] (approval-channel place) (approval-preview who event cutoff))
   =.  last-sent  (next-message-stamp:p now.bowl last-sent)
   %-  emit
   %:  publish:messenger
@@ -3434,6 +3490,218 @@
     last-sent
     `blob
   ==
+::  +askable: whether .who's attempt in .place would open a request, were it
+::  not for the limits on how many are open
+::
+++  askable
+  |=  [who=@p =place:t]
+  ^-  ?
+  ?~  owner.policy  |
+  ::  A comet costs nothing to make, so its requests would be unbounded.
+  ?:  ?=(%pawn (clan:title who))  |
+  ?^  (find:ask approvals who place)  |
+  ::  A channel that answers nobody would not answer the ship once allowed.
+  ?:  &(?=(^ place) =(%off response:(channel-rule:p policy u.place)))  |
+  ::  Nor would a channel the ship cannot read.
+  ?:  &(?=(^ place) !(native-read who u.place))  |
+  ::  Activity outlives a declined invitation and a channel the bot left;
+  ::  there is nothing to approve there, and the card's preview must not read
+  ::  what is gone.
+  ?.  (available:~(. conversation-tool bowl) (place-to:p who place))  |
+  !(blocked:messenger who)
+::  +dropped: a limit kept .event from opening a request
+::
+::    %chat reports a pending invitation once, so an invitation left pending
+::    would keep the ship from ever opening a request by DM. Declined, the
+::    ship's next message invites the bot again and has another chance.
+::
+++  dropped
+  |=  [who=@p event=incoming-event:v8:a]
+  ^+  cor
+  ?.  ?=(%dm-invite -.event)  cor
+  (decline-invitation who)
+::  +approvals-full: tell the owner no more requests open, at most once per
+::  ten minutes
+::
+++  approvals-full
+  |=  [who=@p =place:t total=@ud]
+  ^+  cor
+  =/  owner  owner.policy
+  ?~  owner  cor
+  ?.  (full-allowed:ask now.bowl notices)  cor
+  =.  cor  (note 'approval-cap' who (address:p (place-to:p who place)) (crip (a-co:co total)))
+  =.  last-sent  (next-message-stamp:p now.bowl last-sent)
+  %-  emit
+  %:  publish:messenger
+    /approval-full/(scot %da now.bowl)
+    [%dm u.owner ~]
+    (full-text:ask total)
+    last-sent
+    ~
+  ==
+::  +expire-approvals: close every request open for its whole lifetime
+::
+::    %chat reports a pending invitation once and no later messages, so a DM
+::    request's invitation is declined; left pending, it would keep the ship
+::    from reaching the bot by DM. Each poke, timer and agent response the
+::    agent's arms pass on runs this first, so it does nothing until the
+::    earliest expiry is due, and nothing while the hand is disabled.
+::
+++  expire-approvals
+  ^+  cor
+  ?.  enabled.policy  cor
+  =/  next  (next-expiry:ask approvals)
+  ?~  next  cor
+  ?:  (gth u.next now.bowl)  cor
+  %+  roll  (expired:ask approvals now.bowl)
+  |=  [[id=@t =approval:t] engine=_cor]
+  =.  approvals.engine  (close:ask approvals.engine id)
+  =.  engine
+    (note:engine 'approval-expired' who.approval (address:p (place-to:p [who place]:approval)) id)
+  ?^  place.approval  engine
+  (decline-invitation:engine who.approval)
+::  +approval-order: an approval command in a DM, and its author
+::
+::    Only a DM: the network authenticates a DM's author, while a channel
+::    post's is whatever the channel's host reports, so in a channel the
+::    text is an ordinary message. Read whoever wrote it, so that one from a
+::    ship that is not the owner is dropped before it could open a request
+::    or start a turn.
+::
+++  approval-order
+  |=  event=incoming-event:v8:a
+  ^-  (unit [who=@p =order:ask])
+  =/  said=(unit [who=@p content=story:v9:dv])
+    ?+  -.event  ~
+      %dm-post  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event content.event])
+      %dm-reply  ?.(?=(%ship -.whom.event) ~ `[p.id.key.event content.event])
+    ==
+  ?~  said  ~
+  ?:  =(our.bowl who.u.said)  ~
+  ::  A command shown as code or quoted is talked about, not given.
+  ?:  (quoted:story content.u.said)  ~
+  =/  order  (read-order:ask (story-to-text:story content.u.said))
+  ?~(order ~ `[who.u.said u.order])
+::  +carry-order: carry out the owner's approval command, answering in the
+::  DM it came from
+::
+::    Anyone else's is dropped unanswered.
+::
+++  carry-order
+  |=  [who=@p =order:ask event=incoming-event:v8:a]
+  ^+  cor
+  ?.  (actor-owner who)  cor
+  =/  heard  (normalize-owned:p our.bowl policy event actor-owner)
+  ?~  heard  cor
+  =/  to  to.u.heard
+  ?:  (lte (posted-at:continuity event) (admission-cutoff who to))  cor
+  ::  A request past its lifetime is not looked up, though a reload's
+  ::  catch-up reaches here before anything expires it. Expiring it here
+  ::  instead could decline a DM after an accept this event already sent.
+  =/  live  (live:ask approvals now.bowl)
+  ::  Among several, a bare command could act on a request the owner did
+  ::  not mean, so it lists them instead.
+  ?:  &(?=(~ id.order) (gth ~(wyt by by-id.live) 1))
+    (answer-order to (choices:ask live))
+  =/  found  (pick:ask live [id token]:order)
+  ?~  found  (answer-order to (unknown:ask id.order))
+  =/  [id=@t =approval:t]  u.found
+  =/  address  (address:p (place-to:p [who place]:approval))
+  ?-    action.order
+      %allow
+    =/  granted=policy:t
+      ?~  place.approval
+        policy(dm-grants (~(put in dm-grants.policy) who.approval))
+      =/  ships  (fall (~(get by channel-grants.policy) u.place.approval) ~)
+      %=  policy
+        channel-grants
+          (~(put by channel-grants.policy) u.place.approval (~(put in ships) who.approval))
+      ==
+    ::  The settings save closes the request, sets cutoffs and, for a DM,
+    ::  accepts the ship's pending invitation.
+    =.  cor  (configure granted sibling-moon-owners)
+    =.  approvals  (close:ask approvals id)
+    =.  cor  (note 'approval-allowed' who.approval address id)
+    (answer-order to (confirmation:ask %allow who.approval (place-label place.approval)))
+  ::
+      %reject
+    =.  approvals  (close:ask approvals id)
+    =.  cor  (note 'approval-rejected' who.approval address id)
+    ::  Left pending, the invitation would keep the ship from asking again.
+    =?  cor  ?=(~ place.approval)  (decline-invitation who.approval)
+    (answer-order to (confirmation:ask %reject who.approval (place-label place.approval)))
+  ::
+      %ban
+    ?:  (blocked:messenger who.approval)  (banned who.approval id to)
+    ::  The ban is carried out once %chat has the block, so a refused block
+    ::  leaves the request open.
+    =/  =wire  /approval-ban/(scot %p who.approval)/[id]/(scot %uv (jam to))
+    (emit (block:messenger wire who.approval))
+  ==
+::  +banned: close a blocked ship's requests and take back its DM grant
+::
+++  banned
+  |=  [who=@p id=@t to=destination:t]
+  ^+  cor
+  =/  found  (~(get by by-id.approvals) id)
+  =/  address
+    ?~  found  (scot %p who)
+    (address:p (place-to:p [who place]:u.found))
+  =.  approvals  (keep:ask approvals |=(=approval:t !=(who who.approval)))
+  =?  cor  (~(has in dm-grants.policy) who)
+    (configure policy(dm-grants (~(del in dm-grants.policy) who)) sibling-moon-owners)
+  =.  cor  (decline-invitation who)
+  =.  cor  (note 'approval-banned' who address id)
+  ::  A block refused earlier is no longer the hand's state once one took.
+  =?  error  =(error block-refused)  ''
+  (answer-order to (confirmation:ask %ban who ~))
+::
+++  block-refused  'Messenger rejected a block; inspect the ship log.'
+::
+++  agent-approval-ban
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%approval-ban @ @ @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  =/  who=@p  (slav %p i.t.wire)
+  =/  id  i.t.t.wire
+  =/  to  ;;(destination:t (cue (slav %uv i.t.t.t.wire)))
+  ?~  p.sign  (banned who id to)
+  ::  A second tap's block, sent before the first was acknowledged, is
+  ::  refused because the first took: the ban stands.
+  ?:  (blocked:messenger who)  (banned who id to)
+  %-  (slog 'harness-tlon: block rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-ban u.p.sign))
+  =.  error  block-refused
+  =.  cor  (note 'approval-ban-failed' who (scot %p who) id)
+  (answer-order to (block-failed:ask who))
+::  +answer-order: the owner's reply to an approval command, outside a turn
+::
+++  answer-order
+  |=  [to=destination:t text=@t]
+  ^+  cor
+  ::  The owner's first post in the DM the card opened makes %chat add a
+  ::  join message as [our now] in this same event; a reply with that id
+  ::  would be dropped from the bot's own copy of the DM.
+  =.  last-sent  (next-message-stamp:p +(now.bowl) last-sent)
+  (emit (publish:messenger /approval-reply/(scot %da last-sent) to text last-sent ~))
+::
+++  agent-approval-reply
+  |=  [=wire =sign:agent:gall]
+  ^+  cor
+  ?>  ?=([%approval-reply @ ~] wire)
+  ?.  ?=(%poke-ack -.sign)  cor
+  ?~  p.sign  cor
+  %-  (slog 'harness-tlon: approval command reply rejected' u.p.sign)
+  =.  cor  (emit (crash:observe bowl %approval-reply u.p.sign))
+  cor(error 'Messenger rejected an approval command reply; inspect the ship log.')
+::  +place-label: a request's channel as a reply names it, or ~ for a DM
+::
+++  place-label
+  |=  =place:t
+  ^-  (unit @t)
+  ?~  place  ~
+  `(channel-label:ask (address:p [%channel u.place ~]) name.u.place (approval-channel place))
 ::  +approval-channel: a channel's title and its group's, as the card names
 ::  them; ~ for a DM
 ::
